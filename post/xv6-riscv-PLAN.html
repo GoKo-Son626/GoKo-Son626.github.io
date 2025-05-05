@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>xv6-riscv_PLAN - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="How do you learn in 12 hours? from chatgpt, but I do it.   🕐 第 1 阶段：xv6 是怎么“活”起来的（0–2h）⬛ 第0章：xv6 overview （PDF开头）学习目标：大致知道 xv6 有哪些模块，调用图 方法：通读目录，理解它的子系统划分、进程图 ⬛ 第1章：启动与用户态文件：kernel&amp;#x2F;entry.S, kernel&amp;#x2F;s"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="How do you learn in 12 hours? from chatgpt, but I do it.   🕐 第 1 阶段：xv6 是怎么“活”起来的（0–2h）⬛ 第0章：xv6 overview （PDF开头）学习目标：大致知道 xv6 有哪些模块，调用图 方法：通读目录，理解它的子系统划分、进程图 ⬛ 第1章：启动与用户态文件：kernel&amp;#x2F;entry.S, kernel&amp;#x2F;s"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2025-05-04T14:12:12.000Z"><meta property="article:modified_time" content="2025-05-04T14:15:23.807Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="xv6-riscv"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/xv6-riscv-PLAN.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2025-05-04T14:12:12.000Z","dateModified":"2025-05-04T14:15:23.807Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"How do you learn in 12 hours? from chatgpt, but I do it.   🕐 第 1 阶段：xv6 是怎么“活”起来的（0–2h）⬛ 第0章：xv6 overview （PDF开头）学习目标：大致知道 xv6 有哪些模块，调用图 方法：通读目录，理解它的子系统划分、进程图 ⬛ 第1章：启动与用户态文件：kernel&#x2F;entry.S, kernel&#x2F;s"}</script><link rel="canonical" href="https://goko-son626.github.io/post/xv6-riscv-PLAN.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2025-05-04  <a class="commentCountImg" href="/post/xv6-riscv-PLAN.html#comment-container"><span class="display-none-class">24b6c1643d2f82fa3d1bd5b0caecad6e</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="24b6c1643d2f82fa3d1bd5b0caecad6e">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>4 分钟  <i class="fas fa-pencil-alt"> </i>0.7 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">xv6-riscv_PLAN</h1><div class="content"><ul>
+<li><em><strong>How do you learn in 12 hours?</strong></em></li>
+<li><em><strong>from chatgpt, but I do it.</strong></em></li>
+</ul>
+<hr>
+<p>🕐 第 1 阶段：xv6 是怎么“活”起来的（0–2h）<br>⬛ 第0章：xv6 overview （PDF开头）<br><strong>学习目标</strong>：大致知道 xv6 有哪些模块，调用图</p>
+<p><strong>方法</strong>：通读目录，理解它的子系统划分、进程图</p>
+<p>⬛ 第1章：启动与用户态<br><strong>文件</strong>：<code>kernel/entry.S</code>, <code>kernel/start.c</code>, <code>kernel/main.c</code><br><strong>路径</strong>：QEMU → bootloader → 内核 → <code>main</code> → <code>userinit()</code></p>
+<p><strong>重点理解</strong>：</p>
+<ul>
+<li><code>entry.S</code> 作用（设置 <code>satp</code>、<code>sp</code>、<code>mret</code>）</li>
+<li><code>kvminit</code> &#x2F; <code>kvmmap</code> &#x2F; <code>kvminithart</code> 如何设置页表</li>
+<li><code>userinit()</code> 如何设置第一个进程（<code>initproc</code>）</li>
+</ul>
+<p>✅ 建议操作：</p>
+<ul>
+<li>给 <code>start.c</code> 和 <code>main.c</code> 打日志，观察 <code>kvminit</code>、<code>procinit</code> 调用顺序。</li>
+</ul>
+<hr>
+<p>🕒 第 2 阶段：进程管理和系统调用（2–5h）<br>⬛ 第2章：进程管理（重点）<br><strong>文件</strong>：<code>kernel/proc.c</code>, <code>kernel/proc.h</code></p>
+<p><strong>关键点</strong>：</p>
+<ul>
+<li><code>allocproc</code>, <code>fork</code>, <code>scheduler</code>, <code>yield</code>, <code>exit</code>, <code>wait</code></li>
+<li>进程状态 <code>enum procstate</code> 的流转图（<code>NEW → RUNNABLE → RUNNING → ZOMBIE</code>）</li>
+</ul>
+<p>✅ 建议操作：</p>
+<ul>
+<li>用 ps 类似命令验证状态</li>
+<li>手动修改 <code>user/test.c</code> 增加 <code>fork</code> 和 <code>wait</code></li>
+</ul>
+<p>⬛ 第3章：系统调用机制<br><strong>文件</strong>：<code>kernel/syscall.c</code>, <code>kernel/trap.c</code>, <code>user/usys.S</code></p>
+<p><strong>流程</strong>：用户态 → <code>ecall</code> → <code>trap</code> → <code>syscall()</code> → <code>sys_*()</code></p>
+<p>✅ 建议操作：</p>
+<ul>
+<li>打日志看 syscall number 传入路径</li>
+<li>追踪 <code>sys_write</code> 是如何调用到 <code>filewrite</code></li>
+</ul>
+<hr>
+<p>🕓 第 3 阶段：内存管理（5–7h）<br>⬛ 第4章：内存子系统<br><strong>文件</strong>：<code>kernel/vm.c</code>, <code>kernel/kalloc.c</code>, <code>kernel/defs.h</code></p>
+<p><strong>重点函数</strong>：</p>
+<ul>
+<li><code>allocuvm</code>, <code>deallocuvm</code>, <code>uvmcopy</code></li>
+<li><code>walk</code>, <code>mappages</code>，页表结构 <code>Sv39</code></li>
+</ul>
+<p>✅ 学习方法：</p>
+<ul>
+<li>画图：<code>Sv39</code> 三级页表的 index 是怎么划分的</li>
+<li>使用 <code>make qemu-gdb</code> 中断在 <code>uvmcopy</code> 看页表</li>
+</ul>
+<hr>
+<p>🕔 第 4 阶段：I&#x2F;O + 文件系统（7–9h）<br>⬛ 第5章：文件系统<br><strong>文件</strong>：<code>fs.c</code>, <code>file.c</code>, <code>bio.c</code>, <code>log.c</code></p>
+<p><strong>关键理解</strong>：</p>
+<ul>
+<li>inode、目录项、open&#x2F;file 结构体</li>
+<li><code>file-&gt;ip-&gt;dev-&gt;read()</code> 等层级调用</li>
+</ul>
+<p>✅ 操作建议：</p>
+<ul>
+<li>手动创建小文件，查看 inode 分配</li>
+<li>给 <code>fs.c</code> 中的 <code>readi</code> &#x2F; <code>writei</code> 加日志</li>
+</ul>
+<p>⬛ 第6章：设备驱动<br><strong>文件</strong>：<code>uart.c</code>, <code>console.c</code>, <code>virtio_disk.c</code></p>
+<p><strong>理解</strong>：</p>
+<ul>
+<li>UART 输出和中断机制</li>
+<li><code>virtio</code> 如何模拟硬盘读写</li>
+</ul>
+<p>✅ 小测试：</p>
+<ul>
+<li>改写 <code>consoleintr()</code> 中的字符判断，屏蔽输入 <code>&#39;a&#39;</code> 试试</li>
+</ul>
+<hr>
+<p>🕖 第 5 阶段：调试 + 回顾（9–12h）</p>
+<ul>
+<li>使用 <code>make qemu-gdb</code>，用 gdb 打断点看启动流程、trap 过程</li>
+<li>使用 <code>grep</code> + <code>cscope</code> 学会快速定位函数定义</li>
+<li>整理 syscall 流程、trap 流程图</li>
+<li>复现 lab 中的练习题（如添加系统调用）</li>
+</ul>
+<hr>
+</div><div class="article-licensing box"><div class="licensing-title"><p>xv6-riscv_PLAN</p><p><a href="https://goko-son626.github.io/post/xv6-riscv-PLAN.html">https://goko-son626.github.io/post/xv6-riscv-PLAN.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2025-05-04</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-05-04</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/xv6-riscv-ch2.html" target="_blank">xv6-riscv-ch2</a><br></span><span>  2.<a class="is-size-6" href="/post/xv6-riscv-ch1.html" target="_blank">xv6-riscv-ch1</a><br></span><span>  3.<a class="is-size-6" href="/post/xv6-riscv-struct.html" target="_blank">xv6-riscv_struct</a><br></span><span>  4.<a class="is-size-6" href="/post/hexo%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA.html" target="_blank">hexo博客搭建</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/xv6-riscv-struct.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">xv6-riscv_struct</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/hexo%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA.html"><span class="level-item">hexo博客搭建</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '24b6c1643d2f82fa3d1bd5b0caecad6e',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">5</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">0</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">2</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-05T04:27:56.000Z">2025-05-05</time></p><p class="title"><a href="/post/xv6-riscv-ch2.html">xv6-riscv-ch2</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-05T02:00:04.000Z">2025-05-05</time></p><p class="title"><a href="/post/xv6-riscv-ch1.html">xv6-riscv-ch1</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-04T16:17:48.000Z">2025-05-05</time></p><p class="title"><a href="/post/xv6-riscv-struct.html">xv6-riscv_struct</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-04T14:12:12.000Z">2025-05-04</time></p><p class="title"><a href="/post/xv6-riscv-PLAN.html">xv6-riscv_PLAN</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-01T05:25:09.000Z">2025-05-01</time></p><p class="title"><a href="/post/hexo%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA.html">hexo博客搭建</a></p></div></article></div></div><!--!--><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2025/05/"><span class="level-start"><span class="level-item">五月 2025</span></span><span class="level-end"><span class="level-item tag">5</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/xv6-riscv/"><span class="tag">xv6-riscv</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/hexo/"><span class="tag">hexo</span><span class="tag is-grey-lightest">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2025 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
