@@ -9,16 +9,20 @@
     <atom:link href="https://goko-son626.github.io/rss.xml" rel="self" type="application/rss+xml"/>
     
     <description></description>
-    <pubDate>Tue, 06 May 2025 01:07:31 GMT</pubDate>
+    <pubDate>Tue, 06 May 2025 01:22:01 GMT</pubDate>
     <generator>http://hexo.io/</generator>
     
     <item>
       <title>xv6-riscv_ch3</title>
       <link>https://goko-son626.github.io/post/xv6-riscv-ch3.html</link>
       <guid>https://goko-son626.github.io/post/xv6-riscv-ch3.html</guid>
-      <pubDate>Tue, 06 May 2025 01:07:31 GMT</pubDate>
+      <pubDate>Tue, 06 May 2025 01:22:01 GMT</pubDate>
+      
+      <description>&lt;p&gt;前言介绍….&lt;/p&gt;</description>
       
       
+      
+      <content:encoded><![CDATA[<p>前言介绍….</p><span id="more"></span>]]></content:encoded>
       
       
       
