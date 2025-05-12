@@ -9,8 +9,31 @@
     <atom:link href="https://goko-son626.github.io/rss.xml" rel="self" type="application/rss+xml"/>
     
     <description></description>
-    <pubDate>Mon, 12 May 2025 13:48:27 GMT</pubDate>
+    <pubDate>Mon, 12 May 2025 14:45:27 GMT</pubDate>
     <generator>http://hexo.io/</generator>
+    
+    <item>
+      <title>xv6-riscv_ch4</title>
+      <link>https://goko-son626.github.io/post/xv6-riscv-ch4.html</link>
+      <guid>https://goko-son626.github.io/post/xv6-riscv-ch4.html</guid>
+      <pubDate>Mon, 12 May 2025 13:59:10 GMT</pubDate>
+      
+      <description>&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;&lt;strong&gt;How traps and system calls work on RISC-V. It introduces the trap mechanism, how user programs invoke system calls, how the kernel handles those traps, and how arguments are passed. It also covers kernel-mode traps, page faults, and real-world implications like protection and isolation.&lt;/strong&gt;&lt;/em&gt;&lt;/li&gt;
+&lt;/ul&gt;</description>
+      
+      
+      
+      <content:encoded><![CDATA[<ul><li><em><strong>How traps and system calls work on RISC-V. It introduces the trap mechanism, how user programs invoke system calls, how the kernel handles those traps, and how arguments are passed. It also covers kernel-mode traps, page faults, and real-world implications like protection and isolation.</strong></em></li></ul><span id="more"></span><h2 id="ch4-Traps-and-system-calls"><a href="#ch4-Traps-and-system-calls" class="headerlink" title="ch4: Traps and system calls"></a><strong>ch4: Traps and system calls</strong></h2><p>- </p><h3 id="4-1-RISC-V-trap-machinery"><a href="#4-1-RISC-V-trap-machinery" class="headerlink" title="4.1 RISC-V trap machinery"></a>4.1 RISC-V trap machinery</h3><h3 id="4-2-Traps-from-user-space"><a href="#4-2-Traps-from-user-space" class="headerlink" title="4.2 Traps from user space"></a>4.2 Traps from user space</h3><h3 id="4-3-Code-Calling-system-calls"><a href="#4-3-Code-Calling-system-calls" class="headerlink" title="4.3 Code: Calling system calls"></a>4.3 Code: Calling system calls</h3><h3 id="4-4-Code-System-call-arguments"><a href="#4-4-Code-System-call-arguments" class="headerlink" title="4.4 Code: System call arguments"></a>4.4 Code: System call arguments</h3><h3 id="4-5-Traps-from-kernel-space"><a href="#4-5-Traps-from-kernel-space" class="headerlink" title="4.5 Traps from kernel space"></a>4.5 Traps from kernel space</h3><h3 id="4-6-Page-fault-exceptions"><a href="#4-6-Page-fault-exceptions" class="headerlink" title="4.6 Page-fault exceptions"></a>4.6 Page-fault exceptions</h3><h3 id="4-7-Real-world"><a href="#4-7-Real-world" class="headerlink" title="4.7 Real world"></a>4.7 Real world</h3><h3 id="4-8-Exercises"><a href="#4-8-Exercises" class="headerlink" title="4.8 Exercises"></a>4.8 Exercises</h3>]]></content:encoded>
+      
+      
+      
+      <category domain="https://GoKo-Son626.github.io/tags/xv6-riscv/">xv6-riscv</category>
+      
+      
+      <comments>https://goko-son626.github.io/post/xv6-riscv-ch4.html#disqus_thread</comments>
+      
+    </item>
     
     <item>
       <title>xv6-riscv_ch3</title>
