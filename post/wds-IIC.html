@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>IIC - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content=""><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2025-05-25T02:02:38.000Z"><meta property="article:modified_time" content="2025-05-27T11:05:07.673Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="linux-dirvers"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/wds-IIC.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2025-05-25T02:02:38.000Z","dateModified":"2025-05-27T11:05:07.673Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":""}</script><link rel="canonical" href="https://goko-son626.github.io/post/wds-IIC.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2025-05-25  <a class="commentCountImg" href="/post/wds-IIC.html#comment-container"><span class="display-none-class">61821b3ce832d581a3c192afa22c156f</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="61821b3ce832d581a3c192afa22c156f">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>23 分钟  <i class="fas fa-pencil-alt"> </i>3.5 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">IIC</h1><div class="content"><ul>
+<li><hr>
+</li>
+</ul>
+<span id="more"></span>
+
+<h1 id="EEPROM-IIC"><a href="#EEPROM-IIC" class="headerlink" title="EEPROM(IIC)"></a>EEPROM(IIC)</h1><ul>
+<li>ROM(Read Only Memory): 制造和升级不便</li>
+<li>PROM(Programmable ROM): 但是只能写入一次，后续无法修改</li>
+<li>EPROM(Erasable Programmable ROM): 紫外线透过玻璃窗口照射内部芯片就可以擦除其内部的数据</li>
+<li>EEPROM: 带电可擦除可编程只读存储器，以电子信号来修改其内容，它属于双电压芯片。借助于EEPROM芯片的双电压特性，可以使BIOS具有良好的防毒功能，在升级时，把跳线开关打至“on”的位置，即给芯片加上相应的编程电压，就可以方便地升级；平时使用时，则把跳线开关打至“off”的位置，防止CIH类的病毒对BIOS芯片的非法修改。</li>
+</ul>
+<p>读取IIC设备：</p>
+<ul>
+<li>控制器</li>
+<li>设备地址：根据芯片手册和模块原理图查询<br>查找IIC设备：i2cdetect -y 0&#x2F;1&#x2F;2…</li>
+</ul>
+<ul>
+<li><p><strong>Platform 总线 (Platform Bus):</strong></p>
+<ul>
+<li><strong>特点:</strong> 这是一种虚拟总线，用于连接那些没有硬件总线（如PCI、USB等）但又需要与CPU直接通信的设备。这些设备通常是SoC（System on Chip）内部的各种控制器，例如GPIO控制器、UART、SPI、I2C控制器本身等等。</li>
+<li><strong>作用:</strong> 它提供了一种统一的机制来管理和抽象这些片上设备，使得驱动开发者不需要关心具体的硬件地址和中断号，而是通过 Platform 总线提供的接口来注册和操作设备。</li>
+<li><strong>原理:</strong> Platform 设备和 Platform 驱动通过 <code>platform_device</code> 和 <code>platform_driver</code> 结构体进行描述。当设备和驱动的名称匹配时，内核就会将它们关联起来。</li>
+<li><strong>匹配过程:</strong> 通常是基于 <code>name</code> 字段的字符串匹配。<code>platform_device</code> 中的 <code>name</code> 字段与 <code>platform_driver</code> 中 <code>driver.name</code> 字段进行比较。如果匹配成功，就会调用驱动的 <code>probe</code> 函数。</li>
+</ul>
+</li>
+<li><p><strong>I2C 总线 (I2C Bus):</strong></p>
+<ul>
+<li><strong>特点:</strong> I2C 是一种串行通信协议，用于连接低速外设，如传感器、EEPROM、实时时钟 (RTC) 等。在 Linux 中，I2C 总线管理着I2C控制器和I2C从设备。</li>
+<li><strong>作用:</strong> 它为I2C设备提供了一套标准的API，使得驱动开发者可以方便地读写I2C设备寄存器，而无需关心I2C协议的底层细节。</li>
+<li><strong>原理:</strong> I2C 总线包含I2C适配器（I2C Adapter，即I2C控制器）和I2C客户端（I2C Client，即I2C从设备）。适配器提供I2C通信能力，客户端则代表具体的I2C设备。</li>
+<li><strong>匹配过程:</strong> I2C设备的匹配通常有两种方式：<ul>
+<li><strong>基于名称匹配:</strong> <code>i2c_client</code> 中的 <code>name</code> 字段与 <code>i2c_driver</code> 中的 <code>id_table</code> 里的 <code>name</code> 字段进行匹配。</li>
+<li><strong>基于compatible字符串匹配 (更常用和推荐):</strong> <code>i2c_client</code> 中的 <code>of_node-&gt;compatible</code> 属性与 <code>i2c_driver</code> 中的 <code>of_match_table</code> 里的 <code>compatible</code> 字符串进行匹配。这种方式常用于设备树 (Device Tree) 中。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>除了这两者，还有：</p>
+<ul>
+<li><strong>PCI 总线 (PCI Bus):</strong> 用于连接高性能外设，如显卡、网卡、声卡等。</li>
+<li><strong>USB 总线 (USB Bus):</strong> 用于连接各种USB设备，如U盘、键盘、鼠标、摄像头等。</li>
+<li><strong>SPI 总线 (SPI Bus):</strong> 另一种串行通信协议，常用于连接传感器、FLASH存储器等。</li>
+<li><strong>MMC&#x2F;SD 总线 (MMC&#x2F;SD Bus):</strong> 用于连接SD卡、eMMC存储器等。</li>
+<li><strong>Input 总线 (Input Bus):</strong> 用于管理各种输入设备，如键盘、鼠标、触摸屏等。</li>
+<li><strong>等等…</strong></li>
+</ul>
+<h3 id="2-它们之间有什么区别和联系？都有什么用？原理是什么？"><a href="#2-它们之间有什么区别和联系？都有什么用？原理是什么？" class="headerlink" title="2. 它们之间有什么区别和联系？都有什么用？原理是什么？"></a>2. 它们之间有什么区别和联系？都有什么用？原理是什么？</h3><p><strong>区别：</strong></p>
+<ul>
+<li><strong>物理特性:</strong><ul>
+<li><strong>I2C:</strong> 是一种串行通信协议，有SDA（数据线）和SCL（时钟线）两根线。</li>
+<li><strong>Platform:</strong> 是一种虚拟总线，没有对应的物理连接线，它抽象的是CPU内部或直接连接到CPU的设备。</li>
+<li><strong>其他总线 (PCI, USB等):</strong> 都有各自的物理连接方式和通信协议。</li>
+</ul>
+</li>
+<li><strong>设备类型:</strong><ul>
+<li><strong>I2C:</strong> 专注于低速外设。</li>
+<li><strong>Platform:</strong> 专注于SoC内部或直接连接的片上设备。</li>
+<li><strong>PCI:</strong> 专注于高性能、高带宽设备。</li>
+<li><strong>USB:</strong> 专注于即插即用、通用性强的设备。</li>
+</ul>
+</li>
+</ul>
+<p><strong>联系：</strong></p>
+<ul>
+<li><strong>统一的设备模型:</strong> 尽管有各种不同的总线，但 Linux 内核提供了一个统一的设备模型 (Device Model)。这个模型的目标是将设备和驱动进行分离，实现通用化和可移植性。</li>
+<li><strong>Bus-Device-Driver 架构:</strong> 所有的总线都遵循 Bus-Device-Driver 架构。<ul>
+<li><strong>Bus (总线):</strong> 负责管理其上的设备和驱动，提供匹配机制。</li>
+<li><strong>Device (设备):</strong> 代表具体的硬件设备，包含设备的各种信息（地址、中断号、名称、ID等）。</li>
+<li><strong>Driver (驱动):</strong> 负责与特定类型的设备进行交互，实现设备的各种功能。</li>
+</ul>
+</li>
+<li><strong>Client-Driver 适配:</strong> 你说的没错！无论是 I2C、Platform 还是其他总线，它们的核心都是 <strong>Client (设备) 和 Driver (驱动) 进行适配</strong>。这里的 “Client” 对应于 “Device”。</li>
+</ul>
+<p><strong>都有什么用？</strong></p>
+<ul>
+<li><strong>抽象硬件差异:</strong> 不同的总线屏蔽了底层硬件的复杂性，提供统一的编程接口。</li>
+<li><strong>代码复用:</strong> 驱动可以独立于具体的硬件平台开发，只要设备模型支持，就可以在不同的平台上运行。</li>
+<li><strong>模块化管理:</strong> 允许设备和驱动作为独立的模块加载和卸载，提高了系统的灵活性。</li>
+<li><strong>即插即用 (Plug-and-Play):</strong> 对于PCI、USB等支持热插拔的总线，设备模型可以实现设备的动态识别和加载驱动。</li>
+</ul>
+<p><strong>原理：</strong></p>
+<p>Linux 设备模型的核心思想是 <strong>“将设备和驱动分离”</strong>。它通过 <code>struct device</code> 和 <code>struct device_driver</code> 这两个核心结构体来表示设备和驱动。</p>
+<ul>
+<li><strong><code>struct bus_type</code>:</strong> 定义了总线的属性和操作，包括设备的注册、驱动的注册、设备的遍历、驱动的匹配函数等。</li>
+<li><strong><code>struct device</code>:</strong> 代表一个具体的硬件设备。它包含设备的通用属性（如名称、父设备、设备树节点等），以及特定总线的私有数据。</li>
+<li><strong><code>struct device_driver</code>:</strong> 代表一个设备驱动。它包含驱动的通用属性（如名称、驱动所支持的设备ID表），以及驱动的操作函数（如 <code>probe</code>、<code>remove</code> 等）。</li>
+</ul>
+<p>当一个设备被注册到总线上时，总线会遍历所有已注册的驱动，尝试找到能够与该设备匹配的驱动。一旦匹配成功，就会调用驱动的 <code>probe</code> 函数来初始化设备。</p>
+<h3 id="3-驱动不就是一份代码吗？为什么还有driver的代码和client的代码，两份？"><a href="#3-驱动不就是一份代码吗？为什么还有driver的代码和client的代码，两份？" class="headerlink" title="3. 驱动不就是一份代码吗？为什么还有driver的代码和client的代码，两份？"></a>3. 驱动不就是一份代码吗？为什么还有driver的代码和client的代码，两份？</h3><p>这是一个很好的问题，也是很多初学者容易混淆的地方。</p>
+<p><strong>驱动 (Driver) 确实是“一份代码”，但这份代码是为了管理一类特定功能的硬件设备。</strong></p>
+<p>为了实现驱动的通用性和可移植性，Linux 设备模型将驱动分成了两个逻辑部分：</p>
+<ol>
+<li><p><strong>设备 (Device) 的描述代码 (Client&#x2F;Platform Device):</strong></p>
+<ul>
+<li>这部分代码主要负责 <strong>描述硬件设备的信息</strong>，而不是实现设备的功能。它告诉内核：“这里有一个设备，它的类型是什么，它连接在哪个总线上，它的地址是多少，它需要哪些资源（如中断、内存区域）”。</li>
+<li>这部分代码通常位于 <strong>板级文件 (board-specific file)</strong> 或 <strong>设备树 (Device Tree)</strong> 中。</li>
+<li>例如：<ul>
+<li>对于 Platform 设备，你会看到 <code>struct platform_device</code> 的定义，里面包含了设备的名称、资源等。</li>
+<li>对于 I2C 设备，你会看到 <code>struct i2c_client</code> 的定义，或者在设备树中描述I2C设备的节点。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>驱动 (Driver) 的功能实现代码 (Platform Driver&#x2F;I2C Driver):</strong></p>
+<ul>
+<li>这部分代码才是真正意义上的 <strong>“驱动”</strong>。它负责 <strong>实现与特定类型设备进行交互的逻辑</strong>。</li>
+<li>它包含了设备初始化（<code>probe</code> 函数）、数据传输、中断处理、电源管理等核心功能。</li>
+<li>这部分代码通常位于 <strong>独立的驱动文件</strong> 中（例如：<code>drivers/char/xxx.c</code>, <code>drivers/i2c/chips/yyy.c</code>, <code>drivers/platform/zzz.c</code>）。</li>
+<li>例如：<ul>
+<li>对于 Platform 驱动，你会看到 <code>struct platform_driver</code> 的定义，其中包含了 <code>probe</code>、<code>remove</code> 等函数指针。</li>
+<li>对于 I2C 驱动，你会看到 <code>struct i2c_driver</code> 的定义，同样包含 <code>probe</code>、<code>remove</code> 等函数指针。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>为什么会有两份？</strong></p>
+<ul>
+<li><strong>分离关注点 (Separation of Concerns):</strong><ul>
+<li>将设备描述和驱动功能分离，使得驱动代码更加通用。同一个驱动可以在不同的硬件平台上使用，只要这些平台能够正确描述出该设备。</li>
+<li>板级厂商只需要描述其硬件设备的特性，而驱动开发者可以专注于实现设备功能。</li>
+</ul>
+</li>
+<li><strong>可移植性 (Portability):</strong><ul>
+<li>驱动代码可以独立于具体的硬件平台编译和加载。</li>
+<li>当硬件平台发生变化时，可能只需要修改设备描述部分（如设备树），而无需修改驱动代码本身。</li>
+</ul>
+</li>
+<li><strong>模块化 (Modularity):</strong><ul>
+<li>设备和驱动可以作为独立的模块动态加载和卸载，方便开发和调试。</li>
+</ul>
+</li>
+<li><strong>即插即用 (Plug and Play):</strong><ul>
+<li>当设备被发现时（例如插入USB设备），内核可以根据设备的描述信息自动寻找并加载对应的驱动。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-Match-的过程是什么样子的呢？"><a href="#4-Match-的过程是什么样子的呢？" class="headerlink" title="4. Match 的过程是什么样子的呢？"></a>4. Match 的过程是什么样子的呢？</h3><p>匹配 (Matching) 是设备模型中最核心的机制之一。当一个设备被注册到总线上时，内核会触发匹配过程，寻找能够驱动该设备的驱动。</p>
+<p><strong>通用匹配流程 (以 Platform 总线为例)：</strong></p>
+<ol>
+<li><strong>设备注册:</strong> 当内核或某个模块发现并注册一个 <code>platform_device</code> 到 <code>platform_bus</code> 上时，匹配过程开始。<ul>
+<li>这通常发生在内核启动时，或者通过设备树动态解析设备。</li>
+<li><code>platform_device_register()</code> 函数会被调用。</li>
+</ul>
+</li>
+<li><strong>遍历驱动:</strong> <code>platform_bus</code> 会遍历所有已经注册到它上面的 <code>platform_driver</code>。</li>
+<li><strong>调用匹配函数:</strong> 对于每一个 <code>platform_driver</code>，总线会调用其内部的 <code>match</code> 函数（对于 Platform 总线，通常是 <code>platform_match()</code>）。</li>
+<li><strong>匹配逻辑:</strong> <code>match</code> 函数会根据预定的规则（通常是名称匹配或 compatible 字符串匹配）来判断当前设备是否与当前驱动兼容。<ul>
+<li><strong>名称匹配:</strong> <code>platform_device-&gt;name == platform_driver-&gt;driver.name</code>。</li>
+<li><strong>设备树 compatible 匹配 (更常用):</strong> <code>platform_device-&gt;of_node-&gt;compatible</code> 属性与 <code>platform_driver-&gt;of_match_table</code> 中的 <code>compatible</code> 字符串进行比较。</li>
+</ul>
+</li>
+<li><strong>成功匹配:</strong> 如果 <code>match</code> 函数返回成功（表示设备和驱动匹配），那么总线就会将该设备与该驱动关联起来。</li>
+<li><strong>调用 <code>probe</code> 函数:</strong> 接着，内核会调用匹配成功的 <code>platform_driver</code> 的 <code>probe</code> 函数。<ul>
+<li><code>probe</code> 函数是驱动的核心，它负责初始化设备、请求资源、注册中断、创建设备节点等等。</li>
+<li>如果 <code>probe</code> 函数成功返回，表示设备驱动加载成功；如果返回错误码，则表示加载失败。</li>
+</ul>
+</li>
+</ol>
+<p><strong>I2C 总线匹配流程：</strong></p>
+<p>I2C 总线的匹配与 Platform 类似，但它有自己的 <code>i2c_bus_type</code> 和匹配函数。</p>
+<ol>
+<li><strong>I2C 适配器注册:</strong> I2C 控制器作为 Platform 设备注册后，其 Platform 驱动会注册 <code>i2c_adapter</code>，这代表了一个可用的 I2C 总线。</li>
+<li><strong>I2C 客户端注册:</strong> I2C 设备的描述（通常在设备树中）被解析后，会创建一个 <code>i2c_client</code> 结构体并将其注册到对应的 <code>i2c_adapter</code> 上。</li>
+<li><strong>遍历 I2C 驱动:</strong> I2C 总线会遍历所有已经注册的 <code>i2c_driver</code>。</li>
+<li><strong>调用匹配函数:</strong> I2C 总线会调用其内部的匹配函数 (<code>i2c_device_match()</code>)。</li>
+<li><strong>匹配逻辑:</strong><ul>
+<li><strong>ID 表匹配:</strong> <code>i2c_driver-&gt;id_table</code> 字段中的 <code>name</code> 成员与 <code>i2c_client-&gt;name</code> 进行匹配。</li>
+<li><strong>设备树 compatible 匹配 (更常用):</strong> <code>i2c_client-&gt;dev.of_node-&gt;compatible</code> 属性与 <code>i2c_driver-&gt;driver.of_match_table</code> 中的 <code>compatible</code> 字符串进行比较。</li>
+</ul>
+</li>
+<li><strong>成功匹配:</strong> 匹配成功后，调用 <code>i2c_driver</code> 的 <code>probe</code> 函数。</li>
+</ol>
+<h3 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h3><ul>
+<li><strong>Linux 设备模型的核心是 Bus-Device-Driver 架构，旨在将设备和驱动分离，实现代码的通用性和可移植性。</strong></li>
+<li><strong>总线 (Bus) 负责管理设备和驱动的注册与匹配。</strong></li>
+<li><strong>设备 (Device&#x2F;Client) 描述了硬件的特性和资源。</strong></li>
+<li><strong>驱动 (Driver) 实现了与设备交互的逻辑。</strong></li>
+<li><strong>匹配过程是总线根据预定的规则（名称或 compatible 字符串）将设备和驱动关联起来的过程，成功后会调用驱动的 <code>probe</code> 函数。</strong></li>
+</ul>
+<p>希望这些解释能帮助你更好地理解 Linux 设备驱动的 Bus-Device-Driver 架构！这是一个值得深入学习的领域，一旦掌握，你会对操作系统如何与硬件交互有更深刻的理解。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>IIC</p><p><a href="https://goko-son626.github.io/post/wds-IIC.html">https://goko-son626.github.io/post/wds-IIC.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2025-05-25</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-05-27</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/riscv-toolchains.html" target="_blank">riscv-toolchains</a><br></span><span>  2.<a class="is-size-6" href="/post/Trace-do-chenxiaosong-1.html" target="_blank">Trace-do-chenxiaosong-1</a><br></span><span>  3.<a class="is-size-6" href="/post/Trace-use-2.html" target="_blank">Trace-use-2</a><br></span><span>  4.<a class="is-size-6" href="/post/Trace-use-1.html" target="_blank">Trace-structure</a><br></span><span>  5.<a class="is-size-6" href="/post/qspinlock.html" target="_blank">qspinlock</a><br></span><span>  6.<a class="is-size-6" href="/post/hexo%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA.html" target="_blank">hexo博客搭建</a><br></span><span>  7.<a class="is-size-6" href="/post/xv6-riscv-ch4.html" target="_blank">xv6-riscv_ch4</a><br></span><span>  8.<a class="is-size-6" href="/post/xv6-riscv-ch3.html" target="_blank">xv6-riscv_ch3</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/riscv-toolchains.html"><span class="level-item">riscv-toolchains</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '61821b3ce832d581a3c192afa22c156f',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">12</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">0</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">6</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-25T02:02:38.000Z">2025-05-25</time></p><p class="title"><a href="/post/wds-IIC.html">IIC</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-18T08:30:56.000Z">2025-05-18</time></p><p class="title"><a href="/post/riscv-toolchains.html">riscv-toolchains</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-17T08:26:57.000Z">2025-05-17</time></p><p class="title"><a href="/post/Trace-do-chenxiaosong-1.html">Trace-do-chenxiaosong-1</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-17T02:27:26.000Z">2025-05-17</time></p><p class="title"><a href="/post/Trace-use-2.html">Trace-use-2</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-16T10:37:48.000Z">2025-05-16</time></p><p class="title"><a href="/post/Trace-use-1.html">Trace-structure</a></p></div></article></div></div><!--!--><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2025/05/"><span class="level-start"><span class="level-item">五月 2025</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/02/"><span class="level-start"><span class="level-item">二月 2025</span></span><span class="level-end"><span class="level-item tag">5</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/xv6-riscv/"><span class="tag">xv6-riscv</span><span class="tag is-grey-lightest">5</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Trace/"><span class="tag">Trace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/hexo/"><span class="tag">hexo</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/linux-dirvers/"><span class="tag">linux-dirvers</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/riscv/"><span class="tag">riscv</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/riscv-toolchain/"><span class="tag">riscv-toolchain</span><span class="tag is-grey-lightest">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2025 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
