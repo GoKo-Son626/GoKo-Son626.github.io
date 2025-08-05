@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>hexo-blog - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="使用hexo和GitHub Pagtes部署一个自己的博客"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="使用hexo和GitHub Pagtes部署一个自己的博客"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2023-05-28T05:25:09.000Z"><meta property="article:modified_time" content="2025-08-04T15:26:17.616Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="hexo"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/hexo-blog.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2023-05-28T05:25:09.000Z","dateModified":"2025-08-04T15:26:17.616Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"使用hexo和GitHub Pagtes部署一个自己的博客"}</script><link rel="canonical" href="https://goko-son626.github.io/post/hexo-blog.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>the Three Basic Linux Driver Models - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="按照读写存储数据方式，我们可以把设备分为以下几种：字符设备、块设备和网络设备。而Linux三大驱动就是指对这些设备的驱动，即字符设备、块设备驱动和网络设备驱动。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="按照读写存储数据方式，我们可以把设备分为以下几种：字符设备、块设备和网络设备。而Linux三大驱动就是指对这些设备的驱动，即字符设备、块设备驱动和网络设备驱动。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2024-08-05T08:48:55.000Z"><meta property="article:modified_time" content="2025-08-05T08:54:57.412Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="linux"><meta property="article:tag" content="driver"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/the-Three-Basic-Linux-Driver-Models.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2024-08-05T08:48:55.000Z","dateModified":"2025-08-05T08:54:57.412Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"按照读写存储数据方式，我们可以把设备分为以下几种：字符设备、块设备和网络设备。而Linux三大驱动就是指对这些设备的驱动，即字符设备、块设备驱动和网络设备驱动。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/the-Three-Basic-Linux-Driver-Models.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
   (function () {
       function switchTab() {
           if (!location.hash) {
@@ -30,179 +30,15 @@
       window.addEventListener('hashchange', switchTab, false);
   })();
   </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
-</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2023-05-28  <a class="commentCountImg" href="/post/hexo-blog.html#comment-container"><span class="display-none-class">0e02e6f141c1ba111a54aaa0bdcc1b4e</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="0e02e6f141c1ba111a54aaa0bdcc1b4e">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>4 分钟  <i class="fas fa-pencil-alt"> </i>0.6 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">hexo-blog</h1><div class="content"><ul>
-<li><em><strong>使用hexo和GitHub Pagtes部署一个自己的博客</strong></em></li>
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2024-08-05  <a class="commentCountImg" href="/post/the-Three-Basic-Linux-Driver-Models.html#comment-container"><span class="display-none-class">1712bbe3cec509d3885deb257fe68041</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="1712bbe3cec509d3885deb257fe68041">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>几秒  <i class="fas fa-pencil-alt"> </i>0.1 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">the Three Basic Linux Driver Models</h1><div class="content"><ul>
+<li><em><strong>按照读写存储数据方式，我们可以把设备分为以下几种：字符设备、块设备和网络设备。而Linux三大驱动就是指对这些设备的驱动，即字符设备、块设备驱动和网络设备驱动。</strong></em></li>
 </ul>
 <span id="more"></span>
 
-<h3 id="1-安装并初始化Hexo"><a href="#1-安装并初始化Hexo" class="headerlink" title="1. 安装并初始化Hexo"></a>1. 安装并初始化Hexo</h3><ul>
-<li><ol>
-<li>安装 Hexo CLI</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">npm install -g hexo-cli<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="2">
-<li>初始化博客项目目录</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">mkdir my-blog &amp;&amp; cd my-blog<br>hexo init<br>npm install<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="3">
-<li>本地预览</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">hexo server<br></code></pre></td></tr></table></figure>
-<ul>
-<li>启动本地服务：在浏览器访问 <a target="_blank" rel="noopener" href="http://localhost:4000/">http://localhost:4000</a> 查看效果</li>
-</ul>
-<h3 id="2-配置-GitHub-Pages-部署"><a href="#2-配置-GitHub-Pages-部署" class="headerlink" title="2.  配置 GitHub Pages 部署"></a>2.  配置 GitHub Pages 部署</h3><ul>
-<li><ol>
-<li>创建GitHub仓库</li>
-</ol>
-<ul>
-<li>创建一个仓库，名字叫 你的GitHub用户名.github.io</li>
-<li>比如你是 goko，就叫 goko.github.io</li>
-</ul>
-</li>
-<li><ol start="2">
-<li>安装部署插件</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">npm install hexo-deployer-git --save<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="3">
-<li>修改 _config.yml（根目录下）添加部署配置：</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">deploy:<br>  type: git<br>  # repo建议使用SSH, SSH免密<br>  repo: https://github.com/你的GitHub用户名/你的GitHub用户名.github.io.git<br>  branch: main  # 或者 master，看你的默认分支<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="4">
-<li>生成并部署博客</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">hexo clean<br>hexo generate<br>hexo deploy<br></code></pre></td></tr></table></figure>
-
-<h3 id="3-域名-com-绑定"><a href="#3-域名-com-绑定" class="headerlink" title="3. 域名(.com)绑定"></a>3. 域名(<xxxx>.com)绑定</xxxx></h3><ul>
-<li><ol>
-<li>添加域名(在my-blog下)</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">echo &quot;&lt;xxxx&gt;.com&quot; &gt; source/CNAME<br># 或者可以：echo &quot;www.&lt;xxxx&gt;.com&quot; &gt; source/CNAME<br># 只能添加一个，而且两个需要添加不同的域名解析（如下）<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="2">
-<li>重新部署</li>
-</ol>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">hexo clean &amp;&amp; hexo g &amp;&amp; hexo d<br></code></pre></td></tr></table></figure>
-<ul>
-<li><ol start="3">
-<li>设置 DNS 解析指向 GitHub Pages</li>
-</ol>
-</li>
-</ul>
-<p><strong>A. 使用裸域名（apex 域名）goku72.com</strong></p>
-<table>
-<thead>
-<tr>
-<th>记录类型</th>
-<th>主机记录</th>
-<th>记录值</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>A</td>
-<td>@</td>
-<td>185.199.108.153</td>
-<td>GitHub Pages IP</td>
-</tr>
-<tr>
-<td>A</td>
-<td>@</td>
-<td>185.199.109.153</td>
-<td>GitHub Pages IP</td>
-</tr>
-<tr>
-<td>A</td>
-<td>@</td>
-<td>185.199.110.153</td>
-<td>GitHub Pages IP</td>
-</tr>
-<tr>
-<td>A</td>
-<td>@</td>
-<td>185.199.111.153</td>
-<td>GitHub Pages IP</td>
-</tr>
-</tbody></table>
-<p>example aliyun:</p>
-<ol>
-<li>选择业务需求: 将网站域名解析到服务器IPv4地址</li>
-<li>选择网站域名(主机记录): <xxxx>.com（对应设置“@”主机记录）</xxxx></li>
-<li>填写 IP（记录值）：</li>
-</ol>
-<ul>
-<li>在输入框里粘贴以下四行（每一行一个 IP）：</li>
-<li><pre><code>  &gt; 185.199.109.153
-  &gt; 185.199.108.153
-  &gt; 185.199.110.153
-  &gt; 185.199.111.153
-</code></pre>
-</li>
-</ul>
-<hr>
-<p><strong>B. 使用 <a target="_blank" rel="noopener" href="http://www.goku72.com/">www.goku72.com</a> 作为主域名</strong></p>
-<table>
-<thead>
-<tr>
-<th>记录类型</th>
-<th>主机记录</th>
-<th>记录值</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>CNAME</td>
-<td>www</td>
-<td>&lt;github用户名&gt;.github.io.</td>
-<td>指向你的 GitHub 用户页仓库</td>
-</tr>
-</tbody></table>
-<p>example aliyun:</p>
-<ol>
-<li>选择业务需求: 将网站域名解析到另外的目标域名</li>
-<li>选择网站域名(主机记录): www.<xxxx>.com（对应设置“www”主机记录）</xxxx></li>
-<li>填写 IP（记录值）：&lt;github用户名&gt;.github.io. (最有有一个符号”.”)</li>
-</ol>
-<h3 id="4-设置主题"><a href="#4-设置主题" class="headerlink" title="4. 设置主题"></a>4. 设置主题</h3><ul>
-<li>cd my-blog&#x2F;themes</li>
-<li>git clone -b master <a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly.git">https://github.com/jerryc127/hexo-theme-butterfly.git</a> butterfly</li>
-<li>修改_config.yml: <ul>
-<li>theme: butterfly</li>
-</ul>
-</li>
-<li>hexo clean &amp;&amp; hexo g &amp;&amp; hexo d</li>
-</ul>
-<p><strong>更多主题</strong>：<a target="_blank" rel="noopener" href="https://hexo.io/themes/">https://hexo.io/themes/</a></p>
-<p><strong>注：</strong></p>
-<ul>
-<li>如果AB两个方式都添加了，只需要在 Hexo 项目的 source&#x2F;CNAME 文件中写 www.<xxxx>.com，GitHub Pages 就会自动把 goku72.com 重定向过去，无需额外设置！</xxxx></li>
-<li>后续换域名只需要：阿里云重新解析 + 修改 source&#x2F;CNAME + 重新部署 Hexo，就能完成域名迁移。</li>
-<li>有些主题可能需要下载插件</li>
-</ul>
-</div><div class="article-licensing box"><div class="licensing-title"><p>hexo-blog</p><p><a href="https://goko-son626.github.io/post/hexo-blog.html">https://goko-son626.github.io/post/hexo-blog.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2023-05-28</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-08-04</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/Compilation-libraries-and-tools.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">Compilation libraries and tools</span></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+<h3 id><a href="#" class="headerlink" title></a></h3></div><div class="article-licensing box"><div class="licensing-title"><p>the Three Basic Linux Driver Models</p><p><a href="https://goko-son626.github.io/post/the-Three-Basic-Linux-Driver-Models.html">https://goko-son626.github.io/post/the-Three-Basic-Linux-Driver-Models.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2024-08-05</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-08-05</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/qspinlock.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">qspinlock</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/riscv-toolchains.html"><span class="level-item">riscv toolchain</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
             var gitalk = new Gitalk({
             language:'zh-CN',
-            id: '0e02e6f141c1ba111a54aaa0bdcc1b4e',
+            id: '1712bbe3cec509d3885deb257fe68041',
             repo: 'blog_comment',
             owner: 'GoKo-Son626',
             clientID: 'Ov23liQkUSIVMH77fBvF',
