@@ -51,7 +51,7 @@
       
       
       
-      <content:encoded><![CDATA[<ul><li><em><strong>linux驱动相关基础知识</strong></em></li></ul><span id="more"></span><h3 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h3>]]></content:encoded>
+      <content:encoded><![CDATA[<ul><li><em><strong>linux驱动相关基础知识</strong></em></li></ul><span id="more"></span><h3 id="模块编写"><a href="#模块编写" class="headerlink" title="模块编写"></a>模块编写</h3><ul><li><p>驱动模块传参</p><ul><li>module_param(name, type, perm) 宏来定义一个参数。</li><li>name: 参数变量名。</li><li>type: 参数类型 (int, charp (字符串指针), bool 等)。</li><li>perm: 在 sysfs 中对应的文件权限 (&#x2F;sys&#x2F;module&#x2F;<module_name>&#x2F;parameters&#x2F;<param_name>)。0644 表示 root 可写，所有人可读。</param_name></module_name></li></ul></li><li><p>内核模块符号的导出</p><ul><li>EXPORT_SYMBOL(symbol_name): 导出符号，任何模块都可以使用。</li><li>EXPORT_SYMBOL_GPL(symbol_name): 只为 MODULE_LICENSE(“GPL”) 的模块导出，有许可证限制。</li></ul></li><li><p>自动创建设备节点</p><ul><li><p>创建设备类 (class)<br>my_class &#x3D; class_create(THIS_MODULE, “my_class_name”);<br>if (IS_ERR(my_class)) { &#x2F;* handle error *&#x2F; }</p><p>&#x2F;&#x2F; 在此类下创建设备文件<br>&#x2F;&#x2F; 这会触发 uevent，让 udev&#x2F;mdev 工作<br>device_create(my_class, NULL, dev_num, NULL, “my_device_name”);</p></li></ul></li></ul>]]></content:encoded>
       
       
       <category domain="https://GoKo-Son626.github.io/categories/kernel/">kernel</category>
