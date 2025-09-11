@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>libbpf, bcc和bpftrace的结构和关联分析 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="libbpf bcc 和 bpftrace之间的结构以及和内核的关联"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="libbpf bcc 和 bpftrace之间的结构以及和内核的关联"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2025-03-02T08:40:24.000Z"><meta property="article:modified_time" content="2025-09-11T08:29:40.564Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="libbpf"><meta property="article:tag" content="bpftrace"><meta property="article:tag" content="bcc"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/libbpf-bcc-and-bpftrace.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2025-03-02T08:40:24.000Z","dateModified":"2025-09-11T08:29:40.564Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"libbpf bcc 和 bpftrace之间的结构以及和内核的关联"}</script><link rel="canonical" href="https://goko-son626.github.io/post/libbpf-bcc-and-bpftrace.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2025-03-02  <a class="commentCountImg" href="/post/libbpf-bcc-and-bpftrace.html#comment-container"><span class="display-none-class">2a2f53d3e18a79ba442284e26c14a41f</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="2a2f53d3e18a79ba442284e26c14a41f">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>9 分钟  <i class="fas fa-pencil-alt"> </i>1.4 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">libbpf, bcc和bpftrace的结构和关联分析</h1><div class="content"><ul>
+<li><em><strong>libbpf bcc 和 bpftrace之间的结构以及和内核的关联</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<h3 id="libbpf-bcc-和-bpftrace之关系结构图-仅参考"><a href="#libbpf-bcc-和-bpftrace之关系结构图-仅参考" class="headerlink" title="libbpf bcc 和 bpftrace之关系结构图(仅参考)"></a>libbpf bcc 和 bpftrace之关系结构图(仅参考)</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><code class="hljs bash">+-----------------------------------------------------------------------------+<br>|                             用户空间 (User Space)                           |<br>|-----------------------------------------------------------------------------|<br>|      [高层抽象/工具]                                                        |<br>|                                                                             |<br>|   +-----------------+                                                       |<br>|   |   bpftrace(C++) |                                                       |<br>|   | (诊断与排障语言)|                                                       |<br>|   +-------+---------+                                                       |<br>|           |                                                                 |<br>| 内部解析器解析用户脚本，翻译成C代码                                         |<br>| 将这个C代码实时编译成 eBPF 字节码(Clang/LLVM)                               |<br>| 使用 libbpf 的C API 来加载和管理eBPF程序                                    |<br>|           |                                                                 |<br>|           |                   +----------------+                            |<br>|           |                   |BCC(内部实现C++)|  python/Lua/c++高级语言封装|<br>|           |                   | (快速原型框架) |  header file               |<br>|           |Clang/LLVM         +-------------+--+                            |<br>|           |                                 |                               |<br>|           |                   运行时把c代码编译成eBPF字段，API加载交互      |<br>|           |                   还是写C,只是编译和加载被Python框架封装了      |<br>|           |                                 |     Clang/LLVM                |<br>|  +---------------------------+              ----------------------          |<br>|  |         libbpf(C)         |                                   |          |<br>|  | (是纯C开发库, 提供CO-RE)  |------------------------------------          |<br>|  | 封装bpf()和Maps API)      |                                    |         |<br>|  +-------------+-------------+                                    |         |<br>|                                                                   |         |<br>|                BPF Maps (e.g., RingBuf, Hash)              | System Call    |<br>|     &lt;------------------------------------------------------&gt; (bpf())        |<br>|                (内核与用户空间的数据通道)                  | (控制与加载)   |<br>|                                                            |                |<br>+------------------------------------------------------------+----------------+<br>|                                  内核空间 (Kernel Space)   |                |<br>|-----------------------------------------------------------------------------|<br>|                                                            |                |<br>|       BPF Maps (内核中的键值对存储) &lt;-----------------------------+         |<br>|                                                            |      |         |<br>|   +---------------------------------------------------+&lt;---|      |         |<br>|   |                  eBPF 子系统                      |           |         |<br>|   |                                                   |           |         |<br>|   |  +-----------+     +----------+     +-----------+ |           |         |<br>|   |  | Verifier  | --&gt; |   JIT    | --&gt; |    CPU    | |           |         |<br>|   |  | (安全检查)|     | (编译优化) |   | (原生执行)| |           |         |<br>|   |  +-----------+     +----------+     +-----------+ |           |         |<br>|   |                                                   |           |         |<br>|   |        ebpf 程序 (你的.bpf.c代码)                 |           |         |<br>|   |                                                   |           |         |<br>|   +-----------------------+---------------------------+           |         |<br>|                           ^                                       |         |<br>|                           | (事件触发)                 (读取/写入)|         |<br>|                           |                                       v         |<br>|   +-----------------------+-------------------------------------------+     |<br>|   |                      内核钩子 (kernel hooks)                      |     |<br>|   |                                                                   |     |<br>|   |  ftrace (kprobes, tracepoints), LSM, TC, XDP, Sockets ...         |     |<br>|   |  (BTF - 提供内核元数据, 增强钩子能力)                             |     |<br>|   +-------------------------------------------------------------------+     |<br>|                                                                             |<br>+-----------------------------------------------------------------------------+<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li><p>BCC (BPF Compiler Collection)</p>
+<ul>
+<li><strong>构成</strong>: BCC 是一个强大的 eBPF 开发工具包和框架。其核心是一个 <strong>C++ 库</strong>，并提供了 <strong>Python、C++、Go 等多种语言的前端封装</strong>，其中 Python 前端最为流行和成熟。</li>
+<li><strong>核心机制</strong>:<ul>
+<li><strong>运行时编译</strong>: BCC 的标志性特点是在程序<strong>运行时</strong>动态编译 eBPF C 代码。开发者在 Python 等脚本中嵌入 C 代码字符串，BCC 框架在后台调用 <strong><code>libclang</code> (Clang 的库版本)</strong> 将其编译成 eBPF 字节码。</li>
+<li><strong>自有的加载器</strong>: BCC 拥有一套<strong>自研的加载器逻辑</strong>，负责处理字节码的加载、Map 创建以及与内核的交互。</li>
+</ul>
+</li>
+<li><strong>与 libbpf 的关系</strong>:<ul>
+<li>BCC 诞生早于 <code>libbpf</code> 的成熟期，因此其核心不依赖 <code>libbpf</code>。</li>
+<li>然而，为了拥抱社区标准和利用 CO-RE 等现代特性，<strong>新版本的 BCC 已经开始逐步集成 <code>libbpf</code></strong>，并提供基于 <code>libbpf</code> 的新工具和 API。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>libbpf</p>
+<ul>
+<li><strong>构成</strong>: <code>libbpf</code> 是一个由内核社区维护的、用于开发 eBPF 应用的<strong>纯 C 语言核心库</strong>。它被认为是构建现代、高性能、可移植 eBPF 程序的<strong>事实标准</strong>。</li>
+<li><strong>核心机制</strong>:<ul>
+<li><strong>预编译 (Ahead-of-Time)</strong>: <code>libbpf</code> 的典型工作流是在开发阶段就将 eBPF C 代码（<code>.bpf.c</code>）编译成包含字节码的 ELF 对象文件（<code>.bpf.o</code>）。</li>
+<li><strong>智能加载</strong>: 用户态程序通过调用 <code>libbpf</code> 的 API，可以智能地解析 <code>.o</code> 文件，并将 eBPF 程序和 Maps 加载到内核。</li>
+<li><strong>CO-RE (一次编译，到处运行)</strong>: 这是 <code>libbpf</code> 的<strong>王牌特性</strong>。它利用 <strong>BTF (BPF Type Format)</strong> 元数据，在加载时动态调整 eBPF 程序，以解决因内核版本不同导致的数据结构差异问题，极大地增强了程序的可移植性。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>bpftrace</p>
+<ul>
+<li><strong>定位与构成</strong>: <code>bpftrace</code> 是一款专为 Linux 设计的<strong>高级动态追踪语言和命令行工具</strong>。它的语法简洁强大，类似 <code>awk</code> 和 <code>DTrace</code>，让使用者能用极少的代码快速排查系统性能问题。</li>
+<li><strong>核心机制</strong>:<ul>
+<li><strong>高级语言到 C 的翻译</strong>: <code>bpftrace</code> 的核心是一个<strong>C++ 程序</strong>，它负责将用户编写的高级脚本<strong>实时翻译</strong>成 eBPF C 代码。</li>
+<li><strong>后端依赖</strong>: 它不直接与内核交互，而是<strong>依赖一个后端引擎</strong>来完成编译和加载。</li>
+</ul>
+</li>
+<li><strong>与 libbpf&#x2F;BCC 的关系</strong>:<ul>
+<li><strong>历史与现在</strong>: 早期 <code>bpftrace</code> 依赖 <code>BCC</code> 作为其后端。为了追求更好的性能、更轻的依赖和 CO-RE 支持，<strong>现代版本的 <code>bpftrace</code> 已经默认切换到使用 <code>libbpf</code> 作为其核心后端</strong>。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="对比表格：libbpf-vs-BCC-vs-bpftrace"><a href="#对比表格：libbpf-vs-BCC-vs-bpftrace" class="headerlink" title="对比表格：libbpf vs BCC vs bpftrace"></a><strong>对比表格：<code>libbpf</code> vs <code>BCC</code> vs <code>bpftrace</code></strong></h3><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">libbpf</th>
+<th align="left">BCC</th>
+<th align="left">bpftrace</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>定位</strong></td>
+<td align="left"><strong>核心库 (Core Library)</strong></td>
+<td align="left"><strong>开发框架 (Framework)</strong></td>
+<td align="left"><strong>高级工具&#x2F;语言 (High-level Tool)</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>主要用途</strong></td>
+<td align="left">生产级应用、Agent、底层开发</td>
+<td align="left">快速原型、教学、脚本化开发</td>
+<td align="left">实时排障、命令行即时查询</td>
+</tr>
+<tr>
+<td align="left"><strong>编程接口</strong></td>
+<td align="left"><strong>C&#x2F;C++ API</strong></td>
+<td align="left"><strong>Python&#x2F;C++ API</strong></td>
+<td align="left"><strong>专用脚本语言</strong> (类 <code>awk</code>)</td>
+</tr>
+<tr>
+<td align="left"><strong>编译时机</strong></td>
+<td align="left"><strong>预编译 (开发时)</strong></td>
+<td align="left"><strong>运行时</strong></td>
+<td align="left"><strong>运行时</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>CO-RE 可移植性</strong></td>
+<td align="left"><strong>原生支持 (核心优势)</strong></td>
+<td align="left"><strong>支持有限&#x2F;较弱</strong></td>
+<td align="left"><strong>通过 libbpf 后端获得支持</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>运行时依赖</strong></td>
+<td align="left"><strong>极轻量</strong></td>
+<td align="left"><strong>重量级</strong></td>
+<td align="left"><strong>中量级</strong></td>
+</tr>
+<tr>
+<td align="left">… <strong>需要 <code>libbpf.so</code>?</strong></td>
+<td align="left">是</td>
+<td align="left">否 (但正在集成)</td>
+<td align="left">是 (现代版本)</td>
+</tr>
+<tr>
+<td align="left">… <strong>需要 <code>Clang/LLVM</code>?</strong></td>
+<td align="left"><strong>否</strong></td>
+<td align="left"><strong>是</strong></td>
+<td align="left"><strong>是</strong></td>
+</tr>
+<tr>
+<td align="left">… <strong>需要内核头文件?</strong></td>
+<td align="left"><strong>否</strong></td>
+<td align="left"><strong>是</strong> (传统方式)</td>
+<td align="left"><strong>否</strong></td>
+</tr>
+<tr>
+<td align="left">… <strong>需要 <code>Python</code>?</strong></td>
+<td align="left">否</td>
+<td align="left">是</td>
+<td align="left">否</td>
+</tr>
+<tr>
+<td align="left"><strong>部署产物</strong></td>
+<td align="left"><strong>单个二进制文件</strong></td>
+<td align="left">Python脚本 + 运行时环境</td>
+<td align="left"><code>bpftrace</code> 工具 + 运行时环境</td>
+</tr>
+<tr>
+<td align="left"><strong>性能</strong></td>
+<td align="left"><strong>最高</strong> (启动快，无运行时编译开销)</td>
+<td align="left"><strong>中等</strong> (有运行时编译开销)</td>
+<td align="left"><strong>中高</strong> (比BCC快，但仍有运行时开销)</td>
+</tr>
+<tr>
+<td align="left"><strong>灵活性</strong></td>
+<td align="left"><strong>最高</strong> (完全控制)</td>
+<td align="left"><strong>高</strong> (动态修改 C 代码方便)</td>
+<td align="left"><strong>中等</strong> (受限于语言特性)</td>
+</tr>
+<tr>
+<td align="left"><strong>易用性</strong></td>
+<td align="left"><strong>低</strong> (最复杂，需手写 C)</td>
+<td align="left"><strong>中等</strong> (Python 封装，较友好)</td>
+<td align="left"><strong>最高</strong> (最简单，一行命令)</td>
+</tr>
+<tr>
+<td align="left"><strong>最适合场景</strong></td>
+<td align="left">需要嵌入到其他程序中的长期监控Agent，如Cilium、Datadog Agent。</td>
+<td align="left">编写一次性的调试脚本，探索内核行为，快速验证想法。</td>
+<td align="left">系统管理员在服务器上快速定位一个具体问题，如”哪个进程在大量读写磁盘？”</td>
+</tr>
+</tbody></table>
+</div><div class="article-licensing box"><div class="licensing-title"><p>libbpf, bcc和bpftrace的结构和关联分析</p><p><a href="https://goko-son626.github.io/post/libbpf-bcc-and-bpftrace.html">https://goko-son626.github.io/post/libbpf-bcc-and-bpftrace.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2025-03-02</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-09-11</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/qspinlock.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">linux内核中qspinlock锁的优缺点分析</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/kernel-1.html"><span class="level-item">linux内核启动流程分析2</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '2a2f53d3e18a79ba442284e26c14a41f',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">12</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">18</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">11</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-07-31T18:36:11.000Z">2025-08-01</time></p><p class="title"><a href="/post/use-bpftrace-on-k1.html">bpftrace环境的配置和使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/bpftrace/">bpftrace</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-30T15:42:34.000Z">2025-04-30</time></p><p class="title"><a href="/post/ebpf-and-use-libbpf.html">Linux bpf技术解析及libbpf的使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/libbpf/">libbpf</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-03T01:25:24.000Z">2025-04-03</time></p><p class="title"><a href="/post/qspinlock.html">linux内核中qspinlock锁的优缺点分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/lock/">lock</a> / <a href="/categories/linux/kernel/lock/qspinlock/">qspinlock</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-03-02T08:40:24.000Z">2025-03-02</time></p><p class="title"><a href="/post/libbpf-bcc-and-bpftrace.html">libbpf, bcc和bpftrace的结构和关联分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/ebpf/">ebpf</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2024-10-12T14:20:39.000Z">2024-10-12</time></p><p class="title"><a href="/post/kernel-1.html">linux内核启动流程分析2</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/kernel-start/">kernel_start</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">9</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">8</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/platform-bus/"><span class="level-start"><span class="level-item">platform_bus</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/three-driver-struct/"><span class="level-start"><span class="level-item">three_driver_struct</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/kernel-start/"><span class="level-start"><span class="level-item">kernel_start</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/lock/"><span class="level-start"><span class="level-item">lock</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/lock/qspinlock/"><span class="level-start"><span class="level-item">qspinlock</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/trace/"><span class="level-start"><span class="level-item">trace</span></span><span class="level-end"><span class="level-item tag">3</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/trace/bpftrace/"><span class="level-start"><span class="level-item">bpftrace</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2025/08/"><span class="level-start"><span class="level-item">八月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/04/"><span class="level-start"><span class="level-item">四月 2025</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/03/"><span class="level-start"><span class="level-item">三月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2024/10/"><span class="level-start"><span class="level-item">十月 2024</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2024/09/"><span class="level-start"><span class="level-item">九月 2024</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bcc/"><span class="tag">bcc</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/compiler/"><span class="tag">compiler</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/driver-struct/"><span class="tag">driver_struct</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/hexo/"><span class="tag">hexo</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/platform-bus/"><span class="tag">platform_bus</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/qspinlock/"><span class="tag">qspinlock</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/toolchain/"><span class="tag">toolchain</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/uboot-start/"><span class="tag">uboot_start</span><span class="tag is-grey-lightest">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2025 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

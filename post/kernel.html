@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>linux内核启动流程分析1 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="*简单分析启动过程中的初始化内容"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="*简单分析启动过程中的初始化内容"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2024-10-10T08:27:49.000Z"><meta property="article:modified_time" content="2025-09-11T08:36:43.350Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="kernel_start"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/kernel.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2024-10-10T08:27:49.000Z","dateModified":"2025-09-11T08:36:43.350Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"*简单分析启动过程中的初始化内容"}</script><link rel="canonical" href="https://goko-son626.github.io/post/kernel.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2024-10-10  <a class="commentCountImg" href="/post/kernel.html#comment-container"><span class="display-none-class">c9f076f140394959762aa21b477fa26f</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="c9f076f140394959762aa21b477fa26f">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>16 分钟  <i class="fas fa-pencil-alt"> </i>2.4 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">linux内核启动流程分析1</h1><div class="content"><ul>
+<li>*<em><strong>简单分析启动过程中的初始化内容</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<h4 id="1-寻找执行入口"><a href="#1-寻找执行入口" class="headerlink" title="1. 寻找执行入口"></a>1. 寻找执行入口</h4><ul>
+<li>和之前找uboot的执行入口一样，在编译时查看编译文件的顺序和链接文件发现入口为<code>arch/armc/kernel/head.S</code></li>
+</ul>
+<p>“arch&#x2F;arm&#x2F;kernel&#x2F;vmlinux.lds”<br>…<br>. &#x3D; 0xC0000000 + 0x00008000<br>.head.text : {<br>text &#x3D; .;<br>*(.head.text)<br>}<br>…</p>
+<p>“arch&#x2F;arm&#x2F;kernel&#x2F;head.S”<br>…<br>.arm<br>__HEAD<br>ENTRY(stext)<br>…</p>
+<p>“include&#x2F;linux&#x2F;init.h”<br>…<br>#define __HEAD .section  “.head.text”, “ax”<br>#define __INIT .section  “.init.text”, “ax”<br>#define __FINIT .previous<br>…</p>
+<h4 id="2-head-S"><a href="#2-head-S" class="headerlink" title="2. head.S"></a>2. head.S</h4><ol>
+<li><p>确定 CPU 类型和启动模式（ARM&#x2F;Thumb、SVC 模式）</p>
+</li>
+<li><p>关闭中断</p>
+</li>
+<li><p>检查处理器是否支持必要功能</p>
+</li>
+<li><p>初始化物理地址偏移</p>
+</li>
+<li><p>验证 ATAGs&#x2F;DTB 参数</p>
+</li>
+<li><p>创建初始页表（identity mapping）</p>
+</li>
+<li><p>初始化 CPU 特定功能</p>
+</li>
+<li><p>开启 MMU（启用虚拟地址空间）</p>
+</li>
+<li><p>跳转到 __mmap_switched 进入内核下一阶段</p>
+</li>
+<li><p>段和入口定义</p>
+</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">.arm<br>__HEAD               <span class="hljs-comment">// 定义在 .head.text 段</span><br>ENTRY(stext)         <span class="hljs-comment">// 内核入口符号 stext</span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>.head.text 段：用于放置启动代码。</li>
+<li>stext 是 ARM Linux 的 第一个执行入口（在物理地址 0xC0008000，即 PAGE_OFFSET + TEXT_OFFSET）。</li>
+</ul>
+<ol start="2">
+<li>检查 ARM&#x2F;Thumb 模式并切换</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">THUMB( adr r9, BSYM(<span class="hljs-number">1f</span>) )<br>THUMB( bx  r9 )<br>THUMB( .thumb )<br>THUMB(<span class="hljs-number">1</span>: )<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>如果内核是 Thumb-2 格式(一种ARM的嵌入式格式)，先跳转并切换到 Thumb 状态。</li>
+<li>否则继续 ARM 模式。</li>
+</ul>
+<ol start="3">
+<li>设置 CPU 为 SVC 模式，关闭 IRQ&#x2F;FIQ</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">setmode PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>PSR_F_BIT：屏蔽 FIQ</li>
+<li>PSR_I_BIT：屏蔽 IRQ</li>
+<li>SVC_MODE：进入管理模式（Supervisor mode）</li>
+</ul>
+<p>保证启动过程不会被中断打断。</p>
+<ol start="4">
+<li>获取 CPU ID 并匹配处理器类型</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">mrc p15, <span class="hljs-number">0</span>, r9, c0, c0     @ 获取 CP15 c0：主 ID 寄存器<br>bl  __lookup_processor_type @ 查找 CPU 类型表，返回 r5=procinfo<br>movs r10, r5               @ 如果 r5=<span class="hljs-number">0</span>，说明不支持该 CPU<br>beq __error_p              @ 出错处理<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>读取 CPU ID（ARM 架构寄存器）。</li>
+<li>检查是否在 内核支持的 CPU 列表里。</li>
+</ul>
+<ol start="5">
+<li>LPAE（ARMv7+）检查</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">mrc p15, <span class="hljs-number">0</span>, r3, c0, c1, <span class="hljs-number">4</span>   @ 读取 ID_MMFR0<br>and r3, r3, #<span class="hljs-number">0xf</span><br>cmp r3, #<span class="hljs-number">5</span>                  @ 检查是否支持长描述符页表<br>blo __error_p<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>如果是 ARM LPAE 模式，检查是否支持 64-bit 页表。</li>
+</ul>
+<ol start="6">
+<li>计算 PHYS_OFFSET</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">adr r3, <span class="hljs-number">2f</span><br>ldmia r3, &#123;r4, r8&#125;<br>sub r4, r3, r4<br>add r8, r8, r4<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>通过位置无关代码计算 物理偏移量，用于页表映射。</li>
+<li>如果 CONFIG_XIP_KERNEL（执行在闪存），则直接 ldr r8, &#x3D;PHYS_OFFSET。</li>
+</ul>
+<ol start="7">
+<li>验证传入参数</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c">bl __vet_atags       @ 检查 ATAGs 或 Device Tree<br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_SMP_ON_UP</span><br>bl __fixup_smp       @ 单核系统伪 SMP 修复<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_ARM_PATCH_PHYS_VIRT</span><br>bl __fixup_pv_table  @ 修正物理/虚拟基址差异<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>检查 启动参数有效性（machine ID, atags&#x2F;dtb）。</li>
+<li>如果是单核系统 + SMP 配置，做补丁。</li>
+<li>修补物理&#x2F;虚拟地址差异。</li>
+</ul>
+<ol start="8">
+<li>创建启动页表</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">bl __create_page_tables<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>这是关键步骤，创建初始页表，映射：<ul>
+<li>identity mapping：物理地址映射到相同的虚拟地址（用于开启 MMU）</li>
+<li>内核虚拟基地址 (0xC0000000) 映射到物理地址</li>
+<li>UART IO 区域（如果开启 DEBUG_LL）</li>
+</ul>
+</li>
+<li>进入 __create_page_tables 的逻辑：<ul>
+<li>分配页表内存 (pgtbl)</li>
+<li>清空页表</li>
+<li>identity map 启动代码区域（__turn_mmu_on）</li>
+<li>映射内核代码区域 [KERNEL_START, KERNEL_END)</li>
+<li>映射 boot 参数区（ATAGs 或 DTB）</li>
+<li>如果 DEBUG_LL：映射 UART 寄存器地址</li>
+<li>返回页表基地址（r4）</li>
+</ul>
+</li>
+</ul>
+<ol start="9">
+<li>初始化 CPU</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">ldr r13, =__mmap_switched   @ MMU 打开后跳转地址<br>adr lr, BSYM(<span class="hljs-number">1f</span>)            @ 返回地址<br>mov r8, r4                  @ 设置页表基地址<br>ARM( add pc, r10, #PROCINFO_INITFUNC )<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>调用 CPU 特定初始化代码（在 arch&#x2F;arm&#x2F;mm&#x2F;proc-*.S）。</li>
+<li>初始化完成后返回，准备打开 MMU。</li>
+</ul>
+<ol start="10">
+<li>打开 MMU</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">b __enable_mmu<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>__enable_mmu：<ul>
+<li>配置 域访问控制寄存器（domain access control）</li>
+<li>设置页表基地址（TTBR）</li>
+<li>修改 CP15 控制寄存器（r0），打开 MMU（bit 0），可能还打开缓存。</li>
+</ul>
+</li>
+</ul>
+<p>然后执行：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">b __turn_mmu_on<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>__turn_mmu_on：<ul>
+<li>写 CP15 控制寄存器，开启 MMU</li>
+<li>切换 PC 到 __mmap_switched（位于高地址 0xC0000000 区域）</li>
+<li>从此开始，虚拟地址生效。</li>
+</ul>
+</li>
+</ul>
+<ol start="11">
+<li>__mmap_switched（MMU 打开后的第一步）</li>
+</ol>
+<ul>
+<li>这个在 arch&#x2F;arm&#x2F;kernel&#x2F;head-common.S，作用：<ul>
+<li>它完成从低级引导环境到C 语言内核环境的最后过渡，设置栈指针到内核栈, 清空 .bss, 确保内存布局、栈和关键变量正确，然后跳转到 start_kernel()。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * __mmap_switched:</span><br><span class="hljs-comment"> *  - MMU 已开启后执行的第一段代码</span><br><span class="hljs-comment"> *  - 作用：完成 .data 段拷贝、.bss 清零、设置栈、保存启动参数，然后跳到 start_kernel()</span><br><span class="hljs-comment"> */</span><br>__mmap_switched:<br>    adr     r3, __mmap_switched_data        @ r3 &lt;- __mmap_switched_data 表虚拟地址<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 1. 复制 .data 段（如果物理地址 != 虚拟地址）</span><br><span class="hljs-comment">     * 从 r3 中加载 4 个地址：__data_loc, _sdata, __bss_start, _end</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>    ldmia   r3!, &#123;r4, r5, r6, r7&#125;           @ r4=__data_loc, r5=_sdata, r6=__bss_start, r7=_end<br>    cmp     r4, r5                          @ 比较 __data_loc 和 _sdata<br><span class="hljs-number">1</span>:  cmpne   r5, r6                          @ 如果 .data 还没拷贝完并且不等于 .bss 开始<br>    ldrne   fp, [r4], #<span class="hljs-number">4</span>                    @ 从源地址(r4)加载一个字（递增<span class="hljs-number">4</span>）<br>    strne   fp, [r5], #<span class="hljs-number">4</span>                    @ 存到目标地址(r5)，并递增<br>    bne     <span class="hljs-number">1b</span>                              @ 如果还没结束，继续循环<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 2. 清零 .bss 段（__bss_start 到 _end）</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>    mov     fp, #<span class="hljs-number">0</span>                          @ fp 清零，用于写入<br><span class="hljs-number">1</span>:  cmp     r6, r7                          @ 比较当前位置和 _end<br>    strcc   fp, [r6],#<span class="hljs-number">4</span>                     @ 如果 r6 &lt; r7，则写 <span class="hljs-number">0</span> 并递增<br>    bcc     <span class="hljs-number">1b</span>                              @ 继续循环直到 r6 &gt;= r7<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 3. 加载全局变量地址 + 设置栈</span><br><span class="hljs-comment">     * 从表中再加载 5 个值：processor_id, machine_arch_type, atags_pointer, cr_alignment, sp</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>ARM(    ldmia   r3, &#123;r4, r5, r6, r7, sp&#125;    )   @ ARM 模式直接加载<span class="hljs-number">5</span>个寄存器<br>THUMB(  ldmia   r3, &#123;r4, r5, r6, r7&#125;        )   @ Thumb 模式先加载<span class="hljs-number">4</span>个<br>THUMB(  ldr     sp, [r3, #<span class="hljs-number">16</span>]               )   @ Thumb 再单独加载栈指针<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 4. 保存启动参数到全局变量</span><br><span class="hljs-comment">     * r9=CPU ID, r1=Machine ID, r2=atags/dtb 指针</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>    str     r9, [r4]                        @ 保存 processor_id<br>    str     r1, [r5]                        @ 保存 machine_arch_type<br>    str     r2, [r6]                        @ 保存 atags/dtb pointer<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 5. 保存 CP15 控制寄存器值</span><br><span class="hljs-comment">     * r0 中存的是 CP15 控制寄存器（MMU 等）</span><br><span class="hljs-comment">     * CR_A 位是 Alignment fault enable，通常清掉</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>    bic     r4, r0, #CR_A                   @ r4 = r0 去掉 Alignment 位<br>    stmia   r7, &#123;r0, r4&#125;                    @ 保存 r0 和 r4 到 cr_alignment 区<br><br>    <span class="hljs-comment">/* ---------------------------------------------------------</span><br><span class="hljs-comment">     * 6. 跳转到 C 语言内核入口</span><br><span class="hljs-comment">     * --------------------------------------------------------- */</span><br>    b       start_kernel                    @ 进入 start_kernel() （init/main.c）<br>ENDPROC(__mmap_switched)<br><br><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * __mmap_switched_data 表：</span><br><span class="hljs-comment"> * 提供初始化所需的虚拟地址（因为 MMU 已开启）</span><br><span class="hljs-comment"> */</span><br>__mmap_switched_data:<br>    .<span class="hljs-type">long</span>   __data_loc                      @ r4：物理 .data 起始地址<br>    .<span class="hljs-type">long</span>   _sdata                          @ r5：虚拟 .data 起始地址<br>    .<span class="hljs-type">long</span>   __bss_start                     @ r6：.bss 起始地址<br>    .<span class="hljs-type">long</span>   _end                            @ r7：内核结束地址<br>    .<span class="hljs-type">long</span>   processor_id                    @ 保存 CPU ID 的地址<br>    .<span class="hljs-type">long</span>   __machine_arch_type             @ 保存机器 ID 的地址<br>    .<span class="hljs-type">long</span>   __atags_pointer                 @ 保存 atags/dtb 指针的地址<br>    .<span class="hljs-type">long</span>   cr_alignment                    @ 保存 CP15 控制寄存器值的地址<br>    .<span class="hljs-type">long</span>   init_thread_union + THREAD_START_SP @ 栈指针地址<br>    .size   __mmap_switched_data, . - __mmap_switched_data<br></code></pre></td></tr></table></figure>
+
+<ol>
+<li>进入 __mmap_switched</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">__mmap_switched:<br>    adr r3, __mmap_switched_data<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>adr r3, __mmap_switched_data：获取 __mmap_switched_data 表的虚拟地址（因为 MMU 已开启，现在是虚拟地址访问）。</li>
+</ul>
+<ol start="2">
+<li>复制 .data 段</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c">ldmia   r3!, &#123;r4, r5, r6, r7&#125;   <span class="hljs-comment">// 从表中读取4个值：__data_loc, _sdata, __bss_start, _end</span><br>cmp     r4, r5                  <span class="hljs-comment">// 比较 __data_loc 和 _sdata</span><br><span class="hljs-number">1</span>:  cmpne   r5, r6<br>    ldrne   fp, [r4], #<span class="hljs-number">4</span><br>    strne   fp, [r5], #<span class="hljs-number">4</span><br>    bne     <span class="hljs-number">1b</span><br></code></pre></td></tr></table></figure>
+
+<p>含义：</p>
+<ul>
+<li>r4 &#x3D; __data_loc：物理内存中 .data 的位置</li>
+<li>r5 &#x3D; _sdata：虚拟地址 .data 段起始位置</li>
+<li>r6 &#x3D; __bss_start：.bss 段开始</li>
+<li>r7 &#x3D; _end：内核镜像结束位置</li>
+</ul>
+<p>循环：如果 .data 的物理位置和虚拟位置不同（XIP 或 relocate），复制 .data 段内容到正确位置。</p>
+<ol start="3">
+<li>清零 BSS</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">mov fp, #<span class="hljs-number">0</span>              @ 清零寄存器 fp<br><span class="hljs-number">1</span>:  cmp r6, r7<br>    strcc fp, [r6],#<span class="hljs-number">4</span><br>    bcc <span class="hljs-number">1b</span><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>把 .bss 段清零（即 __bss_start 到 _end）。<ul>
+<li>原因：C 语言要求未初始化全局变量为 0。</li>
+</ul>
+</li>
+</ul>
+<ol start="4">
+<li>加载保存关键变量的地址</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">ARM(   ldmia  r3, &#123;r4, r5, r6, r7, sp&#125;)<br>THUMB( ldmia  r3, &#123;r4, r5, r6, r7&#125; )<br>THUMB( ldr    sp, [r3, #<span class="hljs-number">16</span>] )<br></code></pre></td></tr></table></figure>
+
+
+<ul>
+<li>现在 r3 指向 __mmap_switched_data 的剩余部分：<ul>
+<li>r4 &#x3D; processor_id 地址</li>
+<li>r5 &#x3D; __machine_arch_type 地址</li>
+<li>r6 &#x3D; __atags_pointer 地址</li>
+<li>r7 &#x3D; cr_alignment 地址</li>
+<li>sp &#x3D; init_thread_union + THREAD_START_SP（设置栈指针）</li>
+</ul>
+</li>
+</ul>
+<ol start="5">
+<li>保存启动参数</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">str r9, [r4]    @ processor_id = r9<br>str r1, [r5]    @ machine_arch_type = r1<br>str r2, [r6]    @ atags/dtb pointer = r2<br></code></pre></td></tr></table></figure>
+
+
+<ul>
+<li>把早期保存的 CPU ID（r9）、机器类型（r1）、atags&#x2F;dtb 地址（r2）存到全局变量。</li>
+<li>这样 start_kernel() 就可以用这些数据。</li>
+</ul>
+<ol start="6">
+<li>保存控制寄存器值</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">bic r4, r0, #CR_A<br>stmia r7, &#123;r0, r4&#125;      @ 保存 CP15 control <span class="hljs-keyword">register</span> 值<br></code></pre></td></tr></table></figure>
+
+<p>r0 是 CP15 控制寄存器值（MMU、Cache 状态）。<br>清掉 CR_A（Alignment fault enable），保存两个版本：<br>r0 原始值<br>r4 去掉 Alignment bit 的值</p>
+<ol start="7">
+<li>跳转到 C 语言世界</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">b start_kernel<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li><p>直接跳到 start_kernel()（init&#x2F;main.c），进入 Linux C 初始化。</p>
+</li>
+<li><p><code>__mmap_switched_data</code>表</p>
+</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c">__mmap_switched_data:<br>    .<span class="hljs-type">long</span>   __data_loc          @ r4<br>    .<span class="hljs-type">long</span>   _sdata              @ r5<br>    .<span class="hljs-type">long</span>   __bss_start         @ r6<br>    .<span class="hljs-type">long</span>   _end                @ r7<br>    .<span class="hljs-type">long</span>   processor_id        @ 保存 CPU ID 的地址<br>    .<span class="hljs-type">long</span>   __machine_arch_type @ 保存机器 ID<br>    .<span class="hljs-type">long</span>   __atags_pointer     @ 保存启动参数地址<br>    .<span class="hljs-type">long</span>   cr_alignment        @ 保存 CP15 控制寄存器值<br>    .<span class="hljs-type">long</span>   init_thread_union + THREAD_START_SP @ sp<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>这个表提供了所有初始化需要的虚拟地址，因为现在 MMU 打开了，可以直接使用虚拟地址。</li>
+</ul>
+<p><strong>总结</strong>：__mmap_switched 主要干的事<br>✔ 复制 .data 段（如果需要）<br>✔ 清零 .bss 段<br>✔ 设置栈指针（SP）<br>✔ 保存 CPU ID、Machine ID、ATAGS&#x2F;DTB 地址到全局变量<br>✔ 保存 CP15 控制寄存器值<br>✔ 跳转到 start_kernel() 进入 C 世界</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>linux内核启动流程分析1</p><p><a href="https://goko-son626.github.io/post/kernel.html">https://goko-son626.github.io/post/kernel.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2024-10-10</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-09-11</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/kernel-1.html" target="_blank">linux内核启动流程分析2</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/kernel-1.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">linux内核启动流程分析2</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/u-boot.html"><span class="level-item">U-boot 移植及源码分析( ARM )</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: 'c9f076f140394959762aa21b477fa26f',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">12</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">18</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">11</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-07-31T18:36:11.000Z">2025-08-01</time></p><p class="title"><a href="/post/use-bpftrace-on-k1.html">bpftrace环境的配置和使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/bpftrace/">bpftrace</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-30T15:42:34.000Z">2025-04-30</time></p><p class="title"><a href="/post/ebpf-and-use-libbpf.html">Linux bpf技术解析及libbpf的使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/libbpf/">libbpf</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-03T01:25:24.000Z">2025-04-03</time></p><p class="title"><a href="/post/qspinlock.html">linux内核中qspinlock锁的优缺点分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/lock/">lock</a> / <a href="/categories/linux/kernel/lock/qspinlock/">qspinlock</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-03-02T08:40:24.000Z">2025-03-02</time></p><p class="title"><a href="/post/libbpf-bcc-and-bpftrace.html">libbpf, bcc和bpftrace的结构和关联分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/ebpf/">ebpf</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2024-10-12T14:20:39.000Z">2024-10-12</time></p><p class="title"><a href="/post/kernel-1.html">linux内核启动流程分析2</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/kernel-start/">kernel_start</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">9</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">8</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/platform-bus/"><span class="level-start"><span class="level-item">platform_bus</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/three-driver-struct/"><span class="level-start"><span class="level-item">three_driver_struct</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/kernel-start/"><span class="level-start"><span class="level-item">kernel_start</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/lock/"><span class="level-start"><span class="level-item">lock</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/lock/qspinlock/"><span class="level-start"><span class="level-item">qspinlock</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/trace/"><span class="level-start"><span class="level-item">trace</span></span><span class="level-end"><span class="level-item tag">3</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/trace/bpftrace/"><span class="level-start"><span class="level-item">bpftrace</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2025/08/"><span class="level-start"><span class="level-item">八月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/04/"><span class="level-start"><span class="level-item">四月 2025</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/03/"><span class="level-start"><span class="level-item">三月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2024/10/"><span class="level-start"><span class="level-item">十月 2024</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2024/09/"><span class="level-start"><span class="level-item">九月 2024</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bcc/"><span class="tag">bcc</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/compiler/"><span class="tag">compiler</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/driver-struct/"><span class="tag">driver_struct</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/hexo/"><span class="tag">hexo</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/platform-bus/"><span class="tag">platform_bus</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/qspinlock/"><span class="tag">qspinlock</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/toolchain/"><span class="tag">toolchain</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/uboot-start/"><span class="tag">uboot_start</span><span class="tag is-grey-lightest">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2025 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
