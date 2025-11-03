@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>Don&#039;t_stave - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="饥荒代码-控制台命令"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="饥荒代码-控制台命令"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2023-05-30T15:56:15.000Z"><meta property="article:modified_time" content="2025-11-03T16:09:35.068Z"><meta property="article:author" content="GoKo Mell"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/Don-t-stave.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2023-05-30T15:56:15.000Z","dateModified":"2025-11-03T16:09:35.068Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"饥荒代码-控制台命令"}</script><link rel="canonical" href="https://goko-son626.github.io/post/Don-t-stave.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2023-05-30  <a class="commentCountImg" href="/post/Don-t-stave.html#comment-container"><span class="display-none-class">475c91015932e6895172e4c88d7b81e5</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="475c91015932e6895172e4c88d7b81e5">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>38 分钟  <i class="fas fa-pencil-alt"> </i>5.6 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">Don&#039;t_stave</h1><div class="content"><ul>
+<li><em><strong>饥荒代码-控制台命令</strong></em></li>
+</ul>
+<span id="more"></span>
+<h2 id="饥荒"><a href="#饥荒" class="headerlink" title="饥荒"></a>饥荒</h2><p>【用法】：点击Tab键上边的那个键进入操作台，Ctrl+L关闭这个界面</p>
+<ol>
+<li><p><strong>生成</strong></p>
+<p>指令1：<code>c_spawn(&quot;物品或生物代码&quot;,数量)</code></p>
+<p>指令2：<code>DebugSpawn(&quot;物品或生物代码&quot;)</code></p>
+<p>可以在鼠标的位置生成物品或生物</p>
+</li>
+<li><p><strong>给予</strong></p>
+<p>指令：<code>c_give(&quot;物品代码&quot;,数量)</code></p>
+<p>可以在物品栏或背包里生成物品，如果物品栏满了就会掉在地上</p>
+<p>例子：想生成猎狗，则输入：<code>c_spawn(&quot;hound&quot;)</code></p>
+<p>例子：想获得8个草，则输入：<code>c_give(&quot;cutgrass&quot;,8)</code></p>
+</li>
+<li><p><strong>设置生命</strong></p>
+<p>指令：<code>c_sethealth(百分数)</code></p>
+<p>可以把生命值（不是上限）设置为百分之多少，注：使用小数代替百分数，如0.8&#x3D;80%</p>
+<p>例：设置生命值为50%，则输入：<code>c_sethealth(0.5)</code></p>
+</li>
+<li><p><strong>设置精神</strong></p>
+<p>指令：<code>c_setsanity(百分数)</code></p>
+<p>同上</p>
+<p>例：设置精神值为50%，则输入：<code>c_setsanity(0.5)</code></p>
+</li>
+<li><p><strong>设置饥饿</strong></p>
+<p>指令：<code>c_sethunger(百分数)</code></p>
+<p>同上</p>
+<p>例：设置饥饿值为50%，则输入：<code>c_sethunger(0.5)</code></p>
+</li>
+<li><p><strong>上帝模式</strong></p>
+<p>指令：<code>c_godmode()</code></p>
+<p>一般情况不会受伤挨饿掉精神</p>
+</li>
+<li><p><strong>设置速度</strong></p>
+<p>指令：<code>c_speedmult</code></p>
+<p>标准速度为“1”，值越大速度越快</p>
+<p>例：设置为标准速度的10倍，则输入：<code>c_speed(10)</code></p>
+<p>补：下洞穴或切换世界或上船或退出游戏会关闭上帝模式，不要在怪物多的时候退游戏哦，还有吃有脑残惩罚的食物依然会降低脑残，可以通过花或食物来回复，帽子之类的无效</p>
+</li>
+<li><p><strong>创造模式</strong></p>
+<p>指令：<code>GetPlayer().components.builder:GiveAllRecipes()</code></p>
+<p>可以制作全物品</p>
+</li>
+<li><p><strong>设置生命上限</strong></p>
+<p>指令：<code>GetPlayer().components.health:SetMaxHealth(值)</code></p>
+<p>设置生命上限为值那么大</p>
+<p>例：设置生命上限为87，则输入：<code>GetPlayer().components.health:SetMaxHealth(87)</code></p>
+</li>
+<li><p><strong>设置精神上限</strong></p>
+<p>指令：<code>GetPlayer().components.sanity:SetMax(值)</code></p>
+<p>同上</p>
+<p>例：设置精神上限为500，则输入：<code>GetPlayer().components.sanity:SetMax(500)</code></p>
+</li>
+<li><p><strong>设置饥饿上限</strong></p>
+<p>指令：<code>GetPlayer().components.hunger:SetMax(值)</code></p>
+<p>同上</p>
+<p>例：设置饥饿上限为364，则输入：<code>GetPlayer().components.hunger:SetMax(364)</code></p>
+</li>
+<li><p><strong>停止饥饿</strong></p>
+<p>指令：<code>GetPlayer().components.hunger:Pause(true)</code></p>
+<p>你的角色不再饥饿</p>
+</li>
+<li><p><strong>变成海狸（吴迪专用）</strong></p>
+<p>指令：<code>GetPlayer().components.beaverness:SetPercent(1)</code></p>
+</li>
+<li><p><strong>传送</strong></p>
+<p>指令：<code>c_gonext(&quot;代码&quot;)</code></p>
+<p>把你传送到附近的“代码”的位置</p>
+<p>例：传送到附近的牛的位置，则输入：<code>c_gonest(&quot;beefalo&quot;)</code></p>
+</li>
+<li><p><strong>删除</strong></p>
+<p>指令：<code>TheInput:GetWorldEntityUnderMouse():Remove()</code></p>
+<p>删除你鼠标所在位置的物体</p>
+</li>
+<li><p><strong>地图全开</strong></p>
+<p>指令：<code>GetWorld().minimap.MiniMap:ShowArea(0,0,0,10000)</code></p>
+<p>退出游戏时失效</p>
+</li>
+<li><p><strong>跳过一天</strong></p>
+<p>指令：<code>GetClock():MakeNextDay()</code></p>
+</li>
+<li><p><strong>跳过几天</strong></p>
+<p>指令：<code>for x = 1, 值 do GetClock():MakeNextDay() end</code></p>
+<p>跳过值那么多的天数</p>
+<p>！！！跳过太多的天数会卡死</p>
+<p>例：跳过50天，则输入：<code>for x = 1, 50 do GetClock():MakeNextDay() end</code></p>
+</li>
+<li><p><strong>跳过一段时间</strong></p>
+<p>指令：<code>LongUpdate(值)</code></p>
+<p>时钟每格30个单位，一整天是480个单位</p>
+<p>例：跳过4格时间，则输入：<code>LongUpdate(120)</code></p>
+</li>
+<li><p><strong>设置时间段</strong></p>
+<p>指令：<code>GetClock():SetSegs(白天,黄昏,夜晚)</code></p>
+<p>时钟一共有16个格，白天黄昏夜晚加在一起必须为16</p>
+<p>例：白天7格，黄昏8格，夜晚1格，则输入：<code>GetClock():SetSegs(7,8,1)</code></p>
+</li>
+<li><p><strong>跳过时间段</strong></p>
+<p>指令：<code>GetClock():NextPhase()</code></p>
+<p>跳过当前时间段，比如白天跳到黄昏</p>
+</li>
+<li><p><strong>开始春天(DLC1)</strong></p>
+<p>指令：<code>GetSeasonManager():StartSpring()</code></p>
+</li>
+<li><p><strong>开始夏天</strong></p>
+<p>指令：<code>GetSeasonManager():StartSummer()</code></p>
+</li>
+<li><p><strong>开始秋天（DLC1）</strong></p>
+<p>指令：<code>GetSeasonManager():StartAutumn()</code></p>
+</li>
+<li><p><strong>开始冬天</strong></p>
+<p>指令：<code>GetSeasonManager():StartWinter()</code></p>
+</li>
+<li><p><strong>开始下雨</strong></p>
+<p>指令：<code>GetSeasonManager():StartPrecip()</code></p>
+</li>
+<li><p><strong>停止下雨</strong></p>
+<p>指令：<code>GetSeasonManager():StopPrecip()</code></p>
+</li>
+<li><p><strong>生成闪电</strong></p>
+<p>指令：<code>GetSeasonManager():DoLightningStrike(Vector3(GetPlayer().Transform:GetWorldPosition()))</code></p>
+<p>如果周围没有避雷针，那闪电将会击中你</p>
+</li>
+<li><p><strong>测量距离</strong></p>
+<p>指令：<code>print(math.sqrt(GetPlayer():GetDistanceSqToInst(TheInput:GetWorldEntityUnderMouse())))</code></p>
+<p>在控制台信息（Ctrl+L）中显示角色到鼠标物品之间的距离</p>
+</li>
+<li><p><strong>解锁角色</strong></p>
+<p>指令：<code>GetPlayer().profile:UnlockCharacter(&quot;角色名称&quot;)</code></p>
+<p>和：<code>GetPlayer().profile:Save()</code></p>
+<p>可以解锁多个角色</p>
+<p>例：<br><code>GetPlayer().profile:UnlockCharacter(&quot;willow&quot;)</code><br><code>GetPlayer().profile:UnlockCharacter(&quot;wickerbottom&quot;)</code><br><code>GetPlayer().profile:Save()</code></p>
+<p>或全部解锁</p>
+<p>指令：<code>GetPlayer().profile:UnlockEverything()</code></p>
+</li>
+<li><p><strong>（强迫症）31.清除死亡记录</strong></p>
+<p>指令：<code>ErasePersistentString(&quot;morgue&quot;)</code></p>
+<p>重启游戏可以看到变化</p>
+</li>
+</ol>
+<h2 id="二、寻找代码"><a href="#二、寻找代码" class="headerlink" title="二、寻找代码"></a>二、寻找代码</h2><ol>
+<li><p><strong>Wiki（Wikia）查找法（95%）</strong>（<a target="_blank" rel="noopener" href="http://dont-starve-game.wikia.com/wiki/Don%27t_Starve_Game_Wiki%EF%BC%89">http://dont-starve-game.wikia.com/wiki/Don%27t_Starve_Game_Wiki）</a></p>
+<p>在饥荒Wiki（Wikia）里搜索你要找的物品的英文名</p>
+<p>如，找沙子（sand）的代码，搜索sand找到sand页面，介绍里有DebugSpawn，后面的就是代码</p>
+<p>Wiki几乎有所有物品的代码，但有时游戏更新的时候可能跟不上</p>
+</li>
+<li><p><strong>文件搜索法（70%）</strong></p>
+<p>在游戏目录&#x2F;data中搜索你想要找的物品的英文名</p>
+<p>如，找芦苇（cut reeds）的代码，在目录里搜索cut</p>
+<p>找到相关的LUA文件，文件名就是代码</p>
+<p>这个方法虽然比Wiki快，但准确度不高</p>
+<p>如你要找“像鲨鱼的生物”（sea hound），但怎么着都找不到</p>
+<p>因为它的代码与名字毫无关系，是sharx</p>
+</li>
+</ol>
+<h3 id="材料"><a href="#材料" class="headerlink" title="材料: ."></a>材料: .</h3><h4 id="【猪镇】"><a href="#【猪镇】" class="headerlink" title="【猪镇】"></a>【猪镇】</h4><p>cork软木<br>零碎衣料：Clippings<br>荨麻：cutnettle<br>蔓草（铲掉的荨麻藤）：dug_nettle<br>捕蝇器长茎-Flytrap Stalk：venus_stalk<br>铁矿石:iron<br>块茎-tuber：tuber_crop<br>合金-Alloy：alloy<br>闪电羽毛-Thunder Feather：feather_thunder<br>雀眼鹰羽毛-Peagawk Plume：peagawkfeather<br>河马鹿角-Hippopotamoose Antler：hippo_antler<br>帕塔潘羽毛-Platapine Quile：bill_quill<br>金粉-Gold Dust：gold_dust<br>有毒的毒剑蛙腿&#x2F;烹饪过的毒剑蛙腿-Poison Dartfrog Legs：froglegs_poison&#x2F;froglegs_poison_cooked<br>通往城市的钥匙-Key to the City：key_to_city<br>皇家美术馆钥匙-Royal Gallery Key：pedestal_key<br>玛法法王后（雕像）- Queen Malfalfa ：trinket_giftshop_1<br>皇宫美景明信片-Post Card of the Royal Palace：trinket_giftshop_3<br>一罐喷彩摩丝-Can of Silly String：trinket_giftshop_4<br>猪猪币-Oinc（金币）：oinc<br>十枚猪猪币-Tenpiece Oinc（银币）：oinc10<br>装饰猪猪币-Centapiece Oinc（纸币）：oinc100<br>魔法水-Magic Water：waterdrop<br>安保协约-Security Contract：securitycontract<br>房屋产权证-Deed of home ownership：deed<br>山贼藏宝图-Bandit Stash Map：banditmap<br>失落的圣象-Lost Idol：relic_1<br>失落的图腾-Lost Totem：relic_2<br>文物碎片-Relic Fragment：relic_3<br>蓝母猪-Blue Sow：relic_4<br>宝钻松露-Jeweled Truffle：relic_5<br>维沃虫甲壳-Weevole Carapace：weevole_carapace<br>甲壳-Chitin：chitin<br>蛇骨-Snake Bone：snake_bone<br>钻地龙头骨-Pugalisk Skull：pugalisk_skull</p>
+<h4 id="【工具】"><a href="#【工具】" class="headerlink" title="【工具】"></a>【工具】</h4><p>剪刀-Shears：shears<br>行政锤子-Executive Hammer：city_hammer<br>钻地龙手杖-Pugalisk Wand：bonestaff<br>鸟哨-Bird Whistle：antler<br>放大镜-Magnifying Glass：magnifying_glass<br>金平底锅-Gold Pan：goldpan<br>驱虫灵-Bug B’Gone：bugrepellent<br>软木碗型划艇-Cork Bowl Canoe：corkboat<br>蛇皮帆-Snakeskin Sail：snakeskinsail<br>警报解除工具-Disarming Tools：disarming_kit<br>圆头锤-Ball Pein Hammer：ballpein_hammer<br>帝王权杖-Regal Scepter：pig_scepter<br>宝鸟胗石-Ro Bin Gizzard Stone：ro_bin_gizzard_stone<br>宝鸟箱-Ro Bin：ro_bin<br>费洛蒙石-Pherostone：pheromonestone</p>
+<h4 id="【武器】"><a href="#【武器】" class="headerlink" title="【武器】"></a>【武器】</h4><p>拐棍-Stalking Stick：walkingstick<br>戟-Halberd：halberd<br>软木棒-Cork Bat：cork_bat<br>手持加农炮-Blunderbuss：blunderbuss</p>
+<h4 id="【穿戴】"><a href="#【穿戴】" class="headerlink" title="【穿戴】"></a>【穿戴】</h4><p>沙姆雷特面具-Shamlet Mask（韦伯的皮面具）：disguisehat<br>软木蜡烛帽-Cork Candle Hat：candlehat<br>维沃虫披肩-Weevole Mantle：armor_weevole<br>人蚁套装-Mant Suit：antsuit<br>人蚁面具-Mant Mask：antmaskhat<br>华丽的头盔-Fancy Helmet：metalplatehat<br>锡制套装-Tin Suit：armor_metalplate<br>防毒面罩-Gas Mask：gasmaskhat<br>雷霆之帽-Thunderhat：thunderhat<br>木髓帽-Pith Hat：pithhat<br>蛇皮帽-Snakeskin Hat：snakeskinhat<br>蛇皮夹克-Snakeskin Jacket：armor_snakeskin<br>皇家王冠-Royal Crown：pigcrownhat<br>蝙蝠蒙面斗篷-Cowl：bathat<br>山贼帽-Swashy Hat：bandithat<br>雀眼鹰帽子（这个应该是后面会加入的东西，已经可以刷出来使用了）：peagawkfeatherhat<br>花粉热帽子（这个也是新东西，估计后面会加入）：hayfeverhat</p>
+<h4 id="【食物】"><a href="#【食物】" class="headerlink" title="【食物】"></a>【食物】</h4><p>鱼-fish：fish<br>炸块茎-Fried tuber：tuber_crop_cooked<br>开花块茎-Blooming tuber：tuber_bloom_crop<br>油炸开花块茎-Fried Blooming tuber：tuber_bloom_crop_cooked<br>蜜汁-Nectar：nectar_pod<br>烹饪过的藕-Cooked Lotus Root：lotus_flower_cooked<br>熟种荚-Cooked Seed Pod：teatree_nut_cooked<br>芦笋&#x2F;烹饪过的芦笋-Asparagus&#x2F;Cooked Asparagus：asparagus&#x2F;asparagus_cooked<br>芦笋汤-Asparagus Soup：asparagussoup<br>芦荟&#x2F;烹饪过的芦荟-Aloe &#x2F; Cooked Aloe：aloe&#x2F;aloe_cooked<br>拉蒂什&#x2F;烹饪过的拉蒂什-Radish &#x2F; Cooked Radish：radish&#x2F;_cooked<br>荨麻卷-Nettle Rolls：nettlelosange<br>蛇骨汤-Snake Bone Soup：snakebonesoup<br>茶-Tea：tea<br>冰茶-Iced Tea：icedtea<br>蒸火腿三明治-Steamed Ham Sandwich：steamedhamsandwich<br>黏黏的蛋糕-Gummy Cake：gummy_cake<br>香辣蔬菜刺-Spicy Vegetable Stinger：spicyvegstinger<br>硬壳玉米卷-Hard Shell Tacos：hardshell_tacos<br>黑豆饭-Feijoada：feijoada<br>熟了的黏糊鼻涕虫-Cooked Gummy Slug：slugbug_cooked<br>烹饪过的蝽象-Cooked Bean Bugs：jellybug_cooked</p>
+<h4 id="【建筑】"><a href="#【建筑】" class="headerlink" title="【建筑】"></a>【建筑】</h4><p>摇头风扇-Oscillating Fan：basefan<br>熔炼器-Smelter：smelter<br>洒水器-Sprinkler（测试发现每次刷这个都崩，慎刷）：sprinkler<br>软木桶-Cork Barrel：corkchest<br>霍格思普科斯特-Hogus Porkusator：hogusporkusator<br>翔天飞船-Skyworthy：porkland_exit&#x2F;porkland_entrance<br>商店老板的桌子-desk：pigman_shopkeeper_desk<br>灯柱-Lamp Post：city_lamp<br>草坪装饰1（规则分段式）：lawnornament_1<br>草坪装饰2（错乱分段式）：lawnornament_2<br>草坪装饰3（伞状树）：lawnornament_3<br>草坪装饰4（尖树状）：lawnornament_4<br>草坪装饰5（双层树状）：lawnornament_5<br>草坪装饰6（开花）：lawnornament_6<br>草坪装饰7（粉色）：lawnornament_7<br>复杂精致的修剪灌木（猪）-Angry Pig：topiary_1<br>复杂精致的修剪灌木（嚎叫猪）-Howling Werepig：topiary_2<br>复杂精致的修剪灌木（牛）-Yawning Beefalo：topiary_3<br>复杂精致的修剪灌木（猪王）-Pig King：topiary_4<br>倾斜小屋-Slanty Shanty：playerhouse_city<br>猪伯利矿石交易所-Swinesbury Mineral Exchange：pig_shop_bank<br>猪伯利学院-Swinesbury Academy：pig_shop_academy<br>猪伯利市政大厅-Swinesbury Cityhall：pig_shop_cityhall<br>银猪槽熟食店-The Sterling Trough Deli：pig_shop_deli<br>猪伯利精选食品店-Swinesbury Fine Grocer’s：pig_shop_produce<br>猪猪小姐花艺店-Miss Sow’s Floral Arrangements：pig_shop_florist<br>猪猪与居居杂货店-Pigg and Pigglet’s General Store：pig_shop_general<br>卷尾巴泥巴浴健康会馆-Curly Tails Mud Spa：pig_shop_hoofspa<br>飞猪横来奥术商店-The Flying Pig Arcane Shop：pig_shop_arcane<br>野猪獠牙武器店-The Boar’s Tusk Weapon Shop：pig_shop_weapons<br>俊猪耳帽子店-The Sow’s Ear Hat Shop：pig_shop_hatshop<br>“猪栏”奇闻异物馆-‘The Sty’ Oddities Emporium：pig_shop_antiquities<br>皇宫-Palace：pig_palace<br>农宅（石头猪人房）：pighouse_farm<br>采石小屋（外表跟上面的没差，但上面出来农场猪，这个出来矿工猪）：pighouse_mine<br>市内住宅-Town House（大概可以随机刷出8种房子）：pighouse_city<br>守望塔&#x2F;守望塔（皇家）-Watch Tower：pig_guard_tower&#x2F;pig_guard_tower_palace<br>毒云（就是驱虫灵喷出来的毒气）：gascloud<br>石片-Stone Slab：rock_flippable<br>雷鸟窝-Thundernest：thunderbirdnest<br>气泡泳池-Sparkling Pool：sedimentpuddle<br>诱惑的石像：pig_ruins_idol<br>巨砾：pig_ruins_artichoke<br>用来砸的锅-A Smashing Pot：smashingpot<br>破碎的石脸（只有脸）：pig_ruins_head<br>破碎的石脸（有两颗金牙的猪人）：pig_ruins_pig<br>破碎的石脸（有金子的蚁人）：pig_ruins_ant<br>破碎的图腾：pig_ruins_plaque<br>破碎的火炬：pig_ruins_torch<br>墙壁火炬：pig_ruins_torch_wall<br>墙壁火炬（蓝色的）：pig_ruins_torch_wall_blue<br>墙上的藤蔓：pig_ruins_torch_wall_vines_east&#x2F;west&#x2F;north<br>遗迹入口（去猪二岛）：pig_ruins_entrance&#x2F;pig_ruins_exit（后者是没有藤蔓的）<br>遗迹入口（去蛇岛）：pig_ruins_entrance2&#x2F;pig_ruins_exit2（后者是没有藤蔓的）<br>遗迹入口（蚁人雕像）：pig_ruins_entrance3<br>遗迹入口（无雕像）：pig_ruins_entrance_small<br>遗迹入口（去日晷岛）：pig_ruins_entrance4<br>遗迹入口（日晷遗迹）：pig_ruins_entrance5<br>猪猪末日日历-Aporkalypse Calendar：aporkalypse_clock<br>猪猪末日日历-Aporkalypse Calendar（最外圈）：aporkalypse_clock1<br>猪猪末日日历-Aporkalypse Calendar（中间圈）：aporkalypse_clock2<br>猪猪末日日历-Aporkalypse Calendar（最内圈）：aporkalypse_clock3<br>倒回踏板（猪猪末日日历）：aporkalypse_rewind_plate<br>加速踏板（猪猪末日日历）：aporkalypse_fastforward_plate<br>地洞的光：pig_ruins_light_beam&#x2F;roc_cave_light_beam<br>地洞里的机关石头：pig_ruins_pressure_plate<br>青春不老泉-Fountain of Youth：pugalisk_fountain<br>摇摇欲坠的柱子：pugalisk_ruins_pillar<br>不祥的雕刻：pugalisk_trap_door<br>古代城墙（出现在蛇岛祭坛附近的那种）：wall_pig_ruins_repaired<br>古代城墙（同楼上的一样，不过是破坏的）：wall_pig_ruins<br>地下陷阱（刷在地上不会触发）：pig_ruins_spear_trap<br>毁掉的长矛陷阱：pig_ruins_spear_trap_broken<br>石化的蛋（大鸟巣里的）：roc_nest_egg1&#x2F;2&#x2F;3&#x2F;4<br>饱受风霜的小屋：roc_nest_house<br>生锈的灯：roc_nest_rusty_lamp<br>大鸟巣：roc_nest<br>蜂蜜箱：antchest<br>蚁穴-Antcomb Home：antcombhome<br>灯塔：ant_cave_lantern<br>许愿井-Wishing Well：deco_ruins_fountain<br>末日之井-End’s Well：deco_ruins_endswell<br>猪猪末日日历-Aporkalypse Calendar：aporkalypse_clock<br>人蚁丘陵-Mant Hill：anthill&#x2F;anthill_exit（前者会崩档，后者不会）<br>曼德拉丘陵：mandrakehouse<br>龟裂洞穴-Cave Cleft：vampirebatcave<br>大蚊群-Gnat Mound：gnatmound<br>粪堆-Dung Pile：dungpile<br>粪球-Dung Ball：dungball<br>钟乳石王座：antqueen_throne<br>出生地的东西：porkland_intro_basket&#x2F;balloon&#x2F;trunk&#x2F;flags&#x2F;scrape&#x2F;suitcase&#x2F;sandbag</p>
+<h4 id="【生物】"><a href="#【生物】" class="headerlink" title="【生物】"></a>【生物】</h4><p>皮皮鸡-Peep Hen（新物种）：peekhen<br>折龙草-Snap Dragon（新物种）：snapdragon<br>鸡-Chicken（新物种）：chicken<br>斑斑马-Zeb（新物种）：zeb<br>变色龙麦克斯-Maxameleon：porkland_intro<br>猪守卫-Royal Guard：pigman_royalguard（普通）&#x2F;pigman_royalguard_2（皇家）<br>卷尾巴泥巴浴健康会馆老板-Beautician：pigman_beautician_shopkeep&#x2F;pigman_beautician<br>猪猪与居居杂货店老板-Banker：pigman_bamker_shopkeep&#x2F;pigman_banker&#x2F;pigman_shopkeep<br>猪猪小姐花艺店老板-Florist：pigman_florist_shopkeep&#x2F;pigman_florist<br>猪伯利学院老板-Professor：pigman_professor_shopkeep&#x2F;pigman_professor<br>猪伯利精选食品店&#x2F;银猪槽熟食店老板-Storeowner：pigman_storeowner<br>玛法法王后-Pig Queen：pigman_queen<br>农场猪人-Farmer：pigman_farmer<br>修理工猪人-Worker：pigman_mechanic<br>市长猪人-Mayor：pigman_mayor<br>矿工猪人-Miner：pigman_miner<br>穿绿马甲的猪人-Usher：pigman_usher<br>戴面具的猪人-Masked Pig（猪小偷）：pigbandit<br>“猪栏”奇闻异物馆老板-Collector：pigman_collector_shopkeep&#x2F;pigman_collector<br>飞猪横来奥术商店老板-Erudite：pigman_erudite_shopkeep&#x2F;pigman_erudite<br>野猪獠牙武器店老板-Hunter：pigman_hunter_shopkeep&#x2F;pigman_hunter<br>俊猪耳帽子店老板-Hatmaker：pigman_hatmaker_shopkeep&#x2F;pigman_hatmaker<br>工蚁-Mant：antman<br>兵蚁：antman_warrior<br>人蚁战士之卵：antman_warrior_egg<br>女人蚁王后-Queen Womant：antqueen<br>雷鸟-Thunderbird：thunderbird<br>鸽子&#x2F;一群鸽子-Pigeon：pigeon&#x2F;pigeon_swarm<br>鹦鹉（蓝）-Polly Parrot：parrot_blue<br>翠鸟-Kingfisher：kingfisher<br>古代神灵-Ancient Spirit：pigghost<br>蜘蛛猴-Spider Monkey：spider_monkey<br>雀眼鹰-Peagawk：peagawk<br>大鸟-BFB：roc_head&#x2F;leg&#x2F;tail<br>石蛋-Stone Egg（孵切斯特）：roc_robin_egg<br>毒剑蛙-Poison Dartfrog：frog_poison<br>毒蛇-Viper：snake_amphibious<br>狐狸-Pog：pog<br>钻地龙-Pugalisk：pugalisk<br>齿状捕蝇器-Snaptooth Flytrap：adult_flytrap<br>齿状捕蝇器幼苗-Snaptooth Seedling：mean_flytrap<br>萤火虫-Glowfly（白天也有的那种）：glowfly<br>黏糊的鼻涕虫-Gummy Slug：slugbug<br>蝽象-Bean Bugs：jellybug<br>蚊群-Gnat Swarm：gnat<br>金戈登-Pangolden：pangolden<br>铁巨人-Iron Hulk：ancient_robot_ribs&#x2F;head&#x2F;claw&#x2F;leg<br>吸血蝙蝠-Vampire Bat：vampirebat<br>大蛆-Giant Grub：giantgrub<br>河马-Hippopotamoose：hippopotamoose<br>皮可果&#x2F;橙色皮可果-Piko：piko&#x2F;piko_orange<br>屎壳郎-Dung Beetle：dungbeetle<br>蝎子-Scorpion：scorpion<br>维沃虫-Weevole：weevole<br>帕塔潘-Platapine：bill<br>曼德拉人-Elder Mandrake：mandrakeman<br>疯狂甲虫-Rabid Beetle：rabid_beetle<br>远古先驱者-Ancient Herald：：ancient_herald</p>
+<h4 id="【植物】"><a href="#【植物】" class="headerlink" title="【植物】"></a>【植物】</h4><p>树篱-Hedge（3种）：hedge_cone&#x2F;hedge_layered&#x2F;hedge_block<br>高草丛：grass_tall<br>茶树-Tea Tree：teatree_tall&#x2F;short&#x2F;normal&#x2F;stump&#x2F;burnt<br>有松鼠的茶树-Tea Tree：teatree_piko_nest<br>种荚-Seed Pod：teatree_nut<br>森林芒刺果-Jungle Burr：burr<br>利爪棕榈树-Claw Palm Tree：clawpalmtree&#x2F;clawpalmtree_tall&#x2F;short&#x2F;stump<br>棕榈树苗-Claw Palm Sapling：clawpalmtree_sapling<br>雨林大树-Rainforest Tree：rainforesttree_rot&#x2F;_tall&#x2F;_short&#x2F;_stump&#x2F;_burnt<br>被茧缠住的树-Cocooned Tree：spider_monkey_tree&#x2F;spider_monkey_tree_tall&#x2F;short&#x2F;normal&#x2F;stump&#x2F;burnt<br>块茎树-tuber Trees：tubertree&#x2F;_tall&#x2F;_short&#x2F;_burnt&#x2F;_stump<br>开花的块茎树-Blooming tuber Tree：&#x2F;<br>饱受风霜的树：roc_nest_tree1&#x2F;2<br>饱受风霜的枝丫：roc_nest_branch1&#x2F;2<br>饱受风霜的灌木：roc_nest_bush<br>饱受风霜的棍子：roc_nest_debris1&#x2F;2&#x2F;3&#x2F;4<br>饱受风霜的树干：roc_nest_trunk<br>莲藕：lotus<br>莲花-Lotus Flower：lotus_flower<br>睡莲-Lily Pad：lilypad<br>荨麻藤-Nettle Vine：nettle<br>粗大的带叶枝芽：tree_pillar<br>悬挂着的藤蔓（有攻击性的）：grabbing_vine<br>荆棘-Bramble：bramblespike<br>魔花-Magic Flower：lifeplant</p>
+<h4 id="【地皮】"><a href="#【地皮】" class="headerlink" title="【地皮】"></a>【地皮】</h4><p>草原草皮（就是草坪上的地皮）：turf_lawn<br>石路草皮-Stone Road Turf：turf_cobbleroad<br>平石地皮-Flat Stone Turf：turf_foundation<br>精心护理草皮：turf_fields<br>苔藓草皮：turf_moss<br>古石草皮（该地皮铲掉获得一块石块，原地变成浓密雨林草皮，铲不掉）：turf_pigruins<br>有毒草皮（这个地皮铲不掉，并且干草叉会直接坏掉）：turf_gasjungle<br>浓密雨林草皮（这个地皮铲不掉）：turf_deeprainforest<br>雨林草皮：turf_rainforest<br>胡子地毯-Beard Hair Rug：turf_beard_hair</p>
+<h4 id="【屋内装饰】"><a href="#【屋内装饰】" class="headerlink" title="【屋内装饰】"></a>【屋内装饰】</h4><p>刺猬地毯：rug_hedgehog<br>编织地毯：rug_braid<br>胡子地毯：rug_beard<br>圆形地毯：rug_circle<br>犯罪地毯：rug_crime<br>市政厅边角毯：rug_cityhall_corners<br>皮毛地毯：rug_fur<br>蹄印地毯：rug_hoofprint<br>皮革地毯：rug_leather<br>金属地毯：rug_metal<br>钉板地毯：rug_nailbed<br>椭圆地毯：rug_oval<br>八角地毯：rug_octagon<br>豪猪皮毛地毯：rug_porcupuss<br>宫殿地毯：rug_palace_runner<br>橡胶地毯：rug_rubbermat<br>大型地毯：rug_rectangle<br>眼之地毯：rug_round<br>旋涡地毯：rug_swirl<br>方形地毯：rug_square<br>足球地毯：rug_tiles<br>虫洞地毯：rug_wormhole<br>丝网地毯：rug_web<br>帽子店摆设：hatbox1&#x2F;2<br>洒水特效：water_spray（我会刷这个出来配合其他东西当喷泉O(∩_∩)O哈哈~）</p>
+<h4 id="【DS】"><a href="#【DS】" class="headerlink" title="【DS】"></a>【DS】</h4><p>cutgrass草(材料)<br>flint燧石<br>twigs小树枝<br>rocks岩石(材料)<br>thulecite(铥矿)<br>marble(大理石)<br>log木材(材料)<br>goldnugget金块(材料)<br>cutreeds芦苇(材料)<br>honeycomb蜂巢(材料)<br>pigskin猪皮(材料)<br>poop便便(材料)<br>silk蜘蛛丝(材料)<br>spidergland蜘蛛腺体<br>ash灰<br>boards木板<br>charcoal木炭<br>rope绳子(材料)<br>cutstone石砖(材料)<br>nitre硝石(材料)<br>papyrus草纸(材料)<br>petals花瓣<br>houndstooth犬牙<br>boneshard骨头碎片<br>stinger蜂刺(材料)<br>beardhair胡子<br>FEATHER_ROBIN_WINTER雪雀羽毛<br>FEATHER_ROBIN红色羽毛<br>bee蜜蜂<br>fireflies萤火虫<br>beefalowool牛毛<br>redgem红宝石(材料)<br>bluegem蓝色宝石<br>purplegem紫宝石(材料)<br>butterflywings蝴蝶翅膀<br>deerclops_eyeball独眼巨鹿的眼球<br>goose_feather唐鸭羽毛<br>gears齿轮<br>gunpowder火药<br>horn角<br>livinglog有生命的木材<br>mandrake曼德拉草<br>nightmarefuel噩梦燃料<br>pinecone松果(材米<br>tentaclespots触手皮<br>walrus_ tusk 海象长</p>
+<p><strong>工具:</strong></p>
+<p>axe斧子<br>hammer锤子<br>shovel铲耔<br>pickaxe鹤嘴锄<br>pitchfork草叉<br>hammer锤子<br>fishingrod鱼竿<br>razor剃刀<br>bugnet虫网<br>umbrella雨伞<br>cane步行手杖<br>sewing_kit针线包<br>bedroll straw乾床垫<br>tent帐篷<br>heatrock保温石头<br>healingsalve治疗药膏<br>backpack龅<br>piggyback猪背包<br>krampus_ sack坎普斯背包<br>chester切斯特<br>chester. eyebone切斯特眼杖<br>treasurechest宝箱<br>birdcage鸟笼<br>birdtrap邬陷阱<br>trap陷阱<br>trap_ teeth 雅陷阱<br>dirtpile魔杖<br>diviningrod魔杖持有者(就是个底座)<br>diviningrodbase魔杖基地<br>diviningrodstart魔杖和持有者<br>blueprint科技图(随即给)</p>
+<p><strong>天气:</strong></p>
+<p>rain下雨.<br>snow’下雪.</p>
+<p><strong>建筑:</strong></p>
+<p>beebox蜂箱<br>rabbithole兔子窝<br>pighouse猪之家<br>mermhouse人之家<br>spiderden蜘蛛巢穴(-<br>tallbirdnest鸽离<br>walrus_ camp海象窝<br>beehive野生蜂巢<br>wasphive人蜂巢<br>homesign路标牌<br>gravestone墓碑<br>mound坟墓<br>pond池塘<br>resurrectionstone试金石<br>rainometer雨计<br>winterometer寒冰温度计<br>insanityrock猪王祭坛小尖角<br>sanityrock猪王祭坛大尖角<br>marblepillar大理石柱子<br>marbletree大理石树<br>statueharp竖琴雕像(主教边上的)<br>statuemaxwell麦斯威尔雕像<br>horizontal_ maxwellight 麦斯威尔之光(晚上一靠近就亮)<br>vertical_ maxwellight 麦斯威尔之光<br>maxwellphonograph留声机<br>maxwelllock噩梦锁头<br>maxwellthrone噩梦王座<br>teleportato_ checkmate 传送机底座<br>adventure_ portal冒险之门<br>basalt玄武岩</p>
+<p><strong>食物:</strong></p>
+<p>butter黄油<br>egg鸡蛋<br>froglegs青蛙腿<br>petals_ evil 恶魔花瓣(食材)<br>seeds种子<br>icebox冰箱<br>cookpot煮肉<br>锅<br>meatrack晒肉架<br>spoiledfood腐烂变质的食物</p>
+<p><strong>照明:</strong></p>
+<p>bonfire篝火堆(不发光,但能烤肉)<br>campfire营火<br>campfirefire地上的小火苗<br>firepit石头营火<br>nightlight暗夜照明灯<br>pigtorch猪头火炬<br>pumpkin_ lantern 南瓜灯<br>torch火炬<br>torchfire炬上的火<br>willowfire薇洛之火</p>
+<p><strong>植物:</strong></p>
+<p>sapling树苗<br>berrybush浆果灌木<br>carrot胡萝卜<br>evergreens常青树<br>grass草(植物)<br>reeds芦苇(植物)<br>flower花<br>flower_ evil 邪恶之花<br>marsh_ bush 尖刺灌木<br>marsh_ tree 针叶树<br>portal_ home草<br>portal_ level 草<br>plant normal农作物</p>
+<p><strong>动物:</strong></p>
+<p>babybeefalo最小的牦牛<br>beefalo牦牛<br>pigking猪王<br>pigman二师兄<br>rabbit兔子<br>tallbirdegg鸡蛋<br>smallbird幼年高鸟<br>tallbird高鸟<br>spidereggsack蜘蛛卵<br>spider蜘蛛<br>spiderqueen蜘蛛女皇<br>butterfly蝴蝶<br>honey蜂蜜<br>flies苍蝇<br>mosquito苍蝇<br>fish鱼<br>merm鱼人<br>frog青蛙<br>hound猎狗<br>houndbone猎犬尸骨<br>houndmound猎犬丘(猎犬会起出现)<br>perd火鸡<br>tentacle触手<br>ghost幽灵<br>bishop主教<br>knight发条骑士<br>deerclops独眼巨鹿<br>krampus小偷<br>leif树人雷夫<br>walrus海象<br>walrus_ dart海象的飞镖<br>penguin企鹅</p>
+<p><strong>战斗:</strong></p>
+<p>amulet护身符<br>armor grass草之铠甲<br>armor marble大理石铠甲<br>armor sanity夜魔铠甲<br>armor wood之铠甲<br>trunkvest树干背心<br>sweatervest小巧背心<br>spear矛<br>boomerang回旋镖<br>firestaff火魔杖<br>icestaff冰魔杖<br>hambat火腿球棒<br>nightsword暗夜剑<br>onemanband独奏乐器<br>panflute排箫<br>tentaclespike狼牙棒<br>bandage绷带<br>beemine蜜蜂炸弹<br>resurrectionstatue复活木偶</p>
+<p><strong>麦斯威尔:</strong></p>
+<p>deadlyfeast致命的盛宴(料理)<br>maxwell麦斯威尔<br>maxwellendgame老去的麦斯威尔<br>maxwellhead麦斯威尔的头<br>maxwellhead_ trigger 麦斯威尔的头<br>maxwellintro麦斯威尔脚下的影子<br>maxwelkey影子钥匙<br>maxwellight麦斯威尔之光(晚上一靠近就亮)<br>teleportato_ base 恶魔底座<br>teleportato_ <em>crank 圆环<br>teleportato potato身体<br>teleportato</em> box盒子<br>teleportato_ ring戒指<br>diviningrodbase魔杖基地</p>
+<h2 id="Boss"><a href="#Boss" class="headerlink" title="Boss"></a>Boss</h2><p>Deerclops冬鹿<br>Bearger秋熊<br>Dragonfly夏蝇<br>Moose春鸭<br>minotaur犀牛<br>海难boss：tigershark（虎鲨）twister（飓风boss）twister_seal（飓风boss本体）</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>Don&#039;t_stave</p><p><a href="https://goko-son626.github.io/post/Don-t-stave.html">https://goko-son626.github.io/post/Don-t-stave.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2023-05-30</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2025-11-04</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/Compilation-libraries-and-tools.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">常见的编译库和编译工具</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/hexo-blog.html"><span class="level-item">利用 hexo 搭建博客</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '475c91015932e6895172e4c88d7b81e5',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">16</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">22</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">14</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-09-19T07:55:54.000Z">2025-09-19</time></p><p class="title"><a href="/post/kernelci.html">利用LAVA在docker中搭建自动化测试环境</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/kernelci/">kernelci</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-07-31T18:36:11.000Z">2025-08-01</time></p><p class="title"><a href="/post/use-bpftrace-on-k1.html">bpftrace环境的配置和使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/bpftrace/">bpftrace</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-30T15:42:34.000Z">2025-04-30</time></p><p class="title"><a href="/post/ebpf-and-use-libbpf.html">Linux bpf技术解析及libbpf的使用(基于riscv-k1)</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/libbpf/">libbpf</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-04-03T01:25:24.000Z">2025-04-03</time></p><p class="title"><a href="/post/qspinlock.html">linux内核中qspinlock锁的优缺点分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/lock/">lock</a> / <a href="/categories/linux/kernel/lock/qspinlock/">qspinlock</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-03-02T08:40:24.000Z">2025-03-02</time></p><p class="title"><a href="/post/libbpf-bcc-and-bpftrace.html">libbpf, bcc和bpftrace的结构和关联分析</a></p><p class="categories"><a href="/categories/linux/">linux</a> / <a href="/categories/linux/kernel/">kernel</a> / <a href="/categories/linux/kernel/trace/">trace</a> / <a href="/categories/linux/kernel/trace/ebpf/">ebpf</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">9</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/platform-bus/"><span class="level-start"><span class="level-item">platform_bus</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/three-driver-struct/"><span class="level-start"><span class="level-item">three_driver_struct</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/kernel-start/"><span class="level-start"><span class="level-item">kernel_start</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/kernelci/"><span class="level-start"><span class="level-item">kernelci</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/lock/"><span class="level-start"><span class="level-item">lock</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2025/09/"><span class="level-start"><span class="level-item">九月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/08/"><span class="level-start"><span class="level-item">八月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/04/"><span class="level-start"><span class="level-item">四月 2025</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2025/03/"><span class="level-start"><span class="level-item">三月 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2024/10/"><span class="level-start"><span class="level-item">十月 2024</span></span><span class="level-end"><span class="level-item tag">3</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/STM32F103/"><span class="tag">STM32F103</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bcc/"><span class="tag">bcc</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/compiler/"><span class="tag">compiler</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/driver-struct/"><span class="tag">driver_struct</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/hexo/"><span class="tag">hexo</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernelci/"><span class="tag">kernelci</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/platform-bus/"><span class="tag">platform_bus</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/qspinlock/"><span class="tag">qspinlock</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/toolchain/"><span class="tag">toolchain</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/uboot-cmd/"><span class="tag">uboot_cmd</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/uboot-start/"><span class="tag">uboot_start</span><span class="tag is-grey-lightest">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2025 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
