@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（五）：两个线程怎样真正切换起来 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="逐指令分析普通上下文切换，构造首次启动现场，解释进程、线程、任务栈和协同调度的关系。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="逐指令分析普通上下文切换，构造首次启动现场，解释进程、线程、任务栈和协同调度的关系。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-20T08:00:00.000Z"><meta property="article:modified_time" content="2026-06-20T08:00:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="上下文切换"><meta property="article:tag" content="线程"><meta property="article:tag" content="协同调度"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-04-context-threads.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-20T08:00:00.000Z","dateModified":"2026-06-20T08:00:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"逐指令分析普通上下文切换，构造首次启动现场，解释进程、线程、任务栈和协同调度的关系。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-04-context-threads.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-20  <a class="commentCountImg" href="/post/armv7a-04-context-threads.html#comment-container"><span class="display-none-class">294f993ff5ff9f77af047bd200c2ea4e</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="294f993ff5ff9f77af047bd200c2ea4e">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>10.8 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章实现两个任务之间的协同式切换。重点不在调度算法，而在“暂停的计算怎样被表示”：哪些寄存器属于普通函数边界上的长期状态，任务栈与上下文对象分别保存什么，新任务从未运行过又怎样伪造出第一次恢复所需的现场。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>启动代码已经建立 SVC 栈并进入 C 环境，AAPCS32 也给出了 <code>r4-r11</code>、<code>sp</code> 和 <code>lr</code> 的保存责任。于是可以先在没有中断的情况下做最小闭环：任务 A 主动调用切换函数，汇编保存 A 的 callee-saved 状态，恢复 B 的状态；B 再切回 A，A 从原调用点之后继续执行。</p>
+<p>这种主动切换故意避开 IRQ。原因是它把问题缩小到普通调用边界，容易观察、容易回退。下一章再处理任意指令点被打断时所需的完整异常现场。</p>
+<span id="more"></span>
+
+<p><a href="/post/armv7a-00-roadmap.html">系列目录</a> · 上一篇：<a href="/post/armv7a-03-boot-linker.html">启动、链接脚本与多模式栈</a></p>
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="动手前的基础：调度器、上下文与异常现场"><a href="#动手前的基础：调度器、上下文与异常现场" class="headerlink" title="动手前的基础：调度器、上下文与异常现场"></a>动手前的基础：调度器、上下文与异常现场</h2><blockquote>
+<p>适用平台：Zynq-7000 &#x2F; Cortex-A9 &#x2F; ARM state 优先<br>学习目的：能读写最小任务上下文，能手工推演 A→B→A，能构造新任务第一次运行现场<br>阅读方式：正文替代本节英文汇编章节；RTEMS 和 x64 mini 只按文中路径定点对照<br>编写日期：2026-07-30</p>
+</blockquote>
+<h3 id="0-这一目标不是“把汇编指令背完”"><a href="#0-这一目标不是“把汇编指令背完”" class="headerlink" title="0. 这一目标不是“把汇编指令背完”"></a>0. 这一目标不是“把汇编指令背完”</h3><p>系统移植需要的不是会写所有 ARM 指令，而是能用一小组指令准确表达：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">寄存器 ↔ 内存<br>当前栈 ↔ 目标任务栈<br>当前返回点 ↔ 目标任务继续点<br>CPSR/SPSR ↔ 异常状态<br></code></pre></td></tr></table></figure>
+
+<p>本目标的最终问题是：</p>
+<blockquote>
+<p>调度器选出任务 B 后，底层怎样让 CPU 不再从任务 A 的栈和执行点继续，而改为从 B 上次保存的位置继续？</p>
+</blockquote>
+<p>答案可压缩为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">把 A 必须长期保持的寄存器写入 A_ctx<br>从 B_ctx 读回 B 的寄存器<br>恢复 B 的 SP，身份切换到 B 的栈<br>恢复 B 的 PC，控制流切换到 B 的继续点<br></code></pre></td></tr></table></figure>
+
+<p>因此本章围绕“对象布局、保存恢复、任务第一次启动、IRQ 尾部切换”组织，不按指令字母表讲解。</p>
+<hr>
+<h3 id="1-本文覆盖的原始资料和准确范围"><a href="#1-本文覆盖的原始资料和准确范围" class="headerlink" title="1. 本文覆盖的原始资料和准确范围"></a>1. 本文覆盖的原始资料和准确范围</h3><table>
+<thead>
+<tr>
+<th>原始资料</th>
+<th align="right">准确范围</th>
+<th align="right">页数</th>
+<th>本文用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Programmer’s Guide 第 5 章</td>
+<td align="right">PDF&#x2F;手册页 57–68</td>
+<td align="right">12 页</td>
+<td>汇编源文件、GNU&#x2F;Arm 语法、ARM&#x2F;Thumb interworking</td>
+</tr>
+<tr>
+<td>Programmer’s Guide 第 6 章</td>
+<td align="right">PDF&#x2F;手册页 69–86</td>
+<td align="right">18 页</td>
+<td>指令、访存、多寄存器传输、分支和 PSR 操作</td>
+</tr>
+<tr>
+<td>RTEMS ARM <code>cpu_asm.S</code></td>
+<td align="right">配套源码定点阅读</td>
+<td align="right">—</td>
+<td>ARM 普通上下文保存&#x2F;恢复参考</td>
+</tr>
+<tr>
+<td>RTEMS ARM <code>arm_exc_interrupt.S</code></td>
+<td align="right">配套源码定点阅读</td>
+<td align="right">—</td>
+<td>IRQ 尾部与普通上下文汇合参考</td>
+</tr>
+<tr>
+<td>x64 mini <code>x86_64-context-switch.S</code></td>
+<td align="right">配套源码定点阅读</td>
+<td align="right">—</td>
+<td>提取被移植系统的接口语义</td>
+</tr>
+</tbody></table>
+<p>Programmer’s Guide 第 6 章并非全部都要精读。本目标必须掌握：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">6.1 Instruction set basics              69–73<br>6.2 Data processing 的基础部分          73–76<br>6.3 Memory instructions                 79–82<br>6.4 Branches                            82<br>6.6.2 SVC / 6.6.3 PSR modification      84<br></code></pre></td></tr></table></figure>
+
+<p>整数 SIMD、饱和运算、Cache preload、字节翻转当前只建立目录印象，不作为上下文切换前置条件。</p>
+<h4 id="原图和表对照"><a href="#原图和表对照" class="headerlink" title="原图和表对照"></a>原图和表对照</h4><p>本章只建议打开：</p>
+<table>
+<thead>
+<tr>
+<th>原文图表</th>
+<th align="right">页码</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Table 6-1: Condition code suffixes</strong></td>
+<td align="right">72</td>
+<td>条件码与标志关系</td>
+</tr>
+<tr>
+<td><strong>Table 6-2: PSR flag bits</strong></td>
+<td align="right">73</td>
+<td><code>N/Z/C/V</code></td>
+</tr>
+<tr>
+<td><strong>Figure 6-5: Stack push operation</strong></td>
+<td align="right">82</td>
+<td>满递减栈和 <code>PUSH</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="2-先分清四个经常混在一起的对象"><a href="#2-先分清四个经常混在一起的对象" class="headerlink" title="2. 先分清四个经常混在一起的对象"></a>2. 先分清四个经常混在一起的对象</h3><h4 id="2-1-调度器"><a href="#2-1-调度器" class="headerlink" title="2.1 调度器"></a>2.1 调度器</h4><p>调度器回答：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">下一步应该运行谁？<br></code></pre></td></tr></table></figure>
+
+<p>输入通常是任务状态、优先级、时间片和就绪队列，输出是 <code>heir</code>。</p>
+<h4 id="2-2-上下文切换机制"><a href="#2-2-上下文切换机制" class="headerlink" title="2.2 上下文切换机制"></a>2.2 上下文切换机制</h4><p>底层汇编回答：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">怎样从 run 真正变成 heir？<br></code></pre></td></tr></table></figure>
+
+<p>它不应该重新实现任务选择策略，只负责保存和恢复。</p>
+<h4 id="2-3-Context-Control"><a href="#2-3-Context-Control" class="headerlink" title="2.3 Context_Control"></a>2.3 <code>Context_Control</code></h4><p>它是内存中的一个小对象，记录任务暂停后恢复所需的 CPU 状态。它不是任务栈本身：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">TCB<br> ├─ 调度信息<br> ├─ Context_Control<br> │   ├─ r4-r11<br> │   ├─ sp<br> │   └─ resume_pc<br> └─ stack area ────────── 被 sp 指向<br></code></pre></td></tr></table></figure>
+
+<p><code>Context_Control.sp</code> 保存一个地址，这个地址落在该任务自己的栈区中。</p>
+<h4 id="2-4-异常帧"><a href="#2-4-异常帧" class="headerlink" title="2.4 异常帧"></a>2.4 异常帧</h4><p>IRQ 可发生在任意指令点，异常帧通常包含：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r12<br>异常返回 PC<br>异常前 CPSR<br>必要的额外状态<br></code></pre></td></tr></table></figure>
+
+<p>普通上下文和异常帧可能在抢占调度中互相转换或结合，但它们的最小保存集合不同。</p>
+<hr>
+<h3 id="3-读汇编前先掌握“地址和值”"><a href="#3-读汇编前先掌握“地址和值”" class="headerlink" title="3. 读汇编前先掌握“地址和值”"></a>3. 读汇编前先掌握“地址和值”</h3><p>这是上下文汇编最常见的理解障碍。</p>
+<p>假设：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = 0x1000<br>内存[0x1000] = 0xAABBCCDD<br></code></pre></td></tr></table></figure>
+
+<p>那么：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov r1, r0          @ r1 = 0x1000，复制地址值<br>ldr r2, [r0]        @ r2 = 0xAABBCCDD，访问该地址的内存<br>str r3, [r0]        @ 内存[0x1000] = r3<br></code></pre></td></tr></table></figure>
+
+<p>C 语言等价关系：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">r1 = r0;<br>r2 = *(<span class="hljs-type">uint32_t</span> *)r0;<br>*(<span class="hljs-type">uint32_t</span> *)r0 = r3;<br></code></pre></td></tr></table></figure>
+
+<p>必须形成条件反射：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r0       寄存器里装的值，可能恰好是地址<br>[r0]     访问 r0 所指内存<br>[r0,#8]  访问 r0+8 所指内存<br></code></pre></td></tr></table></figure>
+
+<p><code>A_ctx</code> 是一个地址；<code>*A_ctx</code> 才是该上下文对象的内容。</p>
+<hr>
+<h3 id="4-数据处理指令：只学上下文需要的部分"><a href="#4-数据处理指令：只学上下文需要的部分" class="headerlink" title="4. 数据处理指令：只学上下文需要的部分"></a>4. 数据处理指令：只学上下文需要的部分</h3><h4 id="4-1-搬运与常量"><a href="#4-1-搬运与常量" class="headerlink" title="4.1 搬运与常量"></a>4.1 搬运与常量</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov  r0, r1<br>mov  r0, #1<br>mvn  r0, #0<br>ldr  r0, =symbol       @ 常见汇编器伪指令，可能生成字面量池访问<br>adr  r0, local_label   @ 计算附近标签地址<br></code></pre></td></tr></table></figure>
+
+<p><code>ldr r0, =symbol</code> 不等于 <code>ldr r0, [symbol]</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">ldr r0, =symbol    得到 symbol 的地址/常量<br>ldr r1, [r0]       再读取 symbol 的内容<br></code></pre></td></tr></table></figure>
+
+<h4 id="4-2-加减和地址计算"><a href="#4-2-加减和地址计算" class="headerlink" title="4.2 加减和地址计算"></a>4.2 加减和地址计算</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">add r0, r1, #16<br>sub sp, sp, #64<br></code></pre></td></tr></table></figure>
+
+<p><code>ADD/SUB</code> 不带 <code>S</code> 时通常不更新条件标志，带 <code>S</code> 时更新：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">subs r0, r0, #1<br>bne  loop<br></code></pre></td></tr></table></figure>
+
+<h4 id="4-3-比较与测试"><a href="#4-3-比较与测试" class="headerlink" title="4.3 比较与测试"></a>4.3 比较与测试</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">cmp r0, #0          @ 计算 r0-0，只保留标志<br>tst r0, #0x80       @ 按位与，只保留标志<br>beq is_zero<br>bne not_zero<br></code></pre></td></tr></table></figure>
+
+<p><code>CMP/TST</code> 的输出在 CPSR 标志位，不写普通结果寄存器。</p>
+<h4 id="4-4-位操作"><a href="#4-4-位操作" class="headerlink" title="4.4 位操作"></a>4.4 位操作</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">and r0, r0, #mask<br>orr r0, r0, #bits<br>bic r0, r0, #bits   @ r0 &amp;= ~bits<br></code></pre></td></tr></table></figure>
+
+<p>常用于修改控制字段、提取中断 ID 和对齐地址。</p>
+<hr>
+<h3 id="5-单寄存器访存与四种索引形式"><a href="#5-单寄存器访存与四种索引形式" class="headerlink" title="5. 单寄存器访存与四种索引形式"></a>5. 单寄存器访存与四种索引形式</h3><h4 id="5-1-基址加偏移"><a href="#5-1-基址加偏移" class="headerlink" title="5.1 基址加偏移"></a>5.1 基址加偏移</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldr r4, [r0]         @ r4 = *(uint32_t *)(r0)<br>ldr r5, [r0, #4]     @ r5 = *(uint32_t *)(r0 + 4)<br>str r6, [r0, #8]     @ *(uint32_t *)(r0 + 8) = r6<br></code></pre></td></tr></table></figure>
+
+<h4 id="5-2-预索引并回写"><a href="#5-2-预索引并回写" class="headerlink" title="5.2 预索引并回写"></a>5.2 预索引并回写</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldr r4, [r0, #4]!<br></code></pre></td></tr></table></figure>
+
+<p>逻辑：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = r0 + 4<br>r4 = [r0]<br></code></pre></td></tr></table></figure>
+
+<h4 id="5-3-后索引"><a href="#5-3-后索引" class="headerlink" title="5.3 后索引"></a>5.3 后索引</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldr r4, [r0], #4<br></code></pre></td></tr></table></figure>
+
+<p>逻辑：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r4 = [旧 r0]<br>r0 = 旧 r0 + 4<br></code></pre></td></tr></table></figure>
+
+<h4 id="5-4-不是装饰"><a href="#5-4-不是装饰" class="headerlink" title="5.4 ! 不是装饰"></a>5.4 <code>!</code> 不是装饰</h4><p>对多寄存器指令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">stmia r0,  &#123;r4-r7&#125;   @ r0 最终不变<br>stmia r0!, &#123;r4-r7&#125;   @ r0 最终增加 16<br></code></pre></td></tr></table></figure>
+
+<p>手工推演时必须在纸上单独写：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">base before<br>访问的每个地址<br>base after<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="6-STM-LDM：上下文切换的核心指令"><a href="#6-STM-LDM：上下文切换的核心指令" class="headerlink" title="6. STM/LDM：上下文切换的核心指令"></a>6. <code>STM/LDM</code>：上下文切换的核心指令</h3><h4 id="6-1-一次保存多个寄存器"><a href="#6-1-一次保存多个寄存器" class="headerlink" title="6.1 一次保存多个寄存器"></a>6.1 一次保存多个寄存器</h4><p>假设：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0=0x1000<br>r4=0x44, r5=0x55, r6=0x66<br></code></pre></td></tr></table></figure>
+
+<p>执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">stmia r0!, &#123;r4-r6&#125;<br></code></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">[0x1000] = 0x44<br>[0x1004] = 0x55<br>[0x1008] = 0x66<br>r0       = 0x100C<br></code></pre></td></tr></table></figure>
+
+<p><code>IA</code> 是 Increment After：从旧基址开始，之后递增。</p>
+<h4 id="6-2-一次恢复多个寄存器"><a href="#6-2-一次恢复多个寄存器" class="headerlink" title="6.2 一次恢复多个寄存器"></a>6.2 一次恢复多个寄存器</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldmia r0!, &#123;r4-r6&#125;<br></code></pre></td></tr></table></figure>
+
+<p>执行相反过程，并把 <code>r0</code> 增加 12。</p>
+<h4 id="6-3-最重要的内存顺序"><a href="#6-3-最重要的内存顺序" class="headerlink" title="6.3 最重要的内存顺序"></a>6.3 最重要的内存顺序</h4><p>无论寄存器列表文本怎样写：</p>
+<blockquote>
+<p>编号最低的寄存器对应最低内存地址，编号最高的寄存器对应最高内存地址。</p>
+</blockquote>
+<p>所以保存结构体布局必须与寄存器编号顺序一致。</p>
+<h4 id="6-4-常用寻址后缀"><a href="#6-4-常用寻址后缀" class="headerlink" title="6.4 常用寻址后缀"></a>6.4 常用寻址后缀</h4><table>
+<thead>
+<tr>
+<th>后缀</th>
+<th>含义</th>
+<th>常见用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>IA</code></td>
+<td>Increment After</td>
+<td>从连续对象头部装卸</td>
+</tr>
+<tr>
+<td><code>IB</code></td>
+<td>Increment Before</td>
+<td>先加再访问</td>
+</tr>
+<tr>
+<td><code>DA</code></td>
+<td>Decrement After</td>
+<td>递减型变体</td>
+</tr>
+<tr>
+<td><code>DB</code></td>
+<td>Decrement Before</td>
+<td>满递减栈压栈</td>
+</tr>
+</tbody></table>
+<p>最常用对应：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4-r7, lr&#125;     == stmdb sp!, &#123;r4-r7, lr&#125;<br>pop  &#123;r4-r7, pc&#125;     == ldmia sp!, &#123;r4-r7, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<h4 id="6-5-为什么恢复-PC-会立刻改变控制流"><a href="#6-5-为什么恢复-PC-会立刻改变控制流" class="headerlink" title="6.5 为什么恢复 PC 会立刻改变控制流"></a>6.5 为什么恢复 PC 会立刻改变控制流</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldmia r1, &#123;r4-r11, sp, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>最后一个内存字装入 <code>PC</code> 后，CPU 从新 PC 继续执行；不会再顺序执行这条指令后面的普通代码。这正是上下文恢复的“跳板”。</p>
+<hr>
+<h3 id="7-分支、调用与返回"><a href="#7-分支、调用与返回" class="headerlink" title="7. 分支、调用与返回"></a>7. 分支、调用与返回</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs asm">b    label           @ 无条件跳转<br>beq  label           @ Z=1 时跳转<br>bl   func            @ LR=返回点，调用 func<br>bx   lr              @ 返回，并支持状态互操作<br>blx  r4              @ 调用函数指针<br></code></pre></td></tr></table></figure>
+
+<p>上下文切换中的特殊现象：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">A 执行 BL context_switch<br>context_switch 保存 A 的 LR<br>却把 B 保存的继续地址装入 PC<br></code></pre></td></tr></table></figure>
+
+<p>于是这次“调用”不会马上回到 A，而会像 B 上次的 <code>context_switch</code> 调用刚刚返回一样，在 B 中继续。</p>
+<hr>
+<h3 id="8-PSR-与屏蔽相关指令"><a href="#8-PSR-与屏蔽相关指令" class="headerlink" title="8. PSR 与屏蔽相关指令"></a>8. PSR 与屏蔽相关指令</h3><h4 id="8-1-读取和写入状态"><a href="#8-1-读取和写入状态" class="headerlink" title="8.1 读取和写入状态"></a>8.1 读取和写入状态</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">mrs r0, cpsr<br>mrs r1, spsr<br>msr cpsr_c, r0<br>msr spsr_cxsf, r1<br></code></pre></td></tr></table></figure>
+
+<p>后缀 <code>c/x/s/f</code> 指控制、扩展、状态、标志域。只写必要字段，避免破坏无关状态。</p>
+<h4 id="8-2-中断屏蔽"><a href="#8-2-中断屏蔽" class="headerlink" title="8.2 中断屏蔽"></a>8.2 中断屏蔽</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">cpsid i              @ CPSR.I=1，屏蔽 IRQ<br>cpsie i              @ CPSR.I=0，允许 IRQ<br>cpsid if             @ 屏蔽 IRQ 和 FIQ<br></code></pre></td></tr></table></figure>
+
+<p>普通上下文是否保存 IRQ 屏蔽状态是 OS 设计问题。不能在最小 <code>Context_Control</code> 中没保存 CPSR，却又期待每个任务拥有互不相同的 <code>I</code> 位。</p>
+<p>第一版可明确一种策略：</p>
+<ul>
+<li>调度只在内核规定的屏蔽状态下进入；</li>
+<li>切换汇编不把完整 CPSR 当普通任务私有状态；</li>
+<li>IRQ 尾部通过异常帧恢复异常前 CPSR。</li>
+</ul>
+<h4 id="8-3-屏障指令只先建立地图"><a href="#8-3-屏障指令只先建立地图" class="headerlink" title="8.3 屏障指令只先建立地图"></a>8.3 屏障指令只先建立地图</h4><p>Cortex-A9 SMP 与 MMIO 初始化还会用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">dmb                  @ 约束显式内存访问顺序<br>dsb                  @ 等待先前相关访问完成<br>isb                  @ 刷新流水线，使上下文改变对后续指令生效<br></code></pre></td></tr></table></figure>
+
+<p><code>volatile</code> 只能约束编译器，不能替代 CPU 屏障。具体使用在 GIC、Cache、SMP 实现阶段结合手册裁决，本章不把所有屏障规则提前塞进来。</p>
+<hr>
+<h3 id="9-一个可推演的最小-ARM-普通上下文"><a href="#9-一个可推演的最小-ARM-普通上下文" class="headerlink" title="9. 一个可推演的最小 ARM 普通上下文"></a>9. 一个可推演的最小 ARM 普通上下文</h3><p>教学结构：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r4;<br>    <span class="hljs-type">uint32_t</span> r5;<br>    <span class="hljs-type">uint32_t</span> r6;<br>    <span class="hljs-type">uint32_t</span> r7;<br>    <span class="hljs-type">uint32_t</span> r8;<br>    <span class="hljs-type">uint32_t</span> r9;<br>    <span class="hljs-type">uint32_t</span> r10;<br>    <span class="hljs-type">uint32_t</span> r11;<br>    <span class="hljs-type">uint32_t</span> sp;<br>    <span class="hljs-type">uint32_t</span> resume_pc;<br>&#125; Context_Control;<br></code></pre></td></tr></table></figure>
+
+<p>对应偏移：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">0x00 r4<br>0x04 r5<br>...<br>0x1C r11<br>0x20 sp<br>0x24 resume_pc<br>总计 0x28 = 40 字节<br></code></pre></td></tr></table></figure>
+
+<p>最小切换：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asm">@ void context_switch(Context_Control *run, Context_Control *heir)<br>@ r0 = run, r1 = heir<br><br>context_switch:<br>    stmia r0, &#123;r4-r11, sp, lr&#125;<br>    ldmia r1, &#123;r4-r11, sp, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>保存时，最后一项把当前 <code>LR</code> 写入 <code>run-&gt;resume_pc</code>；恢复时，同一个内存槽装入 <code>PC</code>。</p>
+<h4 id="为什么不保存-r0-r3-r12"><a href="#为什么不保存-r0-r3-r12" class="headerlink" title="为什么不保存 r0-r3/r12"></a>为什么不保存 <code>r0-r3/r12</code></h4><p>这是假设切换发生在正常 AAPCS 调用边界：</p>
+<ul>
+<li>caller 已经不依赖它们跨调用保持；</li>
+<li>编译器会把活跃值转移到 callee-saved 寄存器或当前任务栈；</li>
+<li>未来恢复后，任务把这次 <code>context_switch()</code> 当成正常返回。</li>
+</ul>
+<h4 id="为什么保存-SP"><a href="#为什么保存-SP" class="headerlink" title="为什么保存 SP"></a>为什么保存 SP</h4><p>局部变量、返回地址和更深层调用链都在任务栈里。恢复 SP 后，后续 C 代码自然重新看到 B 自己的调用栈。</p>
+<h4 id="为什么保存-LR、恢复到-PC"><a href="#为什么保存-LR、恢复到-PC" class="headerlink" title="为什么保存 LR、恢复到 PC"></a>为什么保存 LR、恢复到 PC</h4><p>在 A 中进入 <code>context_switch</code> 时，LR 是 A 调用后的继续点。保存它，就是保存 A 未来的 resume PC。恢复 B 时直接装 PC，立即跳到 B 的继续点。</p>
+<hr>
+<h3 id="10-手工推演-A-→-B-→-A"><a href="#10-手工推演-A-→-B-→-A" class="headerlink" title="10. 手工推演 A → B → A"></a>10. 手工推演 A → B → A</h3><p>假设：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">A_ctx 在 0x1000<br>B_ctx 在 0x2000<br>A 当前 sp = 0x8100，lr = A_after_switch<br>B_ctx.sp = 0x9100，B_ctx.resume_pc = B_after_switch<br></code></pre></td></tr></table></figure>
+
+<h4 id="A-切到-B"><a href="#A-切到-B" class="headerlink" title="A 切到 B"></a>A 切到 B</h4><p>A 调用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">context_switch(&amp;A_ctx, &amp;B_ctx);<br></code></pre></td></tr></table></figure>
+
+<p>入口：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r0=0x1000<br>r1=0x2000<br>当前 CPU 寄存器属于 A<br></code></pre></td></tr></table></figure>
+
+<p>保存后：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">A_ctx.sp        = 0x8100<br>A_ctx.resume_pc = A_after_switch<br></code></pre></td></tr></table></figure>
+
+<p>恢复 B：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">sp = 0x9100<br>pc = B_after_switch<br></code></pre></td></tr></table></figure>
+
+<p>CPU 现在使用 B 栈，并从 B 以前暂停的位置继续。</p>
+<h4 id="B-再切回-A"><a href="#B-再切回-A" class="headerlink" title="B 再切回 A"></a>B 再切回 A</h4><p>B 之后调用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">context_switch(&amp;B_ctx, &amp;A_ctx);<br></code></pre></td></tr></table></figure>
+
+<p>保存 B 当前现场，再恢复：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">sp = A_ctx.sp = 0x8100<br>pc = A_ctx.resume_pc = A_after_switch<br></code></pre></td></tr></table></figure>
+
+<p>A 观察到最初那次 <code>context_switch(&amp;A_ctx,&amp;B_ctx)</code> 终于“返回”了。</p>
+<p>关键认识：</p>
+<blockquote>
+<p>这不是 A 调用一次、B 又重新调用同一个 A 函数。每个任务都恢复自己的历史调用链；一次切换函数的控制流可以隔很久后才在原任务中完成。</p>
+</blockquote>
+<hr>
+<h3 id="11-新任务没有“上次暂停位置”，怎样第一次运行"><a href="#11-新任务没有“上次暂停位置”，怎样第一次运行" class="headerlink" title="11. 新任务没有“上次暂停位置”，怎样第一次运行"></a>11. 新任务没有“上次暂停位置”，怎样第一次运行</h3><p>新任务必须伪造一个能被恢复的上下文。</p>
+<p>假设：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">task_entry</span><span class="hljs-params">(<span class="hljs-type">void</span> *arg)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>可以约定：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r4 = task_entry<br>r5 = arg<br>sp = 对齐后的新任务栈顶<br>resume_pc = thread_start_trampoline<br></code></pre></td></tr></table></figure>
+
+<p>恢复新任务时：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldmia new_ctx, &#123;r4-r11, sp, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>于是第一次跳到：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asm">thread_start_trampoline:<br>    mov  r0, r5            @ AAPCS 第一个参数<br>    blx  r4                @ 调 task_entry(arg)<br>    bl   thread_exit       @ 任务函数若返回，执行受控退出<br>1:<br>    b    1b                @ thread_exit 不应返回，防御性兜底<br></code></pre></td></tr></table></figure>
+
+<h4 id="初始化时必须决定的事项"><a href="#初始化时必须决定的事项" class="headerlink" title="初始化时必须决定的事项"></a>初始化时必须决定的事项</h4><ul>
+<li>栈顶按 8 字节对齐；</li>
+<li>栈增长方向正确；</li>
+<li><code>entry</code> 和 <code>arg</code> 存在哪；</li>
+<li>初始 IRQ 是否开放；</li>
+<li>task entry 返回后去哪里；</li>
+<li>是否需要 TLS&#x2F;thread ID；</li>
+<li>是否需要 VFP 状态；</li>
+<li>ARM&#x2F;Thumb 函数地址和状态是否匹配。</li>
+</ul>
+<p>“把 PC 设成 entry 就完成了”往往不够，因为还缺参数和退出路径。</p>
+<hr>
+<h3 id="12-C-结构体与汇编偏移必须是同一份事实"><a href="#12-C-结构体与汇编偏移必须是同一份事实" class="headerlink" title="12. C 结构体与汇编偏移必须是同一份事实"></a>12. C 结构体与汇编偏移必须是同一份事实</h3><p>最危险的 Bug 之一：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">C 结构体增加一个字段<br>汇编偏移没有同步<br>恢复时把 sp 当 r11、把数据当 pc<br></code></pre></td></tr></table></figure>
+
+<p>工程上应：</p>
+<ol>
+<li>用统一头文件或生成脚本定义偏移。</li>
+<li>在 C 中使用 <code>_Static_assert(offsetof(...))</code>。</li>
+<li>汇编常量从同一配置生成。</li>
+<li>构建后用反汇编确认最终指令和偏移。</li>
+</ol>
+<p>示例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, sp) == <span class="hljs-number">0x20</span>, <span class="hljs-string">&quot;bad sp offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, resume_pc) == <span class="hljs-number">0x24</span>, <span class="hljs-string">&quot;bad pc offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(<span class="hljs-keyword">sizeof</span>(Context_Control) == <span class="hljs-number">0x28</span>, <span class="hljs-string">&quot;bad context size&quot;</span>);<br></code></pre></td></tr></table></figure>
+
+<p>不要只依赖注释中的布局。</p>
+<hr>
+<h3 id="13-对照-x64-mini：移植的是语义，不是指令"><a href="#13-对照-x64-mini：移植的是语义，不是指令" class="headerlink" title="13. 对照 x64 mini：移植的是语义，不是指令"></a>13. 对照 x64 mini：移植的是语义，不是指令</h3><p>被移植系统的 x86_64 实现位于：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">基础版教学实现/src/os_kernel/cpu/x86_64/cpu/x86_64-context-switch.S<br>基础版教学实现/src/os_kernel/cpu/x86_64/cpu/x86_64-context-initialize.c<br></code></pre></td></tr></table></figure>
+
+<p>它已经表达了目标接口：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">_CPU_Context_Initialize()<br>_CPU_Context_switch(run, heir)<br>_CPU_Context_restore(new_context)<br></code></pre></td></tr></table></figure>
+
+<p>x86 版本保存 <code>RBX/RBP/RSP/R12-R15/RFLAGS</code>，恢复目标 <code>RSP</code> 后用 <code>ret</code> 切换控制流。ARM 不能逐指令翻译，但可保持合同：</p>
+<table>
+<thead>
+<tr>
+<th>x86_64 语义</th>
+<th>ARMv7-A 对应</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>保存 x86 callee-saved</td>
+<td>保存 ARM <code>r4-r11</code></td>
+</tr>
+<tr>
+<td>保存 <code>RSP</code></td>
+<td>保存 <code>SP</code></td>
+</tr>
+<tr>
+<td>新栈布置返回地址</td>
+<td>构造 <code>resume_pc</code> 或初始栈帧</td>
+</tr>
+<tr>
+<td><code>ret</code> 从目标栈取 RIP</td>
+<td><code>LDM ... pc</code> 或 <code>BX</code> 恢复继续点</td>
+</tr>
+<tr>
+<td><code>RFLAGS</code> 中断位策略</td>
+<td>明确 ARM CPSR.I 的管理位置</td>
+</tr>
+</tbody></table>
+<p>先列接口和语义，再决定 ARM 数据结构；不要保留 x86 字段名只换成 ARM 指令。</p>
+<hr>
+<h3 id="14-对照-RTEMS：成熟实现增加了哪些工程条件"><a href="#14-对照-RTEMS：成熟实现增加了哪些工程条件" class="headerlink" title="14. 对照 RTEMS：成熟实现增加了哪些工程条件"></a>14. 对照 RTEMS：成熟实现增加了哪些工程条件</h3><p>核心参考：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">rtems-6.2/cpukit/score/cpu/arm/cpu_asm.S<br></code></pre></td></tr></table></figure>
+
+<p>其中普通 ARM 保存主线是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">stm r0, &#123;r4, r5, r6, r7, r8, r9, r10, r11, r13, r14&#125;<br>...<br>ldm r1, &#123;r4, r5, r6, r7, r8, r9, r10, r11, r13, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>这直接证明了本章的 AAPCS 推导。但成熟 RTEMS 还处理：</p>
+<ul>
+<li>per-CPU dispatch disable 状态；</li>
+<li>线程 ID 寄存器；</li>
+<li>可选 <code>d8-d15</code> VFP 非易失状态；</li>
+<li>SMP 下任务不能同时在两个 CPU 运行；</li>
+<li><code>LDREX/STREX</code> 独占状态；</li>
+<li>内存屏障；</li>
+<li>临时 per-CPU 栈。</li>
+</ul>
+<p>学习顺序应是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">先手工证明最小两行保存/恢复<br>再逐项解释 RTEMS 为什么增加字段<br>最后按 x64 mini 的真实需求选择，而不是整段复制<br></code></pre></td></tr></table></figure>
+
+<p>当前 <code>soft-float</code> 第一版通常可以不保存 VFP 上下文，但若代码或手写汇编实际启用 VFP&#x2F;NEON，就必须重新定义规则。</p>
+<hr>
+<h3 id="15-主动切换与-IRQ-尾部抢占"><a href="#15-主动切换与-IRQ-尾部抢占" class="headerlink" title="15. 主动切换与 IRQ 尾部抢占"></a>15. 主动切换与 IRQ 尾部抢占</h3><h4 id="15-1-主动切换"><a href="#15-1-主动切换" class="headerlink" title="15.1 主动切换"></a>15.1 主动切换</h4><p>任务自己调用 <code>yield()</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">任务位于正常 C 调用边界<br>调度器选择 heir<br>context_switch(run, heir)<br>利用 AAPCS 保存最小普通上下文<br></code></pre></td></tr></table></figure>
+
+<p>这是第一版最容易验证的路径。</p>
+<h4 id="15-2-IRQ-抢占"><a href="#15-2-IRQ-抢占" class="headerlink" title="15.2 IRQ 抢占"></a>15.2 IRQ 抢占</h4><p>定时器可能打断任意指令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">IRQ 入口建立完整异常帧<br>C timer handler 设置 need_reschedule<br>IRQ 尾部调用调度决策<br>若换任务，把被中断现场与任务上下文正确衔接<br>最终恢复选中任务的 PC/CPSR<br></code></pre></td></tr></table></figure>
+
+<p>不能在设备 handler 深处随意用普通两行切换，因为此时还存在：</p>
+<ul>
+<li>GIC active 状态；</li>
+<li>IRQ 嵌套计数；</li>
+<li>设备清源；</li>
+<li>异常帧；</li>
+<li>当前使用的 IRQ&#x2F;per-CPU 栈；</li>
+<li>需要恢复的 SPSR。</li>
+</ul>
+<p>因此正确路线是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">先让两个任务主动 yield 成功<br>再让 tick 只计数<br>再让 tick 设置调度请求<br>最后在 IRQ 统一出口切换<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="16-SMP-中上下文切换多出的约束"><a href="#16-SMP-中上下文切换多出的约束" class="headerlink" title="16. SMP 中上下文切换多出的约束"></a>16. SMP 中上下文切换多出的约束</h3><p>双核不是把单核切换函数同时运行就结束了。必须保证：</p>
+<ul>
+<li>同一任务不能同时在 CPU0 和 CPU1 执行；</li>
+<li><code>run/heir</code> 状态更新对另一核可见；</li>
+<li>就绪队列和 per-CPU 当前任务有锁或原子协议；</li>
+<li>必要位置使用 DMB；</li>
+<li>目标核需要重调度时用 SGI 通知；</li>
+<li>每核有安全的 IRQ 栈和临时切换栈；</li>
+<li>Cache 一致性和共享数据属性正确。</li>
+</ul>
+<p>RTEMS 的 <code>is_executing</code>、<code>LDREXB/STREXB</code> 和 <code>DMB</code> 就在解决这些问题。</p>
+<p>第一版建议只启 CPU0。单核主动切换正确之后，再引入 CPU1，否则错误变量会同时来自：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">上下文布局<br>启动次核<br>GIC per-CPU 状态<br>原子操作<br>Cache/屏障<br>调度器并发<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="17-汇编-Debug-的固定方法"><a href="#17-汇编-Debug-的固定方法" class="headerlink" title="17. 汇编 Debug 的固定方法"></a>17. 汇编 Debug 的固定方法</h3><h4 id="17-1-不要只看源代码，要看最终反汇编"><a href="#17-1-不要只看源代码，要看最终反汇编" class="headerlink" title="17.1 不要只看源代码，要看最终反汇编"></a>17.1 不要只看源代码，要看最终反汇编</h4><p>确认：</p>
+<ul>
+<li>编译器实际选择 ARM 还是 Thumb；</li>
+<li>伪指令展开成什么；</li>
+<li>符号地址最低位；</li>
+<li>结构体偏移；</li>
+<li><code>LDM/STM</code> 寄存器列表；</li>
+<li>链接器是否插入 veneer；</li>
+<li>PC 恢复点是否可执行。</li>
+</ul>
+<h4 id="17-2-第一次切换前记录"><a href="#17-2-第一次切换前记录" class="headerlink" title="17.2 第一次切换前记录"></a>17.2 第一次切换前记录</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">run_ctx 地址<br>heir_ctx 地址<br>heir_ctx.r4-r11<br>heir_ctx.sp<br>heir_ctx.resume_pc<br>目标栈区 low/high<br>resume_pc 所在符号<br></code></pre></td></tr></table></figure>
+
+<h4 id="17-3-切换失败按阶段断点"><a href="#17-3-切换失败按阶段断点" class="headerlink" title="17.3 切换失败按阶段断点"></a>17.3 切换失败按阶段断点</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">进入 context_switch<br>完成 STM 后<br>执行 LDM 前<br>LDM 恢复后的目标第一条指令<br>task_entry 第一条 C 指令<br></code></pre></td></tr></table></figure>
+
+<p>若 <code>LDM ... pc</code> 后断点不命中，优先查 PC 地址、指令状态和 SP；不要先怀疑调度器。</p>
+<h4 id="17-4-栈哨兵"><a href="#17-4-栈哨兵" class="headerlink" title="17.4 栈哨兵"></a>17.4 栈哨兵</h4><p>用固定模式填充任务栈，记录最大使用深度；给每个任务栈不同范围，能快速判断恢复了错误 SP 或发生重叠。</p>
+<h4 id="17-5-常见症状"><a href="#17-5-常见症状" class="headerlink" title="17.5 常见症状"></a>17.5 常见症状</h4><table>
+<thead>
+<tr>
+<th>症状</th>
+<th>优先检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第一次切换立即跑飞</td>
+<td>新任务 <code>sp/resume_pc/entry/arg</code></td>
+</tr>
+<tr>
+<td>A→B 成功，B→A 失败</td>
+<td>A 保存的 LR、结构偏移、A 栈是否被破坏</td>
+</tr>
+<tr>
+<td>加函数调用后失败</td>
+<td>LR、caller-saved 活跃值、SP 8 字节对齐</td>
+</tr>
+<tr>
+<td>优化后失败</td>
+<td>callee-saved 违约、inline asm clobber</td>
+</tr>
+<tr>
+<td>双核偶发同一任务崩溃</td>
+<td>任务同时在两核运行、缺原子协议&#x2F;屏障</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="18-本目标的掌握标准"><a href="#18-本目标的掌握标准" class="headerlink" title="18. 本目标的掌握标准"></a>18. 本目标的掌握标准</h3><p>完成本章后，应能做到：</p>
+<ul>
+<li>把 <code>r0</code>、<code>[r0]</code>、<code>[r0,#4]</code> 写出正确 C 等价。</li>
+<li>手推 <code>STMIA/LDMIA</code> 的每个内存地址和 <code>!</code> 回写。</li>
+<li>解释 <code>PUSH=STMDB sp!</code>、<code>POP=LDMIA sp!</code>。</li>
+<li>从 <code>Context_Control</code> 画出字段偏移。</li>
+<li>解释为什么保存 LR、恢复到 PC。</li>
+<li>用具体 SP&#x2F;PC 推演一次 A→B→A。</li>
+<li>构造新任务的栈顶、entry、arg、trampoline 和退出路径。</li>
+<li>区分 scheduler、普通上下文、异常帧。</li>
+<li>说明主动切换为何先于 IRQ 抢占实现。</li>
+<li>能说出 x64 mini 接口哪些语义保留、哪些指令必须重写。</li>
+</ul>
+<h4 id="30-秒复述版"><a href="#30-秒复述版" class="headerlink" title="30 秒复述版"></a>30 秒复述版</h4><blockquote>
+<p>调度器负责选 heir，汇编切换负责让 CPU 真正变成 heir。正常 AAPCS 调用边界上，任务长期状态主要是 r4-r11、sp 和继续地址。STM 把当前状态写入 run_ctx，LDM 从 heir_ctx 恢复；装入新 sp 后换栈，装入 pc 后换执行流。新任务没有历史继续点，所以初始化时伪造 sp、entry、arg 和 trampoline。IRQ 抢占则先有完整异常帧，必须等清源、EOI 和嵌套状态处理妥当后，在统一出口与调度结合。</p>
+</blockquote>
+<hr>
+<h3 id="19-下一主题的接口"><a href="#19-下一主题的接口" class="headerlink" title="19. 下一主题的接口"></a>19. 下一主题的接口</h3><p>本章解决了“软件怎样保存和恢复任务”。下一章把它放进真实硬件链：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">定时器事件<br>→ GIC pending/active<br>→ ARM IRQ 异常入口<br>→ 完整异常帧<br>→ C dispatcher<br>→ 清设备源与 EOI<br>→ IRQ 尾部选择是否上下文切换<br>→ 异常返回<br></code></pre></td></tr></table></figure>
+
+<p>这条链走通后，原定目标要求的“上下文调度移植 + 中断控制器移植”才真正汇合。</p>
+<h2 id="从-x86-64-语义推导-ARM-普通-context"><a href="#从-x86-64-语义推导-ARM-普通-context" class="headerlink" title="从 x86_64 语义推导 ARM 普通 context"></a>从 x86_64 语义推导 ARM 普通 context</h2><h3 id="四、先看-x86-64-版本，提取架构无关思想"><a href="#四、先看-x86-64-版本，提取架构无关思想" class="headerlink" title="四、先看 x86_64 版本，提取架构无关思想"></a>四、先看 x86_64 版本，提取架构无关思想</h3><h4 id="1-上下文结构"><a href="#1-上下文结构" class="headerlink" title="1. 上下文结构"></a>1. 上下文结构</h4><p>文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">教学实现/src/os_kernel/cpu/include/rtems/score/cpu.h<br></code></pre></td></tr></table></figure>
+
+<p><code>Context_Control</code> 的核心字段包括：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">rbx, rsp, rbp, r12, r13, r14, r15<br></code></pre></td></tr></table></figure>
+
+<p>注释明确说明它们是 x86-64 SysV ABI 的 callee-saved 寄存器。它并没有保存所有 x86 通用寄存器。</p>
+<h4 id="2-上下文切换"><a href="#2-上下文切换" class="headerlink" title="2. 上下文切换"></a>2. 上下文切换</h4><p>文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">教学实现/src/os_kernel/cpu/x86_64/cpu/x86_64-context-switch.S<br></code></pre></td></tr></table></figure>
+
+<p>C 接口：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> _CPU_Context_switch(<br>    Context_Control *run,<br>    Context_Control *heir<br>);<br></code></pre></td></tr></table></figure>
+
+<p>x86-64 SysV ABI 将前两个参数放在 <code>rdi</code>、<code>rsi</code>。代码完成三件事：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">把当前 callee-saved 寄存器写入 *run<br>从 *heir 读取另一任务的寄存器<br>ret<br></code></pre></td></tr></table></figure>
+
+<p>真正完成控制流切换的是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复 heir-&gt;rsp<br>ret 从 heir 的栈顶弹出地址到 RIP<br></code></pre></td></tr></table></figure>
+
+<p>因此同一条 <code>ret</code> 有两种效果：</p>
+<ul>
+<li>对运行过的任务：回到它上次 <code>_CPU_Context_switch()</code> 之后；</li>
+<li>对新任务：跳到初始化时人为放在栈上的 <code>entry_point</code>。</li>
+</ul>
+<h4 id="3-新任务初始现场"><a href="#3-新任务初始现场" class="headerlink" title="3. 新任务初始现场"></a>3. 新任务初始现场</h4><p>文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">教学实现/src/os_kernel/cpu/x86_64/cpu/x86_64-context-initialize.c<br></code></pre></td></tr></table></figure>
+
+<p>初始化函数：</p>
+<ol>
+<li>计算栈顶；</li>
+<li>按 ABI 对齐；</li>
+<li>在栈上放入 <code>entry_point</code>，伪造成 <code>ret</code> 的返回地址；</li>
+<li>把构造后的 SP 写入新上下文。</li>
+</ol>
+<p>这叫“伪造初始上下文”，不是造假，而是把“新任务第一次运行”统一成“恢复一个已有上下文”的形式。</p>
+<hr>
+<h3 id="五、映射到-ARMv7-A"><a href="#五、映射到-ARMv7-A" class="headerlink" title="五、映射到 ARMv7-A"></a>五、映射到 ARMv7-A</h3><h4 id="1-ARM-普通上下文结构"><a href="#1-ARM-普通上下文结构" class="headerlink" title="1. ARM 普通上下文结构"></a>1. ARM 普通上下文结构</h4><p>RTEMS 参考文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">RTEMS-6.2/cpukit/score/cpu/arm/include/rtems/score/cpu.h<br></code></pre></td></tr></table></figure>
+
+<p>ARMv4&#x2F;ARMv7-A 路径的普通核心字段是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">r4, r5, r6, r7, r8, r9, r10, r11, sp, lr<br></code></pre></td></tr></table></figure>
+
+<p>另有调度禁止状态，并可按配置增加：</p>
+<ul>
+<li><code>d8-d15</code>：AAPCS VFP callee-saved；</li>
+<li>thread ID；</li>
+<li>SMP 的 <code>is_executing</code>。</li>
+</ul>
+<p>第一轮先只抓住：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">r4-r11 + sp + lr<br></code></pre></td></tr></table></figure>
+
+<h4 id="2-ARM-上下文切换接口"><a href="#2-ARM-上下文切换接口" class="headerlink" title="2. ARM 上下文切换接口"></a>2. ARM 上下文切换接口</h4><p>参考文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">RTEMS-6.2/cpukit/score/cpu/arm/cpu_asm.S<br></code></pre></td></tr></table></figure>
+
+<p>C 接口对应：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> _CPU_Context_switch(<br>    Context_Control *run,<br>    Context_Control *heir<br>);<br></code></pre></td></tr></table></figure>
+
+<p>根据 AAPCS32：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = run<br>r1 = heir<br></code></pre></td></tr></table></figure>
+
+<p>核心保存：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">stm r0, &#123;r4-r11, r13, r14&#125;<br></code></pre></td></tr></table></figure>
+
+<p>核心恢复：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldm r1, &#123;r4-r11, r13, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>这里：</p>
+<ul>
+<li><code>r13</code> 是 SP；</li>
+<li>保存时把 LR 写入上下文；</li>
+<li>恢复时把相同槽位读入 PC，而不是 LR；</li>
+<li>PC 一改变，CPU 就从 heir 的恢复位置继续执行。</li>
+</ul>
+<h4 id="3-为什么保存-LR、恢复-PC"><a href="#3-为什么保存-LR、恢复-PC" class="headerlink" title="3. 为什么保存 LR、恢复 PC"></a>3. 为什么保存 LR、恢复 PC</h4><p>任务 A 调用上下文切换时：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl _CPU_Context_switch<br></code></pre></td></tr></table></figure>
+
+<p><code>BL</code> 已把“A 调用完成后应该继续的位置”写入 A 的 LR。</p>
+<p>保存 A：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">A.lr 槽位 = A 的返回位置<br></code></pre></td></tr></table></figure>
+
+<p>恢复 B：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">把 B.lr 槽位直接装入 PC<br></code></pre></td></tr></table></figure>
+
+<p>效果等价于“从 B 上次调用上下文切换的位置返回”。因此上下文切换在 A 的调用中进入，却可能在 B 的调用中返回。</p>
+<p>这是第一次看最反直觉的地方，必须记住：</p>
+<blockquote>
+<p><code>_CPU_Context_switch()</code> 的调用者和最终返回到的任务，不一定是同一个任务。</p>
+</blockquote>
+<hr>
+<h3 id="六、手工走一遍-A-→-B-→-A"><a href="#六、手工走一遍-A-→-B-→-A" class="headerlink" title="六、手工走一遍 A → B → A"></a>六、手工走一遍 A → B → A</h3><p>假设：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">A 的 SP = 0x80001000<br>A 的 LR = A_after_switch<br>B 的上下文已经保存：<br>    B.sp = 0x80002000<br>    B.lr = B_after_switch<br></code></pre></td></tr></table></figure>
+
+<p>A 执行：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">_CPU_Context_switch(&amp;A_ctx, &amp;B_ctx);<br></code></pre></td></tr></table></figure>
+
+<h4 id="第一步：参数"><a href="#第一步：参数" class="headerlink" title="第一步：参数"></a>第一步：参数</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = &amp;A_ctx<br>r1 = &amp;B_ctx<br></code></pre></td></tr></table></figure>
+
+<h4 id="第二步：保存-A"><a href="#第二步：保存-A" class="headerlink" title="第二步：保存 A"></a>第二步：保存 A</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">A_ctx.r4-r11 = 当前 r4-r11<br>A_ctx.sp      = 0x80001000<br>A_ctx.lr      = A_after_switch<br></code></pre></td></tr></table></figure>
+
+<h4 id="第三步：恢复-B"><a href="#第三步：恢复-B" class="headerlink" title="第三步：恢复 B"></a>第三步：恢复 B</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r4-r11 = B_ctx.r4-r11<br>sp      = 0x80002000<br>pc      = B_after_switch<br></code></pre></td></tr></table></figure>
+
+<p>从这一刻开始，CPU 已在 B 的栈和控制流上运行。以后 B 调用切换回 A：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">保存 B 的新状态<br>恢复 A_ctx.sp<br>恢复 A_ctx.lr → pc<br></code></pre></td></tr></table></figure>
+
+<p>A 看起来就像它最初调用的 <code>_CPU_Context_switch()</code> 终于返回了。</p>
+<hr>
+<h3 id="七、新任务没有“上次执行位置”怎么办"><a href="#七、新任务没有“上次执行位置”怎么办" class="headerlink" title="七、新任务没有“上次执行位置”怎么办"></a>七、新任务没有“上次执行位置”怎么办</h3><p>新任务从未执行，不能保存出真实的 LR 和 SP，所以初始化函数要构造：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">new_ctx.sp = 新任务对齐后的栈顶<br>new_ctx.lr = task_entry 或启动包装函数<br>new_ctx.r4-r11 = 初始值<br></code></pre></td></tr></table></figure>
+
+<p>更完整的实现通常不直接跳入用户的 <code>task_entry</code>，而是跳到包装函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">thread_begin</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    enable_or_restore_interrupt_state();<br>    current_task-&gt;entry(current_task-&gt;arg);<br>    thread_exit();<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>原因：</p>
+<ul>
+<li>正确准备参数；</li>
+<li>统一中断状态；</li>
+<li>任务函数意外返回时进入退出处理，而不是跳到随机地址；</li>
+<li>可以执行线程本地存储、FPU 等初始化。</li>
+</ul>
+<p>所以移植时需要明确：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复 PC 到 task_entry<br></code></pre></td></tr></table></figure>
+
+<p>还是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复 PC 到 thread_begin，再由它调用 task_entry<br></code></pre></td></tr></table></figure>
+
+<p>第二种通常更稳健。</p>
+<hr>
+<h3 id="八、本节需要掌握的-ARM-汇编"><a href="#八、本节需要掌握的-ARM-汇编" class="headerlink" title="八、本节需要掌握的 ARM 汇编"></a>八、本节需要掌握的 ARM 汇编</h3><h4 id="1-单寄存器访存"><a href="#1-单寄存器访存" class="headerlink" title="1. 单寄存器访存"></a>1. 单寄存器访存</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldr r2, [r0, #8]     // r2 = *(uint32_t *)(r0 + 8)<br>str r3, [r1, #12]    // *(uint32_t *)(r1 + 12) = r3<br></code></pre></td></tr></table></figure>
+
+<p>上下文结构字段本质上就是“基地址 + 固定偏移”。</p>
+<h4 id="2-多寄存器访存"><a href="#2-多寄存器访存" class="headerlink" title="2. 多寄存器访存"></a>2. 多寄存器访存</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">stm r0, &#123;r4-r11, r13, r14&#125;<br>ldm r1, &#123;r4-r11, r13, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p><code>STM</code>：Store Multiple，把多个寄存器写入连续内存。<br><code>LDM</code>：Load Multiple，从连续内存恢复多个寄存器。</p>
+<p>没有 <code>!</code> 时，基址寄存器不回写；上下文指针仍指向结构起点。</p>
+<p>寄存器按编号与连续内存字对应，不按花括号中书写的随意顺序重新排列。移植时必须让 C 结构偏移与汇编的装载顺序完全一致。</p>
+<h4 id="3-栈别名"><a href="#3-栈别名" class="headerlink" title="3. 栈别名"></a>3. 栈别名</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4, lr&#125;     // 常见别名：stmdb sp!, &#123;r4, lr&#125;<br>pop  &#123;r4, pc&#125;     // 常见别名：ldmia sp!, &#123;r4, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p><code>!</code> 表示将更新后的地址写回 SP。</p>
+<h4 id="4-调用和返回"><a href="#4-调用和返回" class="headerlink" title="4. 调用和返回"></a>4. 调用和返回</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl function      // LR = 返回信息；PC = function<br>bx lr            // 跳回 LR，并按地址最低位处理 ARM/Thumb 状态<br></code></pre></td></tr></table></figure>
+
+<h4 id="5-状态寄存器"><a href="#5-状态寄存器" class="headerlink" title="5. 状态寄存器"></a>5. 状态寄存器</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">mrs r0, cpsr     // CPSR → r0<br>msr cpsr_c, r0   // r0 的控制字段 → CPSR<br></code></pre></td></tr></table></figure>
+<ul>
+<li>最常见的应用:</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs plaintext">mrs r0, cpsr        @ 1. 读出 CPSR 到 r0<br>orr r0, r0, #0x80   @ 2. 将 Bit 7 (I 位) 置 1，代表禁用 IRQ 中断<br>msr cpsr_c, r0      @ 3. 将修改后的低 8 位写回 CPSR，正式关闭中断！``<br><br>`MRS/MSR` 的具体权限和字段限制必须按 ARM ARM 查证，不要把任意数值直接写入 CPSR。<br></code></pre></td></tr></table></figure>
+
+<h4 id="6-中断屏蔽"><a href="#6-中断屏蔽" class="headerlink" title="6. 中断屏蔽"></a>6. 中断屏蔽</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">cpsid i          // 屏蔽 IRQ<br>cpsie i          // 允许 IRQ<br></code></pre></td></tr></table></figure>
+
+<p>对“保存旧状态后临时关中断”的代码，不能只在结尾无条件 <code>cpsie i</code>，而应恢复进入前的 I 位，否则调用者原本要求关中断的语义会被破坏。</p>
+<h4 id="7-条件执行与分支"><a href="#7-条件执行与分支" class="headerlink" title="7. 条件执行与分支"></a>7. 条件执行与分支</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// r0 - 0</span><br>cmp r0, #<span class="hljs-number">0</span><br><span class="hljs-comment">// 如果r0为0，则跳转到zero_case</span><br>beq zero_case<br><span class="hljs-comment">// 如果r0不为0，则跳转到nonzero_case</span><br>bne nonzero_case<br><span class="hljs-comment">// 相当于 goto target</span><br>b target<br></code></pre></td></tr></table></figure>
+
+<p>本节会读懂即可，异常返回的 <code>RFE</code>、带 <code>^</code> 的 <code>LDM</code> 等放到下一主题系统学习。</p>
+<hr>
+<h3 id="九、上下文结构与汇编必须严格同步"><a href="#九、上下文结构与汇编必须严格同步" class="headerlink" title="九、上下文结构与汇编必须严格同步"></a>九、上下文结构与汇编必须严格同步</h3><p>如果 C 中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r4;<br>    <span class="hljs-type">uint32_t</span> r5;<br>    <span class="hljs-type">uint32_t</span> sp;<br>    <span class="hljs-type">uint32_t</span> lr;<br>&#125; Context_Control;<br></code></pre></td></tr></table></figure>
+
+<p>汇编却按：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">offset 0  = r4<br>offset 4  = r5<br>offset 8  = lr<br>offset 12 = sp<br></code></pre></td></tr></table></figure>
+
+<p>恢复后 SP 和 PC 会互换，通常立即跑飞。</p>
+<p>工程上应至少采用一种保证：</p>
+<ul>
+<li>汇编偏移由公共头文件宏生成；</li>
+<li>C 使用 <code>static_assert(offsetof(...))</code> 校验；</li>
+<li>构建时生成 offsets；</li>
+<li>用 <code>objdump</code> 和 GDB 检查实际布局。</li>
+</ul>
+<p>这是上下文移植最常见、最致命、也最好验证的一类问题。</p>
+<hr>
+<h3 id="十、第一轮调试时看什么"><a href="#十、第一轮调试时看什么" class="headerlink" title="十、第一轮调试时看什么"></a>十、第一轮调试时看什么</h3><p>切换前记录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">run 地址<br>heir 地址<br>当前 SP<br>run/heir 中保存的 SP、LR<br></code></pre></td></tr></table></figure>
+
+<p>单步保存后检查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">run-&gt;r4-r11 是否等于切换前寄存器<br>run-&gt;sp 是否位于当前任务栈范围<br>run-&gt;lr 是否指向切换调用后的代码<br></code></pre></td></tr></table></figure>
+
+<p>单步恢复后检查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">SP 是否进入 heir 栈范围<br>即将装入 PC 的地址是否为代码地址<br>SP 是否保持 8 字节对齐<br>ARM/Thumb 状态是否与目标地址约定一致<br></code></pre></td></tr></table></figure>
+
+<p>如果恢复后立刻跑飞，优先排查：</p>
+<ol>
+<li>结构偏移错；</li>
+<li>新任务栈方向或对齐错；</li>
+<li>LR&#x2F;PC 初始值错；</li>
+<li>ARM&#x2F;Thumb 状态位错；</li>
+<li>任务入口返回后没有合法去向；</li>
+<li>中断状态恢复时机错。</li>
+</ol>
+<hr>
+<h2 id="新任务初始上下文的完整实现"><a href="#新任务初始上下文的完整实现" class="headerlink" title="新任务初始上下文的完整实现"></a>新任务初始上下文的完整实现</h2><p>下面给出文章对应的完整实现片段。即使没有配套仓库，也可以沿着注释、寄存器访问和调用关系逐行阅读。代码之后的分析只讨论本章主题，不要求预先掌握其他目录结构。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stddef.h&gt;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdint.h&gt;</span></span><br><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;context.h&quot;</span></span><br><br><span class="hljs-keyword">extern</span> <span class="hljs-type">void</span> <span class="hljs-title function_">context_start_trampoline</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span>;<br><br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r4) == ARM_CONTEXT_R4, <span class="hljs-string">&quot;r4 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r5) == ARM_CONTEXT_R5, <span class="hljs-string">&quot;r5 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r6) == ARM_CONTEXT_R6, <span class="hljs-string">&quot;r6 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r7) == ARM_CONTEXT_R7, <span class="hljs-string">&quot;r7 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r8) == ARM_CONTEXT_R8, <span class="hljs-string">&quot;r8 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r9) == ARM_CONTEXT_R9, <span class="hljs-string">&quot;r9 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r10) == ARM_CONTEXT_R10, <span class="hljs-string">&quot;r10 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, r11) == ARM_CONTEXT_R11, <span class="hljs-string">&quot;r11 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, sp) == ARM_CONTEXT_SP, <span class="hljs-string">&quot;sp offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, lr) == ARM_CONTEXT_LR, <span class="hljs-string">&quot;lr offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(Context_Control, cpsr) == ARM_CONTEXT_CPSR, <span class="hljs-string">&quot;cpsr offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(<span class="hljs-keyword">sizeof</span>(Context_Control) == ARM_CONTEXT_SIZE, <span class="hljs-string">&quot;context size&quot;</span>);<br><br><span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>  ARM_CPSR_MODE_SVC = <span class="hljs-number">0x13u</span>,<br>  ARM_CPSR_FIQ_DISABLE = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">6</span>,<br>  ARM_CPSR_IRQ_DISABLE = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">7</span><br>&#125;;<br><br><span class="hljs-type">void</span> _CPU_Context_Initialize(<br>  Context_Control *context,<br>  <span class="hljs-type">void</span> *stack_begin,<br>  <span class="hljs-type">size_t</span> stack_size,<br>  <span class="hljs-type">void</span> (*entry)(<span class="hljs-type">void</span> *),<br>  <span class="hljs-type">void</span> *argument,<br>  <span class="hljs-type">void</span> (*exit_handler)(<span class="hljs-type">void</span>),<br>  <span class="hljs-type">bool</span> enable_irq<br>)<br>&#123;<br>  <span class="hljs-type">uintptr_t</span> stack_top = (<span class="hljs-type">uintptr_t</span>)stack_begin + stack_size;<br>  stack_top &amp;= ~(<span class="hljs-type">uintptr_t</span>)<span class="hljs-number">0x7u</span>;<br><br>  context-&gt;r4 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)entry;<br>  context-&gt;r5 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)argument;<br>  context-&gt;r6 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)exit_handler;<br>  context-&gt;r7 = <span class="hljs-number">0u</span>;<br>  context-&gt;r8 = <span class="hljs-number">0u</span>;<br>  context-&gt;r9 = <span class="hljs-number">0u</span>;<br>  context-&gt;r10 = <span class="hljs-number">0u</span>;<br>  context-&gt;r11 = <span class="hljs-number">0u</span>;<br>  context-&gt;sp = (<span class="hljs-type">uint32_t</span>)stack_top;<br>  context-&gt;lr = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)context_start_trampoline;<br>  context-&gt;cpsr = ARM_CPSR_MODE_SVC | ARM_CPSR_FIQ_DISABLE;<br><br>  <span class="hljs-keyword">if</span> (!enable_irq) &#123;<br>    context-&gt;cpsr |= ARM_CPSR_IRQ_DISABLE;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="普通上下文切换的完整汇编"><a href="#普通上下文切换的完整汇编" class="headerlink" title="普通上下文切换的完整汇编"></a>普通上下文切换的完整汇编</h2><p>下面给出文章对应的完整实现片段。即使没有配套仓库，也可以沿着注释、寄存器访问和调用关系逐行阅读。代码之后的分析只讨论本章主题，不要求预先掌握其他目录结构。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><code class="hljs asm">#include &quot;context_offsets.h&quot;<br><br>.syntax unified<br>.cpu cortex-a9<br>.arm<br><br>.section .text, &quot;ax&quot;, %progbits<br>.align 2<br><br>.global _CPU_Context_switch<br>.type _CPU_Context_switch, %function<br>_CPU_Context_switch:<br>  stmia r0, &#123;r4-r11&#125;<br>  str sp, [r0, #ARM_CONTEXT_SP]<br>  str lr, [r0, #ARM_CONTEXT_LR]<br>  mrs r2, cpsr<br>  str r2, [r0, #ARM_CONTEXT_CPSR]<br><br>  mov r0, r1<br>  b .Lrestore<br>.size _CPU_Context_switch, . - _CPU_Context_switch<br><br>.global _CPU_Context_restore<br>.type _CPU_Context_restore, %function<br>_CPU_Context_restore:<br>.Lrestore:<br>  ldmia r0, &#123;r4-r11&#125;<br>  ldr sp, [r0, #ARM_CONTEXT_SP]<br>  ldr lr, [r0, #ARM_CONTEXT_LR]<br>  ldr r1, [r0, #ARM_CONTEXT_CPSR]<br>  msr cpsr_c, r1<br>  bx lr<br>.size _CPU_Context_restore, . - _CPU_Context_restore<br><br>.global context_start_trampoline<br>.type context_start_trampoline, %function<br>context_start_trampoline:<br>  mov r0, r5<br>  blx r4<br>  blx r6<br>.Ltask_exit_returned:<br>  wfi<br>  b .Ltask_exit_returned<br>.size context_start_trampoline, . - context_start_trampoline<br><br>.global scheduler_restore_first<br>.type scheduler_restore_first, %function<br>scheduler_restore_first:<br>  mov sp, r0<br>  ldmia sp!, &#123;r0-r12, lr&#125;<br>  rfefd sp!<br>.size scheduler_restore_first, . - scheduler_restore_first<br><br>.section .note.GNU-stack, &quot;&quot;, %progbits<br></code></pre></td></tr></table></figure>
+
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="进程、线程和任务在这里各指什么"><a href="#进程、线程和任务在这里各指什么" class="headerlink" title="进程、线程和任务在这里各指什么"></a>进程、线程和任务在这里各指什么</h2><p>线程是执行流：它有寄存器、继续执行位置、栈以及调度状态。进程通常还表示一组资源与地址空间边界，同一个进程的多个线程共享这组资源。</p>
+<p>当前小系统中的“任务”更接近内核线程。任务共用一套地址空间，处于 SVC 模式，可以直接访问相同的全局变量；每个任务有独立栈和自己的保存现场。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>当前内核任务</th>
+<th>带隔离的用户进程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>通用寄存器与 SP&#x2F;PC</td>
+<td>每个任务独立</td>
+<td>每个执行线程独立</td>
+</tr>
+<tr>
+<td>页表&#x2F;地址空间</td>
+<td>共享</td>
+<td>通常按进程区分</td>
+</tr>
+<tr>
+<td>权限级别</td>
+<td>SVC 特权态</td>
+<td>还需要 User 与内核的边界</td>
+</tr>
+<tr>
+<td>全局数据</td>
+<td>直接共享</td>
+<td>通常受各自虚拟地址空间约束</td>
+</tr>
+<tr>
+<td>切换附加状态</td>
+<td>当前很少</td>
+<td>可能有 TTBR、ASID、TLS、用户栈等</td>
+</tr>
+</tbody></table>
+<p>所以换了 SP 不等于完成“进程切换”；开了 MMU 也不等于已经有多个进程。当前先解决同一地址空间中的执行流保存。</p>
+<h2 id="一个任务至少要保留两块东西"><a href="#一个任务至少要保留两块东西" class="headerlink" title="一个任务至少要保留两块东西"></a>一个任务至少要保留两块东西</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">task_a_context                       task_a_stack<br>  r4-r11                             局部变量<br>  sp ─────────────────────────────→  保存的返回地址<br>  lr                                 上层函数调用现场<br>  cpsr                               尚未返回的调用链<br></code></pre></td></tr></table></figure>
+
+<p>Context_Control 只是栈外的一份索引和寄存器保存区。任务栈本身保存了层层调用关系，不能在切出以后借给另一个任务反复覆盖。</p>
+<p>基础版中每个任务栈为 4096 字节，按 8 字节对齐。数组地址加长度得到栈顶，再向下取整对齐。栈向低地址增长，初始 SP 指向高地址边界。</p>
+<h2 id="保存-A、恢复-B，逐条看"><a href="#保存-A、恢复-B，逐条看" class="headerlink" title="保存 A、恢复 B，逐条看"></a>保存 A、恢复 B，逐条看</h2><p>来源：基础版 <code>src/context_switch.S</code>。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs asm">_CPU_Context_switch:<br>    stmia r0, &#123;r4-r11&#125;<br>    str   sp, [r0, #ARM_CONTEXT_SP]<br>    str   lr, [r0, #ARM_CONTEXT_LR]<br>    mrs   r2, cpsr<br>    str   r2, [r0, #ARM_CONTEXT_CPSR]<br><br>    mov   r0, r1<br>    b     .Lrestore<br><br>_CPU_Context_restore:<br>.Lrestore:<br>    ldmia r0, &#123;r4-r11&#125;<br>    ldr   sp, [r0, #ARM_CONTEXT_SP]<br>    ldr   lr, [r0, #ARM_CONTEXT_LR]<br>    ldr   r1, [r0, #ARM_CONTEXT_CPSR]<br>    msr   cpsr_c, r1<br>    bx    lr<br></code></pre></td></tr></table></figure>
+
+<p>C 调用时，r0 是 old，r1 是 next。第一段把 A 的 callee-saved 寄存器、SP、LR、控制状态写入 A 的对象。</p>
+<p><code>mov r0, r1</code> 改变的是接下来要读的对象。<code>ldr sp, ...</code> 之后，CPU 已经选用了 B 的栈。最后 BX LR 转到 B 的继续点，新的 C 调用链开始生效。</p>
+<p>切换函数没有为 A 走到一个普通的“立即返回”。A 暂停在这次调用中；等 B 未来恢复 A 的 context，CPU 才从 A 保存的 LR 继续。这种延迟返回正是线程恢复的关键。</p>
+<h2 id="LR-为什么可以充当继续点"><a href="#LR-为什么可以充当继续点" class="headerlink" title="LR 为什么可以充当继续点"></a>LR 为什么可以充当继续点</h2><p>假设 A 中有：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">do_work_a();<br>_CPU_Context_switch(&amp;task_a_context, &amp;task_b_context);<br>after_resume_a();<br></code></pre></td></tr></table></figure>
+
+<p>BL 到切换函数时，LR 指向调用之后。因此保存 LR 就保存了 A 将来进入 after_resume_a 所需的继续点。</p>
+<p>这里没有显式保存当前 PC，是因为切换只发生在这个已知调用边界。IRQ 可以发生在任何指令位置，不能依靠“某个调用之后”代替任意被打断位置；这就是后续异常帧需要 return_pc 的原因。</p>
+<h2 id="从未运行过的-B，哪来的保存现场"><a href="#从未运行过的-B，哪来的保存现场" class="headerlink" title="从未运行过的 B，哪来的保存现场"></a>从未运行过的 B，哪来的保存现场</h2><p>初始化函数人为构造一份能被同一恢复代码接受的现场。来源：基础版 <code>src/context.c</code> 的核心赋值。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">uintptr_t</span> top = (<span class="hljs-type">uintptr_t</span>)stack_begin + stack_size;<br>top &amp;= ~(<span class="hljs-type">uintptr_t</span>)<span class="hljs-number">0x7u</span>;<br><br>context-&gt;r4 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)entry;<br>context-&gt;r5 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)argument;<br>context-&gt;r6 = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)exit_handler;<br>context-&gt;sp = (<span class="hljs-type">uint32_t</span>)top;<br>context-&gt;lr = (<span class="hljs-type">uint32_t</span>)(<span class="hljs-type">uintptr_t</span>)context_start_trampoline;<br>context-&gt;cpsr = <span class="hljs-number">0x13u</span> | (<span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">6</span>) | (<span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">7</span>);<br></code></pre></td></tr></table></figure>
+
+<p>这里选择关闭 IRQ 的 SVC 初始状态；实际函数通过 enable_irq 参数控制 I 位，其余 r7-r11 清零。</p>
+<p>为什么把入口函数放 r4，而不是直接放到 LR？因为首次启动还要完成“把参数放到 r0、调用入口、处理任务返回”的流程。trampoline 承担这一层适配：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs asm">context_start_trampoline:<br>    mov r0, r5<br>    blx r4<br>    blx r6<br>.Ltask_exit_returned:<br>    wfi<br>    b .Ltask_exit_returned<br></code></pre></td></tr></table></figure>
+
+<p>恢复以后先进入 trampoline，它把 argument 放到 r0，调用 entry。entry 意外返回时调用 exit_handler，避免 CPU 继续执行未知内存。</p>
+<p>这些 r4&#x2F;r5&#x2F;r6 是首次启动时的约定，不是线程生命周期内永久存放入口参数的专用寄存器。任务运行以后，它们会正常承担编译器分配的 callee-saved 值。</p>
+<h2 id="从有限测试开始，比直接死循环更容易定位"><a href="#从有限测试开始，比直接死循环更容易定位" class="headerlink" title="从有限测试开始，比直接死循环更容易定位"></a>从有限测试开始，比直接死循环更容易定位</h2><p>基础版先运行一个有限的测试：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">boot → A1 → B1 → A2 → B2 → A3 → B3 → A恢复 → boot恢复<br></code></pre></td></tr></table></figure>
+
+<p>其中 boot 自己也有一个 Context_Control。A 最后切回 boot，就能继续执行后面的 GIC、Timer 和 SMP 自检。</p>
+<p>这比一启动就跑永久任务多验证了一件事：保存的不仅是 A&#x2F;B，两份任务栈以外的原始内核调用链也能恢复。检查成功后，再启动长期任务演示。</p>
+<p>永久协同任务的逻辑可简化为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">for</span> (;;) &#123;<br>    ++cooperative_a_count;<br>    console_dashboard_update_tasks(<span class="hljs-comment">/* 当前统计 */</span>);<br>    _CPU_Context_switch(&amp;task_a_context, &amp;task_b_context);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>B 对称地更新自己的计数再切回 A。其执行顺序是任务主动决定的，属于协同切换。B 如果从不让出，A 就没有下一次运行机会。</p>
+<p>基础版的 ANSI 界面会按采样限帧；想逐条核对严格的 A1&#x2F;B1&#x2F;A2&#x2F;B2 顺序，应使用纯文本配置：</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs sh">ZYNQ_CONSOLE_ANSI=OFF ./scripts/build.sh<br>./scripts/run_qemu.sh<br></code></pre></td></tr></table></figure>
+
+<p>界面采样没显示每一次 B，并不直接等于 B 没运行。状态观测和调度机制要分开验证。</p>
+<h2 id="这段汇编有哪些使用前提"><a href="#这段汇编有哪些使用前提" class="headerlink" title="这段汇编有哪些使用前提"></a>这段汇编有哪些使用前提</h2><p>第一，任务模式一致。本实现使用 SVC 任务，恢复 SP 后再写 CPSR 控制字段，在这个约束内有明确意义；不能随意构造 User&#x2F;System&#x2F;IRQ 混合 context 后声称仍是通用恢复函数。跨模式任务需要重新设计 banked SP、权限边界与返回机制。</p>
+<p>第二，普通切换路径必须与异步中断互斥。当前永久协同演示关闭 IRQ，避免处于半保存、半恢复状态时被打断。将来若允许这种路径与 Timer 抢占共存，要定义在哪个时刻 current_task 切换、谁屏蔽中断、恢复后如何回到原屏蔽状态。</p>
+<p>第三，现场仅覆盖当前整数模型。VFP&#x2F;NEON、TLS、地址空间、调试状态等扩展，要按实际功能加入；不能仅扩大一个结构体而不修改所有恢复路径。</p>
+<p>第四，普通调用允许改变条件标志。因此 cpsr_c 控制字段恢复与完整异常 CPSR 恢复不可混用。若程序通过非标准方式要求某些标志跨切换调用保持，就已经超出当前 ABI 合同。</p>
+<h2 id="怎样证明不是两个结构体互相赋值"><a href="#怎样证明不是两个结构体互相赋值" class="headerlink" title="怎样证明不是两个结构体互相赋值"></a>怎样证明不是两个结构体互相赋值</h2><p>在 GDB 中同时看四类证据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs gdb">break _CPU_Context_switch<br>info registers r0 r1 sp lr cpsr<br>x/11wx $r0<br>x/11wx $r1<br>disassemble _CPU_Context_switch<br></code></pre></td></tr></table></figure>
+
+<p>单步越过保存序列后，A 的 context 中 SP&#x2F;LR 应对应 A 的栈和继续点。继续单步到恢复 SP 后，寄存器 SP 应落入 B 的数组范围。最后执行 BX，PC 应进入 B 的继续点或首次 trampoline。</p>
+<p>再让 B 切回 A，检查 A 栈中的局部变量没有被 B 修改。寄存器值、内存对象、栈范围、控制流四者一起吻合，才构成完整证据。</p>
+<h2 id="从这里扩展到调度器"><a href="#从这里扩展到调度器" class="headerlink" title="从这里扩展到调度器"></a>从这里扩展到调度器</h2><p>当前代码把 next 直接写死为另一任务。通用调度器还需要就绪队列、RUNNING&#x2F;READY&#x2F;BLOCKED、优先级、时间片、等待对象、退出与回收。它们决定“选谁”，底层 context 负责“怎样过去”。</p>
+<p>把策略与机制分开以后，Timer 到来时可以换一种方式选择 next，而不必让入口汇编理解优先级算法。不过异步进入时不能直接套用普通 context 的最小保存集合，下一篇开始处理这一部分。</p>
+<p>下一篇：<a href="/post/armv7a-05-exception-frames.html">异常入口与独立中断栈</a>。</p>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>协同切换发生在普通函数边界，保存 <code>r4-r11、sp、lr</code> 等长期状态即可。上下文对象不是任务栈，保存动作也不是结构体赋值。新任务通过预构造 SP、入口地址和参数获得第一次恢复现场，任务入口不得无目的返回。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>协同切换发生在普通函数边界，保存 <code>r4-r11、sp、lr</code> 等长期状态即可。上下文对象不是任务栈，保存动作也不是结构体赋值。新任务通过预构造 SP、入口地址和参数获得第一次恢复现场，任务入口不得无目的返回。</p>
+<p>下一章处理异步异常现场，解释为什么 IRQ 需要比普通 context 更完整的保存集合。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</p><p><a href="https://goko-son626.github.io/post/armv7a-04-context-threads.html">https://goko-son626.github.io/post/armv7a-04-context-threads.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-20</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-20</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-06-gic-timers.html" target="_blank">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-05-exception-frames.html" target="_blank">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-03-boot-linker.html" target="_blank">ARMv7-A小系统实践（四）：从ELF、模式栈到第一行串口输出</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-05-exception-frames.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/armv7a-03-boot-linker.html"><span class="level-item">ARMv7-A小系统实践（四）：从ELF、模式栈到第一行串口输出</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '294f993ff5ff9f77af047bd200c2ea4e',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

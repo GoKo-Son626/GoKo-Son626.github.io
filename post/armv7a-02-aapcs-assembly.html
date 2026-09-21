@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（三）：AAPCS32、栈与上下文汇编 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="从真实调用边界推导寄存器保存集合，解释传参、栈对齐、LDM&amp;#x2F;STM、分支和C与汇编的布局合同。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="从真实调用边界推导寄存器保存集合，解释传参、栈对齐、LDM&amp;#x2F;STM、分支和C与汇编的布局合同。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-14T02:00:00.000Z"><meta property="article:modified_time" content="2026-06-14T02:00:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="AAPCS32"><meta property="article:tag" content="ARM汇编"><meta property="article:tag" content="上下文切换"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-02-aapcs-assembly.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-14T02:00:00.000Z","dateModified":"2026-06-14T02:00:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"从真实调用边界推导寄存器保存集合，解释传参、栈对齐、LDM&#x2F;STM、分支和C与汇编的布局合同。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-02-aapcs-assembly.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-14  <a class="commentCountImg" href="/post/armv7a-02-aapcs-assembly.html#comment-container"><span class="display-none-class">cd2ad4999e862268baeddc13c1e25e97</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="cd2ad4999e862268baeddc13c1e25e97">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>11.3 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（三）：AAPCS32、栈与上下文汇编</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章讨论 C 函数与汇编函数如何彼此信任。处理器不会自动知道哪几个寄存器应该由调用者保存，也不会自动保证栈满足编译器要求；这些规则来自 AAPCS32。只有把参数、返回值、caller-saved、callee-saved、栈对齐和 <code>lr</code> 的含义连起来，才能安全地从启动汇编调用 C、从 IRQ 入口调用分发器，或者实现一个与编译器兼容的上下文切换函数。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>上一章已经说明模式切换如何改变 <code>sp</code>、<code>lr</code> 和 SPSR 的可见版本。那属于处理器架构。普通函数调用则通常不改变处理器模式，它依赖的是软件合同。两者都在操作寄存器，但保存集合、返回方式和错误症状完全不同。本章先把这条边界画清楚，再进入多寄存器访存和实际函数边界。</p>
+<p>文章中的示例会从一个普通五参数函数开始，逐步走到汇编调用 C、C 调用汇编以及结构体偏移校验。读完后，即使没有工程源码，也应能独立判断一段汇编是否破坏了 ABI。</p>
+<span id="more"></span>
+
+<p><a href="/post/armv7a-00-roadmap.html">系列目录</a> · 上一篇：<a href="/post/armv7a-01-registers-modes.html">处理器模式、寄存器组与 CPSR</a></p>
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="动手前的基础：AAPCS32-的完整调用合同"><a href="#动手前的基础：AAPCS32-的完整调用合同" class="headerlink" title="动手前的基础：AAPCS32 的完整调用合同"></a>动手前的基础：AAPCS32 的完整调用合同</h2><blockquote>
+<p>适用平台：Zynq-7000 &#x2F; Cortex-A9 &#x2F; AArch32 &#x2F; <code>-mfloat-abi=soft</code><br>学习目的：能在 C、汇编、异常入口、调度器之间安全传参和保存现场<br>阅读方式：正文替代本节 AAPCS32 英文阅读；本章没有必须对照的原图<br>编写日期：2026-07-30</p>
+</blockquote>
+<h3 id="0-AAPCS-不是“编译器习惯”，而是模块之间的合同"><a href="#0-AAPCS-不是“编译器习惯”，而是模块之间的合同" class="headerlink" title="0. AAPCS 不是“编译器习惯”，而是模块之间的合同"></a>0. AAPCS 不是“编译器习惯”，而是模块之间的合同</h3><p>AAPCS32 是 Arm 32 位过程调用标准。只要两个模块都遵守同一 ABI，它们不需要知道对方内部怎样实现，也能正确协作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">C 调 C<br>C 调汇编<br>汇编调 C<br>不同源文件互调<br>静态库与内核互调<br>异常入口建立好调用环境后调 C handler<br></code></pre></td></tr></table></figure>
+
+<p>它主要约定：</p>
+<ul>
+<li>参数放在哪些寄存器或栈位置；</li>
+<li>返回值放在哪里；</li>
+<li>哪些寄存器由调用者保护，哪些由被调用者保护；</li>
+<li>栈向哪里增长、在公共接口必须怎样对齐；</li>
+<li><code>BL/LR</code> 如何表达调用和返回；</li>
+<li>ARM&#x2F;Thumb 代码怎样互操作。</li>
+</ul>
+<p>如果双方对这份合同理解不同，代码可能在 <code>-O0</code> 正常、<code>-O2</code> 崩溃，也可能只在增加一个日志函数后才暴露。这种“玄学”通常不是编译器随机出错，而是手写汇编破坏了 ABI。</p>
+<hr>
+<h3 id="1-本文覆盖的原始资料和准确范围"><a href="#1-本文覆盖的原始资料和准确范围" class="headerlink" title="1. 本文覆盖的原始资料和准确范围"></a>1. 本文覆盖的原始资料和准确范围</h3><table>
+<thead>
+<tr>
+<th>原始资料</th>
+<th align="right">准确范围</th>
+<th align="right">页数</th>
+<th>本文用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>本地 <code>42_ARM_C过程调用标准_AAPCS32.pdf</code> 第 6.1–6.6 节</td>
+<td align="right">PDF 页 17–25</td>
+<td align="right">9 页</td>
+<td>Base PCS 的寄存器、栈、调用、返回、传参和互操作</td>
+</tr>
+<tr>
+<td>Programmer’s Guide 第 5 章</td>
+<td align="right">PDF&#x2F;手册页 57–68</td>
+<td align="right">12 页</td>
+<td>汇编文件、GNU&#x2F;Arm 语法和 interworking 背景</td>
+</tr>
+<tr>
+<td>Programmer’s Guide 第 6.4 节</td>
+<td align="right">第 82 页附近</td>
+<td align="right">选读</td>
+<td><code>B/BL/BX/BLX</code> 与函数边界</td>
+</tr>
+</tbody></table>
+<p>本地 AAPCS32 文档的相关小节：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">6.1 Machine Registers<br>6.2 Processes, Memory and the Stack<br>6.3 Subroutine Calls<br>6.4 Result Return<br>6.5 Parameter Passing<br>6.6 Interworking<br></code></pre></td></tr></table></figure>
+
+<p>原文没有需要单独打开查看的架构图。若想核对寄存器表，直接看：</p>
+<ul>
+<li>AAPCS32 第 17 页，<code>Core registers and AAPCS usage</code> 表。</li>
+<li>AAPCS32 第 20–21 页，<code>The Stack</code>。</li>
+<li>AAPCS32 第 23–24 页，参数分配 Stage A&#x2F;B&#x2F;C。</li>
+</ul>
+<hr>
+<h3 id="2-先建立一个函数调用的全流程"><a href="#2-先建立一个函数调用的全流程" class="headerlink" title="2. 先建立一个函数调用的全流程"></a>2. 先建立一个函数调用的全流程</h3><p>假设：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint32_t</span> b)</span>;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">g</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    <span class="hljs-keyword">return</span> f(<span class="hljs-number">10</span>, <span class="hljs-number">20</span>) + <span class="hljs-number">1</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>调用点附近的逻辑可理解为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov  r0, #10       @ 参数 a<br>mov  r1, #20       @ 参数 b<br>bl   f             @ LR = 返回地址，PC = f<br>add  r0, r0, #1    @ f 的返回值在 r0<br></code></pre></td></tr></table></figure>
+
+<p>这里已经包含 AAPCS 的三类规则：</p>
+<ol>
+<li>前四个整型参数优先使用 <code>r0-r3</code>。</li>
+<li><code>BL</code> 把返回地址放入 <code>LR</code>。</li>
+<li>一个 32 位返回值使用 <code>r0</code>。</li>
+</ol>
+<p>但调用者不能假定调用后 <code>r1-r3/r12/LR</code> 仍保持原值，因为它们属于可破坏寄存器。</p>
+<hr>
+<h3 id="3-核心寄存器的-ABI-角色"><a href="#3-核心寄存器的-ABI-角色" class="headerlink" title="3. 核心寄存器的 ABI 角色"></a>3. 核心寄存器的 ABI 角色</h3><h4 id="3-1-一张真正应该记住的表"><a href="#3-1-一张真正应该记住的表" class="headerlink" title="3.1 一张真正应该记住的表"></a>3.1 一张真正应该记住的表</h4><table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>AAPCS 角色</th>
+<th>谁负责跨函数调用保持</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>r0-r3</code></td>
+<td>参数、结果、过程内临时量</td>
+<td>caller</td>
+</tr>
+<tr>
+<td><code>r4-r8</code></td>
+<td>局部变量寄存器</td>
+<td>callee</td>
+</tr>
+<tr>
+<td><code>r9</code></td>
+<td>平台寄存器或额外 callee-saved</td>
+<td>由平台 ABI 明确</td>
+</tr>
+<tr>
+<td><code>r10</code></td>
+<td>局部变量寄存器</td>
+<td>callee</td>
+</tr>
+<tr>
+<td><code>r11</code></td>
+<td>局部变量&#x2F;常用帧指针</td>
+<td>callee</td>
+</tr>
+<tr>
+<td><code>r12</code> &#x2F; <code>ip</code></td>
+<td>intra-procedure-call scratch，链接器也可使用</td>
+<td>caller</td>
+</tr>
+<tr>
+<td><code>r13</code> &#x2F; <code>sp</code></td>
+<td>栈指针</td>
+<td>callee 必须恢复</td>
+</tr>
+<tr>
+<td><code>r14</code> &#x2F; <code>lr</code></td>
+<td>链接寄存器</td>
+<td>caller 不能假定调用后保留</td>
+</tr>
+<tr>
+<td><code>r15</code> &#x2F; <code>pc</code></td>
+<td>程序计数器</td>
+<td>控制流</td>
+</tr>
+</tbody></table>
+<p>压缩记忆：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r3、r12：调用者别指望它们跨 BL 不变<br>r4-r11：被调用者用了就要保存并恢复<br>sp：返回时必须恢复<br>lr：BL 会改它，叶函数和非叶函数处理不同<br></code></pre></td></tr></table></figure>
+
+<p><code>r9</code> 必须看本平台约定。它可能是静态基址、线程寄存器，也可能被当作 callee-saved。写可移植汇编时不要擅自拿它当普通 scratch。</p>
+<h4 id="3-2-caller-saved-的真正含义"><a href="#3-2-caller-saved-的真正含义" class="headerlink" title="3.2 caller-saved 的真正含义"></a>3.2 caller-saved 的真正含义</h4><p>不是说“caller 每次都必须保存 <code>r0-r3</code>”，而是：</p>
+<blockquote>
+<p>如果调用者在 <code>BL</code> 之后还需要某个 caller-saved 寄存器里的旧值，调用者必须在调用前把这个活跃值移到安全位置。</p>
+</blockquote>
+<p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov  r4, r0        @ 之后还需要原 r0，放到 callee-saved r4<br>bl   helper<br>add  r0, r0, r4<br></code></pre></td></tr></table></figure>
+
+<p>当前函数既然改写了 <code>r4</code>，它自己作为 callee 又必须在入口保存调用者原来的 <code>r4</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4, lr&#125;<br>...<br>pop  &#123;r4, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>保存责任是相对调用边界而言的，不是某个寄存器永远只能由固定一方使用。</p>
+<h4 id="3-3-callee-saved-的真正含义"><a href="#3-3-callee-saved-的真正含义" class="headerlink" title="3.3 callee-saved 的真正含义"></a>3.3 callee-saved 的真正含义</h4><p>被调用函数可以使用 <code>r4-r11</code>，但返回时必须让调用者看到进入前的值。典型非叶函数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asm">my_func:<br>    push &#123;r4-r6, lr&#125;<br>    ...<br>    bl   helper<br>    ...<br>    pop  &#123;r4-r6, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>若函数根本没改 <code>r5-r11</code>，就没有必要机械保存全部寄存器。编译器会根据实际活跃集合生成最小保存集。</p>
+<hr>
+<h3 id="4-BL、LR-与叶函数-非叶函数"><a href="#4-BL、LR-与叶函数-非叶函数" class="headerlink" title="4. BL、LR 与叶函数&#x2F;非叶函数"></a>4. <code>BL</code>、<code>LR</code> 与叶函数&#x2F;非叶函数</h3><h4 id="4-1-BL-target"><a href="#4-1-BL-target" class="headerlink" title="4.1 BL target"></a>4.1 <code>BL target</code></h4><p><code>BL</code> 完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">LR ← 返回位置<br>PC ← target<br></code></pre></td></tr></table></figure>
+
+<p>被调用函数通常通过：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">bx lr<br></code></pre></td></tr></table></figure>
+
+<p>返回。<code>BX</code> 还会根据目标地址最低位处理 ARM&#x2F;Thumb 指令状态。</p>
+<h4 id="4-2-为什么非叶函数通常保存-LR"><a href="#4-2-为什么非叶函数通常保存-LR" class="headerlink" title="4.2 为什么非叶函数通常保存 LR"></a>4.2 为什么非叶函数通常保存 LR</h4><p>叶函数不再调用其他函数，可以直接保留入口时的 <code>LR</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">leaf:<br>    add r0, r0, #1<br>    bx  lr<br></code></pre></td></tr></table></figure>
+
+<p>非叶函数执行第二次 <code>BL</code> 时，自己的 <code>LR</code> 会被新的返回地址覆盖：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">non_leaf:<br>    push &#123;lr&#125;<br>    bl   helper<br>    pop  &#123;pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p>因此“<code>LR</code> 是返回地址”还不够准确。更准确的是：</p>
+<blockquote>
+<p><code>LR</code> 是最近一次链接操作写入的返回信息；需要跨下一次 <code>BL</code> 保留时，必须先保存。</p>
+</blockquote>
+<h4 id="4-3-B、BL、BX、BLX"><a href="#4-3-B、BL、BX、BLX" class="headerlink" title="4.3 B、BL、BX、BLX"></a>4.3 <code>B</code>、<code>BL</code>、<code>BX</code>、<code>BLX</code></h4><table>
+<thead>
+<tr>
+<th>指令</th>
+<th>主要用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>B target</code></td>
+<td>跳转，不建立新返回链</td>
+</tr>
+<tr>
+<td><code>BL target</code></td>
+<td>调用，写 LR</td>
+</tr>
+<tr>
+<td><code>BX Rm</code></td>
+<td>跳到寄存器地址，可切换 ARM&#x2F;Thumb 状态</td>
+</tr>
+<tr>
+<td><code>BLX target/Rm</code></td>
+<td>调用并支持状态切换</td>
+</tr>
+</tbody></table>
+<p>函数指针调用通常不能简单替换成固定标签 <code>BL</code>，要考虑地址最低位携带的指令状态信息。</p>
+<hr>
+<h3 id="5-栈模型与对齐"><a href="#5-栈模型与对齐" class="headerlink" title="5. 栈模型与对齐"></a>5. 栈模型与对齐</h3><h4 id="5-1-满递减栈"><a href="#5-1-满递减栈" class="headerlink" title="5.1 满递减栈"></a>5.1 满递减栈</h4><p>AAPCS32 通常使用向低地址增长的 full-descending stack：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">较高地址：较早的数据<br>    ...<br>当前 SP → 当前栈顶已用位置<br>较低地址：继续分配的方向<br></code></pre></td></tr></table></figure>
+
+<p>典型压栈：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4, lr&#125;<br></code></pre></td></tr></table></figure>
+
+<p>是 <code>STMDB sp!, &#123;r4, lr&#125;</code> 的常用别名。先降低 SP，再保存。</p>
+<h4 id="5-2-两级对齐要求"><a href="#5-2-两级对齐要求" class="headerlink" title="5.2 两级对齐要求"></a>5.2 两级对齐要求</h4><p>AAPCS 的核心约束：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">任意时刻：SP mod 4 = 0<br>公共接口：SP mod 8 = 0<br></code></pre></td></tr></table></figure>
+
+<p>“公共接口”包括正常的 ABI 函数调用边界。手写汇编在执行 <code>BL c_function</code> 前，必须确保 SP 8 字节对齐。</p>
+<p>错误例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;lr&#125;             @ 只压 4 字节，若入口 8 对齐，此时变为 4 mod 8<br>bl   c_handler        @ 违反公共接口要求<br></code></pre></td></tr></table></figure>
+
+<p>可采用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4, lr&#125;         @ 共 8 字节<br>bl   c_handler<br>pop  &#123;r4, lr&#125;<br></code></pre></td></tr></table></figure>
+
+<p>或者显式补齐，但保存与恢复布局必须一致。</p>
+<h4 id="5-3-为什么“现在没用-64-位值”也要对齐"><a href="#5-3-为什么“现在没用-64-位值”也要对齐" class="headerlink" title="5.3 为什么“现在没用 64 位值”也要对齐"></a>5.3 为什么“现在没用 64 位值”也要对齐</h4><p>被调用 C 函数内部可能：</p>
+<ul>
+<li>保存双字数据；</li>
+<li>调用另一个使用双字对齐的函数；</li>
+<li>使用编译器生成的 <code>LDRD/STRD</code>；</li>
+<li>在优化后改变栈布局。</li>
+</ul>
+<p>调用者不能根据当前反汇编碰巧没出问题，就违反 ABI。</p>
+<h4 id="5-4-异常栈也要履行-AAPCS"><a href="#5-4-异常栈也要履行-AAPCS" class="headerlink" title="5.4 异常栈也要履行 AAPCS"></a>5.4 异常栈也要履行 AAPCS</h4><p>硬件进入 IRQ 模式后并不会自动把 <code>SP_irq</code> 调整为 C ABI 所需布局。入口汇编若要调用 C dispatcher，必须主动保证：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">SP 有效<br>SP 8 字节对齐<br>需要保留的异常现场已经入栈<br>返回所需的 SPSR/PC 不会被 C 函数覆盖<br></code></pre></td></tr></table></figure>
+
+<p>“异常入口不属于普通 C 调用”不能成为调用 C 时破坏 AAPCS 的理由。</p>
+<hr>
+<h3 id="6-参数分配：先寄存器，后栈"><a href="#6-参数分配：先寄存器，后栈" class="headerlink" title="6. 参数分配：先寄存器，后栈"></a>6. 参数分配：先寄存器，后栈</h3><h4 id="6-1-最常用规则"><a href="#6-1-最常用规则" class="headerlink" title="6.1 最常用规则"></a>6.1 最常用规则</h4><p>对 32 位整数、指针等一个字大小的参数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">第 1 个 → r0<br>第 2 个 → r1<br>第 3 个 → r2<br>第 4 个 → r3<br>第 5 个及以后 → 调用者栈<br></code></pre></td></tr></table></figure>
+
+<p>例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint32_t</span> b, <span class="hljs-type">uint32_t</span> c,</span><br><span class="hljs-params">       <span class="hljs-type">uint32_t</span> d, <span class="hljs-type">uint32_t</span> e)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>入口时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0=a, r1=b, r2=c, r3=d<br>e 位于调用者为参数准备的栈区域<br></code></pre></td></tr></table></figure>
+
+<p>被调函数若先 <code>push</code> 了寄存器，<code>e</code> 相对于当前 SP 的偏移会变化。汇编作者必须根据自己的序言重新计算，不能永远写 <code>[sp]</code>。</p>
+<h4 id="6-2-64-位参数的偶数寄存器对齐"><a href="#6-2-64-位参数的偶数寄存器对齐" class="headerlink" title="6.2 64 位参数的偶数寄存器对齐"></a>6.2 64 位参数的偶数寄存器对齐</h4><p>需要双字对齐的参数进入核心寄存器时，起始寄存器号要为偶数。例如：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint64_t</span> b)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>典型分配：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">a → r0<br>r1 跳过<br>b 的低/高字 → r2/r3（具体字序还受端序规则约束）<br></code></pre></td></tr></table></figure>
+
+<p>不能把 <code>b</code> 想当然放在 <code>r1/r2</code>。</p>
+<h4 id="6-3-参数可能被寄存器和栈拆分"><a href="#6-3-参数可能被寄存器和栈拆分" class="headerlink" title="6.3 参数可能被寄存器和栈拆分"></a>6.3 参数可能被寄存器和栈拆分</h4><p>如果核心寄存器还有空间、而某个多字参数装不完，标准在满足条件时允许前半放剩余寄存器，后半放栈。这就是为什么复杂原型最好：</p>
+<ol>
+<li>先用 C 写一个最小函数；</li>
+<li>用目标编译选项生成 <code>.s</code> 或反汇编；</li>
+<li>再写手工汇编边界；</li>
+<li>最后用 AAPCS 规则裁决，而不是凭印象猜。</li>
+</ol>
+<h4 id="6-4-结构体按值传参"><a href="#6-4-结构体按值传参" class="headerlink" title="6.4 结构体按值传参"></a>6.4 结构体按值传参</h4><p>复合类型传参时，标准按其内存内容复制，大小向 4 字节倍数处理；需要时调用者先生成临时副本。小结构体可能占多个核心寄存器，也可能部分或全部放栈。</p>
+<p>接口设计上，内核汇编边界优先使用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">handler</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> frame *frame)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>而不是把大型结构体按值传递。一个指针只占 <code>r0</code>，布局也更容易稳定和检查。</p>
+<h4 id="6-5-soft-float-对当前项目的意义"><a href="#6-5-soft-float-对当前项目的意义" class="headerlink" title="6.5 soft-float 对当前项目的意义"></a>6.5 soft-float 对当前项目的意义</h4><p>当前项目使用 <code>-mfloat-abi=soft</code>，基础理解是：</p>
+<ul>
+<li>浮点参数不采用 hard-float 的 VFP 参数寄存器 ABI。</li>
+<li>它们按 Base PCS 的核心寄存器&#x2F;栈规则传递。</li>
+<li>所有目标文件和库必须使用兼容浮点 ABI。</li>
+</ul>
+<p>若一部分按 soft-float、一部分按 hard-float 编译，即使函数名和 C 原型相同，调用边界也可能完全不兼容。</p>
+<hr>
+<h3 id="7-返回值规则"><a href="#7-返回值规则" class="headerlink" title="7. 返回值规则"></a>7. 返回值规则</h3><p>常见返回位置：</p>
+<table>
+<thead>
+<tr>
+<th>返回类型</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>小于等于 32 位的基础类型</td>
+<td><code>r0</code></td>
+</tr>
+<tr>
+<td>64 位基础类型</td>
+<td><code>r0-r1</code></td>
+</tr>
+<tr>
+<td>可按四个字表达的基础结果</td>
+<td>最多 <code>r0-r3</code></td>
+</tr>
+<tr>
+<td>不大于 4 字节的小复合类型</td>
+<td><code>r0</code> 中按内存装载效果返回</td>
+</tr>
+<tr>
+<td>大于 4 字节或大小不能静态确定的复合类型</td>
+<td>调用者提供结果内存</td>
+</tr>
+</tbody></table>
+<h4 id="7-1-隐藏的结构体返回指针"><a href="#7-1-隐藏的结构体返回指针" class="headerlink" title="7.1 隐藏的结构体返回指针"></a>7.1 隐藏的结构体返回指针</h4><p>例如：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Pair</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> x;<br>    <span class="hljs-type">uint32_t</span> y;<br>&#125;;<br><br><span class="hljs-keyword">struct</span> Pair <span class="hljs-title function_">make_pair</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint32_t</span> b)</span>;<br></code></pre></td></tr></table></figure>
+
+<p><code>Pair</code> 大于 4 字节。Base PCS 通常让调用者分配结果空间，并把其地址作为隐藏参数放入 <code>r0</code>。于是显式参数向后顺延：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = result_buffer<br>r1 = a<br>r2 = b<br></code></pre></td></tr></table></figure>
+
+<p>这就是为什么只看 C 源码会误以为 <code>a</code> 在 <code>r0</code>。写汇编实现复合返回函数时必须知道隐藏参数。</p>
+<h4 id="7-2-返回后哪些寄存器可信"><a href="#7-2-返回后哪些寄存器可信" class="headerlink" title="7.2 返回后哪些寄存器可信"></a>7.2 返回后哪些寄存器可信</h4><p>若函数返回 32 位结果，只有约定的 <code>r0</code> 承载结果。不能因为某次反汇编中 <code>r1</code> 恰好还有中间值，就把它当第二返回值使用。</p>
+<p>多返回信息更适合：</p>
+<ul>
+<li>用结构体指针输出；</li>
+<li>明确返回一个 ABI 支持的复合类型；</li>
+<li>或将次要信息放调用者提供的对象中。</li>
+</ul>
+<hr>
+<h3 id="8-AAPCS-Stage-A-B-C-的工程化理解"><a href="#8-AAPCS-Stage-A-B-C-的工程化理解" class="headerlink" title="8. AAPCS Stage A&#x2F;B&#x2F;C 的工程化理解"></a>8. AAPCS Stage A&#x2F;B&#x2F;C 的工程化理解</h3><p>原文第 23–24 页用 Stage A、B、C 严格定义参数分配。第一次不需要背规则编号，但要理解算法顺序。</p>
+<h4 id="Stage-A：初始化分配状态"><a href="#Stage-A：初始化分配状态" class="headerlink" title="Stage A：初始化分配状态"></a>Stage A：初始化分配状态</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">NCRN = r0          下一可用核心寄存器<br>NSAA = 当前 SP     下一栈参数地址<br></code></pre></td></tr></table></figure>
+
+<p>如果函数用内存返回大结构体：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = 结果缓冲区地址<br>NCRN 从 r1 开始<br></code></pre></td></tr></table></figure>
+
+<h4 id="Stage-B：预处理参数"><a href="#Stage-B：预处理参数" class="headerlink" title="Stage B：预处理参数"></a>Stage B：预处理参数</h4><p>对每个参数先确定：</p>
+<ul>
+<li>实际传递大小；</li>
+<li>是否需要符号&#x2F;零扩展到一个字；</li>
+<li>复合对象是否需要调用者副本；</li>
+<li>大小是否向 4 字节倍数取整；</li>
+<li>是否要求 8 字节对齐。</li>
+</ul>
+<h4 id="Stage-C：分配到寄存器或栈"><a href="#Stage-C：分配到寄存器或栈" class="headerlink" title="Stage C：分配到寄存器或栈"></a>Stage C：分配到寄存器或栈</h4><p>依次尝试：</p>
+<ol>
+<li>满足双字对齐要求时，把 NCRN 调到偶数寄存器。</li>
+<li>参数能完全放入剩余核心寄存器，就放寄存器。</li>
+<li>满足标准条件时，可在寄存器和栈之间拆分。</li>
+<li>核心寄存器耗尽后，后续参数放栈。</li>
+<li>栈地址按参数需要对齐，再复制参数。</li>
+</ol>
+<p>对移植者而言，最重要的不是手算任意复杂结构体，而是知道：</p>
+<blockquote>
+<p>参数位置由完整原型、类型大小、对齐、返回方式和 ABI 共同决定，不能只按“第几个参数”机械判断。</p>
+</blockquote>
+<hr>
+<h3 id="9-汇编函数怎样正确调用-C"><a href="#9-汇编函数怎样正确调用-C" class="headerlink" title="9. 汇编函数怎样正确调用 C"></a>9. 汇编函数怎样正确调用 C</h3><p>假设 IRQ 汇编已经建立：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">irq_frame</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r[<span class="hljs-number">13</span>];<br>    <span class="hljs-type">uint32_t</span> lr_irq;<br>    <span class="hljs-type">uint32_t</span> pc;<br>    <span class="hljs-type">uint32_t</span> cpsr;<br>&#125;;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">irq_dispatch</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> irq_frame *frame)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>调用边界至少应满足：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asm">@ 先把异常所需寄存器、SPSR、返回 PC 保存到稳定内存<br>mov   r0, sp              @ 第一个参数：frame 指针<br>@ 此处确认 sp % 8 == 0<br>bl    irq_dispatch<br>@ 不假定 r0-r3、r12、lr 仍是调用前的值<br>@ 从 frame 恢复，而不是依赖被调 C 保留 caller-saved 状态<br></code></pre></td></tr></table></figure>
+
+<p>关键点：</p>
+<ol>
+<li><code>r0</code> 是地址，不是 frame 的第一项内容。</li>
+<li>C handler 可以合法改写 <code>r0-r3/r12/LR</code>。</li>
+<li>被中断任务的完整现场必须在调用 C 之前保存。</li>
+<li><code>SPSR</code> 不属于 AAPCS 普通寄存器保存合同，异常入口必须自己管理。</li>
+<li>从 C 返回后，异常恢复代码依赖的是内存中的 frame。</li>
+</ol>
+<hr>
+<h3 id="10-普通任务上下文为什么常保存-r4-r11"><a href="#10-普通任务上下文为什么常保存-r4-r11" class="headerlink" title="10. 普通任务上下文为什么常保存 r4-r11"></a>10. 普通任务上下文为什么常保存 <code>r4-r11</code></h3><p>如果上下文切换函数在一个正常 ABI 调用边界发生：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">context_switch</span><span class="hljs-params">(Context *run, Context *heir)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>调用者本来就必须认为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r3、r12、lr 可被这次调用破坏<br></code></pre></td></tr></table></figure>
+
+<p>调用者若有跨调用活跃值，编译器已经把它们放到 callee-saved 寄存器或栈。切换函数要让任务未来“像这次调用正常返回一样继续”，核心是保持：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r4-r11<br>sp<br>返回控制流<br></code></pre></td></tr></table></figure>
+
+<p>这就是普通上下文可利用 AAPCS 缩小保存集的原因。</p>
+<p>但异常可发生在任意指令之间，不能假定当前正处于函数调用边界。因此异常现场通常必须保护更完整的 <code>r0-r12</code>、返回 PC 和 CPSR。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">普通任务切换最小集 ≠ 异常现场完整集<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="11-反汇编阅读方法：从-C-原型向寄存器映射"><a href="#11-反汇编阅读方法：从-C-原型向寄存器映射" class="headerlink" title="11. 反汇编阅读方法：从 C 原型向寄存器映射"></a>11. 反汇编阅读方法：从 C 原型向寄存器映射</h3><p>看到一个汇编调用时，按固定顺序分析：</p>
+<h4 id="第一步：找到完整-C-原型"><a href="#第一步：找到完整-C-原型" class="headerlink" title="第一步：找到完整 C 原型"></a>第一步：找到完整 C 原型</h4><p>包括：</p>
+<ul>
+<li>返回类型；</li>
+<li>所有参数的精确类型；</li>
+<li>是否变参；</li>
+<li>结构体是否按值；</li>
+<li>编译单元的 float ABI。</li>
+</ul>
+<h4 id="第二步：判断有没有隐藏结果指针"><a href="#第二步：判断有没有隐藏结果指针" class="headerlink" title="第二步：判断有没有隐藏结果指针"></a>第二步：判断有没有隐藏结果指针</h4><p>返回大型复合类型时，先把 <code>r0</code> 留给结果地址。</p>
+<h4 id="第三步：按类型大小和对齐分配-r0-r3"><a href="#第三步：按类型大小和对齐分配-r0-r3" class="headerlink" title="第三步：按类型大小和对齐分配 r0-r3"></a>第三步：按类型大小和对齐分配 <code>r0-r3</code></h4><p>遇到 64 位或复合类型，不要只数参数个数。</p>
+<h4 id="第四步：在调用前向上追踪寄存器定义"><a href="#第四步：在调用前向上追踪寄存器定义" class="headerlink" title="第四步：在调用前向上追踪寄存器定义"></a>第四步：在调用前向上追踪寄存器定义</h4><p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov r1, r5<br>ldr r0, [r4, #8]<br>bl  handler<br></code></pre></td></tr></table></figure>
+
+<p>结合原型解释为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">参数 1 = *(uint32_t *)(r4 + 8) 或对应类型值<br>参数 2 = r5 当前值<br></code></pre></td></tr></table></figure>
+
+<p><code>r0</code> 与 <code>[r0]</code> 必须区分：前者是寄存器中的值，后者才是访问该值指向的内存。</p>
+<h4 id="第五步：调用后只信-ABI-保证"><a href="#第五步：调用后只信-ABI-保证" class="headerlink" title="第五步：调用后只信 ABI 保证"></a>第五步：调用后只信 ABI 保证</h4><p>检查调用者是否错误地继续使用未保存的 <code>r0-r3/r12/LR</code>。</p>
+<hr>
+<h3 id="12-最常见的-ABI-Bug-与定位方式"><a href="#12-最常见的-ABI-Bug-与定位方式" class="headerlink" title="12. 最常见的 ABI Bug 与定位方式"></a>12. 最常见的 ABI Bug 与定位方式</h3><h4 id="Bug-1：只在优化版本崩溃"><a href="#Bug-1：只在优化版本崩溃" class="headerlink" title="Bug 1：只在优化版本崩溃"></a>Bug 1：只在优化版本崩溃</h4><p>检查：</p>
+<ul>
+<li>汇编函数是否改写 <code>r4-r11</code> 却没有恢复；</li>
+<li>是否把 caller-saved 值跨 <code>BL</code> 使用；</li>
+<li>inline asm 是否缺少 clobber 声明；</li>
+<li>C 与汇编声明是否一致。</li>
+</ul>
+<h4 id="Bug-2：加一条日志后异常返回就坏"><a href="#Bug-2：加一条日志后异常返回就坏" class="headerlink" title="Bug 2：加一条日志后异常返回就坏"></a>Bug 2：加一条日志后异常返回就坏</h4><p>日志函数是一次新的 <code>BL</code>，会改写 <code>LR</code> 和 caller-saved 寄存器。检查：</p>
+<ul>
+<li>异常返回地址是否在调用日志前存入内存；</li>
+<li><code>SPSR</code> 是否安全保存；</li>
+<li>栈是否仍 8 字节对齐；</li>
+<li>是否发生 IRQ 栈溢出。</li>
+</ul>
+<h4 id="Bug-3：第五个参数值错误"><a href="#Bug-3：第五个参数值错误" class="headerlink" title="Bug 3：第五个参数值错误"></a>Bug 3：第五个参数值错误</h4><p>检查：</p>
+<ul>
+<li>被调函数序言压栈后，栈参数偏移是否重算；</li>
+<li>调用点 SP 是否对齐；</li>
+<li>前面是否存在 64 位参数造成寄存器跳位；</li>
+<li>是否存在隐藏结构体返回指针。</li>
+</ul>
+<h4 id="Bug-4：某函数返回后-r4-被污染"><a href="#Bug-4：某函数返回后-r4-被污染" class="headerlink" title="Bug 4：某函数返回后 r4 被污染"></a>Bug 4：某函数返回后 <code>r4</code> 被污染</h4><p>这是典型 callee 违约。对照函数入口&#x2F;出口的保存集合，确认所有返回路径都恢复了相同寄存器和 SP。</p>
+<h4 id="Bug-5：链接成功但浮点参数全错"><a href="#Bug-5：链接成功但浮点参数全错" class="headerlink" title="Bug 5：链接成功但浮点参数全错"></a>Bug 5：链接成功但浮点参数全错</h4><p>检查所有目标文件与库的：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">-mfloat-abi<br>-mfpu<br>ELF attributes<br></code></pre></td></tr></table></figure>
+
+<p>函数名匹配不代表 ABI 匹配。</p>
+<hr>
+<h3 id="13-为-Zynq-移植制定统一-ABI-基线"><a href="#13-为-Zynq-移植制定统一-ABI-基线" class="headerlink" title="13. 为 Zynq 移植制定统一 ABI 基线"></a>13. 为 Zynq 移植制定统一 ABI 基线</h3><p>第一版应把 ABI 固定到构建系统，而不是靠个人记忆：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU：Cortex-A9<br>架构：ARMv7-A<br>指令状态：当前工程配置为 -marm<br>浮点 ABI：soft<br>字节序：小端<br>栈公共接口：8 字节对齐<br>r9 用法：由整个工程统一<br></code></pre></td></tr></table></figure>
+
+<p>汇编文件要使用与 C 一致的选项，并明确：</p>
+<ul>
+<li>函数符号类型与可见性；</li>
+<li>ARM&#x2F;Thumb 状态；</li>
+<li>必要的 <code>.align</code>；</li>
+<li>不可执行栈等元数据（按工具链需要）；</li>
+<li>保存集合和栈帧布局注释。</li>
+</ul>
+<p>每个 C&#x2F;汇编边界建议写一小段“ABI 合同”：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">输入：r0=run, r1=heir<br>输出：不按普通方式返回到原任务，恢复 heir 的返回点<br>破坏：r0-r3,r12,flags<br>保持：由上下文对象恢复 r4-r11,sp,pc<br>前置：IRQ 状态和锁状态由调用者满足<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="14-本目标的掌握标准"><a href="#14-本目标的掌握标准" class="headerlink" title="14. 本目标的掌握标准"></a>14. 本目标的掌握标准</h3><p>完成本章后，应能不看资料回答：</p>
+<ul>
+<li><code>r0-r3</code> 与 <code>r4-r11</code> 的保存责任分别是什么。</li>
+<li>为什么 caller-saved 不等于每次都保存。</li>
+<li>为什么非叶函数通常要保护 LR。</li>
+<li>5 个 32 位参数放在哪里。</li>
+<li>64 位参数为什么可能跳过奇数号寄存器。</li>
+<li>大结构体返回为什么会占用隐藏的 <code>r0</code>。</li>
+<li>为什么汇编调用 C 前要让 SP 8 字节对齐。</li>
+<li>为什么异常入口调用 C 前必须先把完整现场放入内存。</li>
+<li>为什么普通任务切换可以主要保存 callee-saved 状态，而 IRQ 现场不行。</li>
+<li>为什么当前 <code>soft-float</code> 必须在整个链接单元中保持一致。</li>
+</ul>
+<h4 id="30-秒复述版"><a href="#30-秒复述版" class="headerlink" title="30 秒复述版"></a>30 秒复述版</h4><blockquote>
+<p>AAPCS32 是 C 与汇编之间的调用合同。r0-r3 用于参数、返回和临时量，由调用者保护活跃值；r4-r11 由被调用者保持，r12 是 scratch，BL 会改 LR。普通 32 位参数先放 r0-r3，再放栈；64 位参数注意偶数寄存器和 8 字节对齐；大结构体返回会通过 r0 传入隐藏结果指针。SP 平时至少 4 字节对齐，在公共函数接口必须 8 字节对齐。异常汇编若要调用 C，也必须先完整保存异常现场并满足这份合同。</p>
+</blockquote>
+<hr>
+<h3 id="15-下一主题的接口"><a href="#15-下一主题的接口" class="headerlink" title="15. 下一主题的接口"></a>15. 下一主题的接口</h3><p>有了模式 bank 和 AAPCS，下一步可以真正解释上下文：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">保存任务 A 的 r4-r11、sp、返回控制流<br>恢复任务 B 的对应值<br>恢复 B 的 sp 后切换任务栈<br>恢复 B 的 pc 后切换执行流<br></code></pre></td></tr></table></figure>
+
+<p>同时还要学习 <code>LDR/STR</code>、<code>STM/LDM</code>、<code>MRS/MSR</code>、<code>SRS/RFE</code> 等指令怎样把这套合同落实到内存。</p>
+<h2 id="用常见错误和函数边界检验-ABI"><a href="#用常见错误和函数边界检验-ABI" class="headerlink" title="用常见错误和函数边界检验 ABI"></a>用常见错误和函数边界检验 ABI</h2><h2 id="四、第一张必须掌握的表：寄存器调用角色"><a href="#四、第一张必须掌握的表：寄存器调用角色" class="headerlink" title="四、第一张必须掌握的表：寄存器调用角色"></a>四、第一张必须掌握的表：寄存器调用角色</h2><table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>AAPCS 名称</th>
+<th>普通用途</th>
+<th>谁负责保证调用后仍有效</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>r0</code></td>
+<td><code>a1</code></td>
+<td>参数1、返回值、临时值</td>
+<td>调用者</td>
+</tr>
+<tr>
+<td><code>r1</code></td>
+<td><code>a2</code></td>
+<td>参数2、返回值一部分、临时值</td>
+<td>调用者</td>
+</tr>
+<tr>
+<td><code>r2</code></td>
+<td><code>a3</code></td>
+<td>参数3、临时值</td>
+<td>调用者</td>
+</tr>
+<tr>
+<td><code>r3</code></td>
+<td><code>a4</code></td>
+<td>参数4、临时值</td>
+<td>调用者</td>
+</tr>
+<tr>
+<td><code>r4-r8</code></td>
+<td><code>v1-v5</code></td>
+<td>局部变量寄存器</td>
+<td>被调用者</td>
+</tr>
+<tr>
+<td><code>r9</code></td>
+<td><code>v6/SB/TR</code></td>
+<td>平台寄存器或局部变量寄存器</td>
+<td>由平台 ABI 决定</td>
+</tr>
+<tr>
+<td><code>r10</code></td>
+<td><code>v7</code></td>
+<td>局部变量寄存器</td>
+<td>被调用者</td>
+</tr>
+<tr>
+<td><code>r11</code></td>
+<td><code>v8/FP</code></td>
+<td>局部变量或帧指针</td>
+<td>被调用者</td>
+</tr>
+<tr>
+<td><code>r12</code></td>
+<td><code>IP</code></td>
+<td>函数内部&#x2F;链接器临时寄存器</td>
+<td>调用者</td>
+</tr>
+<tr>
+<td><code>r13</code></td>
+<td><code>SP</code></td>
+<td>栈指针</td>
+<td>被调用者必须维护</td>
+</tr>
+<tr>
+<td><code>r14</code></td>
+<td><code>LR</code></td>
+<td>返回地址</td>
+<td>调用者不能假设调用后仍保留原值</td>
+</tr>
+<tr>
+<td><code>r15</code></td>
+<td><code>PC</code></td>
+<td>程序计数器</td>
+<td>控制流寄存器</td>
+</tr>
+</tbody></table>
+<p>把它压缩成两组：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">caller-saved / call-clobbered:<br>    r0-r3, r12, LR, CPSR 条件标志<br><br>callee-saved / call-preserved:<br>    r4-r8, r10-r11, SP<br>    r9 由平台规则决定<br></code></pre></td></tr></table></figure>
+
+<h3 id="Caller-saved-到底是什么意思"><a href="#Caller-saved-到底是什么意思" class="headerlink" title="Caller-saved 到底是什么意思"></a>Caller-saved 到底是什么意思</h3><p>Caller-saved 不是“调用者每次必须保存”。</p>
+<p>准确含义是：</p>
+<blockquote>
+<p>被调用函数可以破坏这些寄存器。如果调用者在函数返回后还需要原值，调用者必须在调用前自己保存。</p>
+</blockquote>
+<p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov r0, #123<br>bl  some_c_function<br></code></pre></td></tr></table></figure>
+
+<p>执行完 <code>BL</code> 后，不能假设 <code>r0</code> 仍然等于 123，因为 <code>r0</code> 是 caller-saved。</p>
+<h3 id="Callee-saved-到底是什么意思"><a href="#Callee-saved-到底是什么意思" class="headerlink" title="Callee-saved 到底是什么意思"></a>Callee-saved 到底是什么意思</h3><p>准确含义是：</p>
+<blockquote>
+<p>如果被调用函数需要使用这些寄存器，就必须在返回前恢复成进入函数时的值。</p>
+</blockquote>
+<p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asm">my_function:<br>    push &#123;r4, lr&#125;<br>    mov  r4, r0<br>    bl   another_function<br>    mov  r0, r4<br>    pop  &#123;r4, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<p><code>my_function</code> 使用了 <code>r4</code>，因此进入时保存、返回时恢复。它使用 <code>r4</code> 跨越 <code>another_function</code> 的调用，是因为 <code>another_function</code> 也必须保持 <code>r4</code>。</p>
+<hr>
+<h2 id="五、为什么-r12-不能用来跨函数保存重要数据"><a href="#五、为什么-r12-不能用来跨函数保存重要数据" class="headerlink" title="五、为什么 r12 不能用来跨函数保存重要数据"></a>五、为什么 r12 不能用来跨函数保存重要数据</h2><p><code>r12</code> 又叫 <code>IP</code>，是 Intra-Procedure-call scratch register。</p>
+<p>除了被调用函数可以修改它，链接器还可能在调用点插入 veneer：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">caller<br>  └── BL veneer<br>         └── 跳到真正的 callee<br></code></pre></td></tr></table></figure>
+
+<p>veneer 用于：</p>
+<ul>
+<li>目标地址超过 <code>BL</code> 的直接跳转范围。</li>
+<li>ARM&#x2F;Thumb interworking。</li>
+<li>某些动态链接场景。</li>
+</ul>
+<p>AAPCS 允许 veneer 修改：</p>
+<ul>
+<li><code>r12</code></li>
+<li>CPSR 条件标志</li>
+</ul>
+<p>因此：</p>
+<blockquote>
+<p>即使读者查看当前反汇编发现一次 <code>BL</code> 没有修改 r12，也不能把需要跨调用保存的值放在 r12 中。重新链接、地址变化或加入新代码后，链接器可能插入 veneer。</p>
+</blockquote>
+<hr>
+<h2 id="六、r9-为什么不能简单死记"><a href="#六、r9-为什么不能简单死记" class="headerlink" title="六、r9 为什么不能简单死记"></a>六、r9 为什么不能简单死记</h2><p><code>r9</code> 的角色由平台 ABI 决定，常见选择：</p>
+<ul>
+<li><code>SB</code>：Static Base，静态基址。</li>
+<li><code>TR</code>：Thread Register，线程寄存器。</li>
+<li><code>v6</code>：普通 callee-saved 变量寄存器。</li>
+</ul>
+<p>所以通用 AAPCS32 不能无条件说“r9 永远是普通 callee-saved 寄存器”。</p>
+<p>对一套现有 ARMv7-A 工程进行核对时，正确做法是：</p>
+<ol>
+<li>检查工具链、平台 ABI 和 ELF attributes。</li>
+<li>搜索项目是否固定使用 r9。</li>
+<li>分析编译器实际生成的代码。</li>
+</ol>
+<p>在没有完成这三步前，手写汇编应保守处理 r9，不要擅自把它作为随意破坏的临时寄存器。</p>
+<hr>
+<h2 id="七、栈规则"><a href="#七、栈规则" class="headerlink" title="七、栈规则"></a>七、栈规则</h2><p>AAPCS32 使用 full-descending stack：</p>
+<ul>
+<li>栈向低地址增长。</li>
+<li>SP 指向当前已分配栈区域的最低地址。</li>
+<li><code>PUSH</code> 通常等价于 <code>STMDB sp!, &#123;...&#125;</code>。</li>
+<li><code>POP</code> 通常等价于 <code>LDMIA sp!, &#123;...&#125;</code>。</li>
+</ul>
+<h3 id="任何时刻的基本约束"><a href="#任何时刻的基本约束" class="headerlink" title="任何时刻的基本约束"></a>任何时刻的基本约束</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">SP mod 4 == 0<br></code></pre></td></tr></table></figure>
+
+<p>即 SP 至少保持 4 字节对齐。</p>
+<h3 id="公共调用边界的额外约束"><a href="#公共调用边界的额外约束" class="headerlink" title="公共调用边界的额外约束"></a>公共调用边界的额外约束</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">SP mod 8 == 0<br></code></pre></td></tr></table></figure>
+
+<p>也就是当代码进入一个符合 AAPCS 的公开函数接口时，SP 必须为 8 字节对齐。</p>
+<p>这里最实用的判断方法是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">执行 BL 调用普通 C 函数之前，检查 SP 是否 8 字节对齐。<br></code></pre></td></tr></table></figure>
+
+<h3 id="常见错误"><a href="#常见错误" class="headerlink" title="常见错误"></a>常见错误</h3><p>假设进入汇编函数时 SP 已经 8 字节对齐：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4&#125;        // SP -= 4，现在只有 4 字节对齐<br>bl   c_function  // 错误：调用边界不再满足 8 字节对齐<br></code></pre></td></tr></table></figure>
+
+<p>可以改为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">push &#123;r4, lr&#125;    // SP -= 8，仍保持 8 字节对齐<br>bl   c_function<br>pop  &#123;r4, lr&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="八、子程序调用与返回"><a href="#八、子程序调用与返回" class="headerlink" title="八、子程序调用与返回"></a>八、子程序调用与返回</h2><h3 id="BL"><a href="#BL" class="headerlink" title="BL"></a>BL</h3><p><code>BL target</code> 完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">下一条指令的返回信息 -&gt; LR<br>target              -&gt; PC<br></code></pre></td></tr></table></figure>
+
+<p>在 ARM 状态下，<code>LR[0] == 0</code>；从 Thumb 状态调用时，返回信息中 <code>LR[0] == 1</code>，用于指示返回后的指令集状态。</p>
+<h3 id="BLX"><a href="#BLX" class="headerlink" title="BLX"></a>BLX</h3><p><code>BLX</code> 可以调用寄存器中的目标地址，并正确处理 ARM&#x2F;Thumb 状态切换和返回状态。</p>
+<h3 id="BX-LR"><a href="#BX-LR" class="headerlink" title="BX LR"></a>BX LR</h3><p>叶子函数没有再次调用其他函数、也没有把 LR 用作临时寄存器时，通常可以：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">bx lr<br></code></pre></td></tr></table></figure>
+
+<p>如果函数内部还要执行 <code>BL</code>，新的 <code>BL</code> 会覆盖 LR，因此通常先保存 LR：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">function:<br>    push &#123;r4, lr&#125;<br>    bl   another<br>    pop  &#123;r4, pc&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="九、参数传递：第一轮先掌握常用规则"><a href="#九、参数传递：第一轮先掌握常用规则" class="headerlink" title="九、参数传递：第一轮先掌握常用规则"></a>九、参数传递：第一轮先掌握常用规则</h2><h3 id="1～4-个-32-位参数"><a href="#1～4-个-32-位参数" class="headerlink" title="1～4 个 32 位参数"></a>1～4 个 32 位参数</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">int</span> a, <span class="hljs-type">int</span> b, <span class="hljs-type">int</span> c, <span class="hljs-type">int</span> d)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>进入 <code>f</code> 时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = a<br>r1 = b<br>r2 = c<br>r3 = d<br></code></pre></td></tr></table></figure>
+
+<h3 id="第-5-个及后续参数"><a href="#第-5-个及后续参数" class="headerlink" title="第 5 个及后续参数"></a>第 5 个及后续参数</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">int</span> a, <span class="hljs-type">int</span> b, <span class="hljs-type">int</span> c, <span class="hljs-type">int</span> d, <span class="hljs-type">int</span> e, <span class="hljs-type">int</span> f)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>进入函数时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = a<br>r1 = b<br>r2 = c<br>r3 = d<br>[sp]     = e<br>[sp + 4] = f<br></code></pre></td></tr></table></figure>
+
+<p>这里的 <code>[sp]</code> 是函数入口时的 SP。函数自己执行 prologue 改变 SP 后，参数相对当前 SP 的偏移也会变化。</p>
+<h3 id="小于-32-位的整数"><a href="#小于-32-位的整数" class="headerlink" title="小于 32 位的整数"></a>小于 32 位的整数</h3><p><code>char</code>、<code>short</code> 等整数参数在传递前扩展到 32 位：</p>
+<ul>
+<li>有符号类型进行符号扩展。</li>
+<li>无符号类型进行零扩展。</li>
+</ul>
+<h3 id="64-位参数"><a href="#64-位参数" class="headerlink" title="64 位参数"></a>64 位参数</h3><p>64 位参数占用两个连续核心寄存器，并且必须从偶数编号寄存器开始：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">r0:r1<br>或者<br>r2:r3<br></code></pre></td></tr></table></figure>
+
+<p>例如：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">f</span><span class="hljs-params">(<span class="hljs-type">int</span> a, <span class="hljs-type">long</span> <span class="hljs-type">long</span> b, <span class="hljs-type">int</span> c)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>概念分配结果：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0    = a<br>r1    = 跳过，用于满足 b 的 8 字节对齐规则<br>r2:r3 = b<br>[sp]  = c<br></code></pre></td></tr></table></figure>
+
+<p>64 位值在两个寄存器中的具体字顺序按它从内存中通过一次 <code>LDM</code> 加载后的表现确定，并受数据端序影响。</p>
+<h3 id="结构体参数"><a href="#结构体参数" class="headerlink" title="结构体参数"></a>结构体参数</h3><p>结构体属于 Composite Type。第一轮只需知道：</p>
+<ul>
+<li>小结构体可能拆分到多个 r0-r3。</li>
+<li>寄存器不够时，可能一部分在寄存器、一部分在栈。</li>
+<li>需要 8 字节对齐的结构体会触发偶数寄存器&#x2F;栈对齐规则。</li>
+<li>尺寸不能由调用双方静态确定时，通常改为传递指向副本的指针。</li>
+</ul>
+<p>结构体的完整 Stage A&#x2F;B&#x2F;C 分配算法先做到“会查”，暂时不要求背诵。</p>
+<hr>
+<h2 id="十、返回值"><a href="#十、返回值" class="headerlink" title="十、返回值"></a>十、返回值</h2><p>base PCS 常用返回规则：</p>
+<table>
+<thead>
+<tr>
+<th>C 返回类型</th>
+<th>返回位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>char/short/int/enum/pointer</code></td>
+<td><code>r0</code></td>
+</tr>
+<tr>
+<td><code>long long</code>、64 位基础类型</td>
+<td><code>r0-r1</code></td>
+</tr>
+<tr>
+<td>128 位 containerized vector</td>
+<td><code>r0-r3</code></td>
+</tr>
+<tr>
+<td>不超过 4 字节的小结构体</td>
+<td><code>r0</code></td>
+</tr>
+<tr>
+<td>较大结构体</td>
+<td>调用者提供内存，隐藏地址通常通过 <code>r0</code> 传入</td>
+</tr>
+</tbody></table>
+<p>较大结构体返回可以理解为编译器在概念上改写：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">struct</span> big <span class="hljs-title function_">make_value</span><span class="hljs-params">(<span class="hljs-type">int</span> x)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>类似：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">make_value</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> big *hidden_result, <span class="hljs-type">int</span> x)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>此时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = hidden_result<br>r1 = x<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="十一、CPSR-在普通调用边界上的规则"><a href="#十一、CPSR-在普通调用边界上的规则" class="headerlink" title="十一、CPSR 在普通调用边界上的规则"></a>十一、CPSR 在普通调用边界上的规则</h2><p>普通函数返回后，调用者不能依赖以下 CPSR 标志仍保持调用前的值：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">N Z C V Q<br>GE[3:0]<br></code></pre></td></tr></table></figure>
+
+<p>也就是说，不能写出依赖跨函数调用条件标志的逻辑：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">cmp r0, #0<br>bl  some_function<br>beq label          // 错误：BL 之后条件标志可能已经改变<br></code></pre></td></tr></table></figure>
+
+<p>应该在调用后重新比较：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl  some_function<br>cmp r0, #0<br>beq label<br></code></pre></td></tr></table></figure>
+
+<p><code>A/I/F/M</code> 属于特权状态，不是普通应用函数随意修改的临时状态。特权系统代码如果确实修改这些位，必须根据自己的接口合同和异常&#x2F;并发要求进行恢复。</p>
+<hr>
+<h2 id="十二、现有-ARMv7-A-工程中最值得看的-C-汇编边界"><a href="#十二、现有-ARMv7-A-工程中最值得看的-C-汇编边界" class="headerlink" title="十二、现有 ARMv7-A 工程中最值得看的 C&#x2F;汇编边界"></a>十二、现有 ARMv7-A 工程中最值得看的 C&#x2F;汇编边界</h2><h3 id="边界-1：C-调用汇编上下文切换"><a href="#边界-1：C-调用汇编上下文切换" class="headerlink" title="边界 1：C 调用汇编上下文切换"></a>边界 1：C 调用汇编上下文切换</h3><p>C 文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">目标工程/kernel/arch/armv7/cortex-a/interface/context/armv7a_context.c<br></code></pre></td></tr></table></figure>
+
+<p>调用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">srh_arch_context_switch(prev_ctx, next_ctx);<br></code></pre></td></tr></table></figure>
+
+<p>根据 AAPCS32：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">r0 = prev_ctx<br>r1 = next_ctx<br></code></pre></td></tr></table></figure>
+
+<p>汇编入口：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs asm">srh_arch_context_switch:<br>    ...<br>    str sp, [r0]     // 保存到 prev_ctx<br>    ...<br>    ldr sp, [r1]     // 从 next_ctx 取新 SP<br></code></pre></td></tr></table></figure>
+
+<p>这说明 C 与汇编在入口参数上的合同完全可由 AAPCS32解释。</p>
+<p>但是它不是普通“调用后回到同一执行流”的函数：它切换 SP 并恢复另一个任务，最终通过 <code>RFE</code> 进入新上下文。因此：</p>
+<ul>
+<li><strong>进入汇编函数的参数边界遵循 AAPCS。</strong></li>
+<li><strong>内部上下文帧和离开方式由操作系统自己定义。</strong></li>
+</ul>
+<p>这正是 AAPCS 与上下文切换的边界。</p>
+<h3 id="边界-2：IRQ-汇编调用-C"><a href="#边界-2：IRQ-汇编调用-C" class="headerlink" title="边界 2：IRQ 汇编调用 C"></a>边界 2：IRQ 汇编调用 C</h3><p>文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">目标工程/kernel/arch/armv7/cortex-a/arm_context.S<br></code></pre></td></tr></table></figure>
+
+<p>IRQ 入口先分配 64 字节：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">sub   sp, sp, #64<br>stmia sp, &#123;r0-r12, lr&#125;<br></code></pre></td></tr></table></figure>
+
+<p>64 是 8 的倍数。如果异常栈初始值按 8 字节对齐，这些 <code>BL</code> 的 SP 仍满足公共调用边界要求：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl srh_irq_handler<br>bl srh_context_get_local_isr_tail_ctx<br>bl sched_check_is_need_isr_tail<br>bl srh_context_isr_tail_prepare<br></code></pre></td></tr></table></figure>
+
+<p>其中：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl  srh_context_get_local_isr_tail_ctx<br>mov r4, r0<br>bl  sched_check_is_need_isr_tail<br></code></pre></td></tr></table></figure>
+
+<p>解释：</p>
+<ol>
+<li>C 函数把返回值放在 <code>r0</code>。</li>
+<li>下一次 C 调用可以破坏 <code>r0</code>。</li>
+<li>汇编把这个需要跨调用保存的值移到 <code>r4</code>。</li>
+<li><code>r4</code> 是 callee-saved，因此 <code>sched_check_is_need_isr_tail</code> 必须保持它。</li>
+</ol>
+<p>源代码注释“r4 不是 caller-saved”表达的就是这一规则，更标准的说法是：</p>
+<blockquote>
+<p>r4 是 callee-saved &#x2F; call-preserved register。</p>
+</blockquote>
+<h3 id="边界-3：IRQ-tail-主动对齐-SP"><a href="#边界-3：IRQ-tail-主动对齐-SP" class="headerlink" title="边界 3：IRQ tail 主动对齐 SP"></a>边界 3：IRQ tail 主动对齐 SP</h3><p>同一文件中：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">bic sp, sp, #7<br></code></pre></td></tr></table></figure>
+
+<p>它把 SP 向下对齐到 8 字节边界，然后再调用 C：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl srh_context_get_local_isr_tail_ctx<br>bl srh_context_isr_tail_normalize_current<br>bl sched_isr_exit_schedule<br></code></pre></td></tr></table></figure>
+
+<p>源码注释已经明确指出原因：被中断线程的 SP 在任意时刻只保证 word alignment，而执行 <code>BL</code> 进入 C 的公共调用边界要求 8-byte alignment。</p>
+<p>这段代码是项目中学习 AAPCS 栈对齐的最佳实例。</p>
+<h3 id="边界-4：启动汇编调用-C"><a href="#边界-4：启动汇编调用-C" class="headerlink" title="边界 4：启动汇编调用 C"></a>边界 4：启动汇编调用 C</h3><p><code>arm_boot.S</code> 中：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl mmu_early_init<br></code></pre></td></tr></table></figure>
+
+<p>链接脚本把临时启动栈顶按 16 字节对齐，因此也满足 AAPCS 的 8 字节调用边界要求。</p>
+<p><code>arm_startup.S</code> 中：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">bl setup_percpu_stacks<br>bl _cpu_init<br>b  srh_kernel_init<br></code></pre></td></tr></table></figure>
+
+<p>最后的 <code>b srh_kernel_init</code> 是尾调用式转移：它不需要返回到 <code>kernel_entry</code>。进入 C 函数前仍然需要准备合法 SP 和正确参数。</p>
+<hr>
+<h2 id="十三、第一轮阅读范围"><a href="#十三、第一轮阅读范围" class="headerlink" title="十三、第一轮阅读范围"></a>十三、第一轮阅读范围</h2><p>不要从头读完整个 AAPCS32。第一轮只看第 6 章以下部分：</p>
+<table>
+<thead>
+<tr>
+<th>章节</th>
+<th>目的</th>
+<th>第一轮要求</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>6.1.1 Core registers</td>
+<td>寄存器角色</td>
+<td>必须掌握</td>
+</tr>
+<tr>
+<td>6.1.1.1 Values larger than 32 bits</td>
+<td>64&#x2F;128 位寄存器占用</td>
+<td>理解</td>
+</tr>
+<tr>
+<td>6.2.1 The Stack</td>
+<td>栈模型</td>
+<td>必须掌握</td>
+</tr>
+<tr>
+<td>6.2.1.1 Universal constraints</td>
+<td>4 字节对齐</td>
+<td>必须掌握</td>
+</tr>
+<tr>
+<td>6.2.1.2 Public interface</td>
+<td>8 字节对齐</td>
+<td>必须掌握</td>
+</tr>
+<tr>
+<td>6.3 Subroutine Calls</td>
+<td>BL&#x2F;LR&#x2F;返回</td>
+<td>必须掌握</td>
+</tr>
+<tr>
+<td>6.3.1 Use of IP</td>
+<td>r12&#x2F;veneer</td>
+<td>理解</td>
+</tr>
+<tr>
+<td>6.4 Result Return</td>
+<td>返回值</td>
+<td>掌握常用类型</td>
+</tr>
+<tr>
+<td>6.5 Parameter Passing</td>
+<td>参数分配</td>
+<td>掌握常用规则，复杂结构会查即可</td>
+</tr>
+</tbody></table>
+<p>当前项目是 soft-float，第一轮跳过：</p>
+<ul>
+<li>6.1.2.1 VFP register usage conventions 的细节。</li>
+<li>第 7 章 VFP 参数传递变体。</li>
+<li>语言专用的复杂接口。</li>
+</ul>
+<hr>
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="调用规范解决的是模块之间的约定"><a href="#调用规范解决的是模块之间的约定" class="headerlink" title="调用规范解决的是模块之间的约定"></a>调用规范解决的是模块之间的约定</h2><p>编译器可以把局部变量放在寄存器，也可以放在栈里。调用另一个函数时，如果双方没有一致规则，就无法知道哪些值仍然有效。</p>
+<p>AAPCS32 规定这种边界约定。本工程采用普通 32 位参数传递、ARM 状态和 <code>-mfloat-abi=soft</code>。先限定这组条件，再讨论最小寄存器现场；不能一边不保存浮点寄存器，一边允许任务任意执行 VFP&#x2F;NEON。</p>
+<table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>常见作用</th>
+<th>跨普通调用的责任</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>r0-r3</td>
+<td>参数、结果、临时值</td>
+<td>调用者需要时自行保存</td>
+</tr>
+<tr>
+<td>r4-r8</td>
+<td>局部值</td>
+<td>被调用者保持</td>
+</tr>
+<tr>
+<td>r9</td>
+<td>平台寄存器或额外保存寄存器</td>
+<td>必须按平台 ABI 处理</td>
+</tr>
+<tr>
+<td>r10-r11</td>
+<td>局部值、可能的帧指针</td>
+<td>被调用者保持</td>
+</tr>
+<tr>
+<td>r12&#x2F;ip</td>
+<td>临时值，链接器 veneer 也可能使用</td>
+<td>不保证保持</td>
+</tr>
+<tr>
+<td>r13&#x2F;sp</td>
+<td>当前栈位置</td>
+<td>函数返回时恢复约定值</td>
+</tr>
+<tr>
+<td>r14&#x2F;lr</td>
+<td>链接返回地址</td>
+<td>发起嵌套调用时必须保护原返回点</td>
+</tr>
+<tr>
+<td>r15&#x2F;pc</td>
+<td>当前执行位置</td>
+<td>由分支与返回改变</td>
+</tr>
+</tbody></table>
+<p>本工程直接保存 r4-r11，包含 r9，避免遗漏平台保留寄存器。不能把“r9 一定是普通局部变量”写成通用规则。具体定义见 <a target="_blank" rel="noopener" href="https://github.com/ARM-software/abi-aa/blob/2025Q4/aapcs32/aapcs32.rst">AAPCS32 的 Machine Registers 与 The Stack</a>。</p>
+<h2 id="参数并不总是“第一个到第四个进寄存器”"><a href="#参数并不总是“第一个到第四个进寄存器”" class="headerlink" title="参数并不总是“第一个到第四个进寄存器”"></a>参数并不总是“第一个到第四个进寄存器”</h2><p>对四个普通 32 位整数，规则很直观：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">add4</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint32_t</span> b, <span class="hljs-type">uint32_t</span> c, <span class="hljs-type">uint32_t</span> d)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>入口时 a&#x2F;b&#x2F;c&#x2F;d 分别位于 r0&#x2F;r1&#x2F;r2&#x2F;r3，32 位整数结果通常放 r0。增加第五个 32 位参数，在这个简单例子中就需要从调用者提供的栈参数区取。</p>
+<p>64 位参数还涉及寄存器配对和对齐。以如下原型为例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">void</span> <span class="hljs-title function_">example</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> a, <span class="hljs-type">uint64_t</span> b, <span class="hljs-type">uint32_t</span> c)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>在这里讨论的基本 PCS 中，a 使用 r0；b 需要双字对齐的寄存器对，放 r2:r3，r1 可能空出来；c 落到栈上。不能按“还有一个空闲 r1，所以 c 就放 r1”理解。</p>
+<p>结构体返回更不能一概按 r0 处理：某些结果需要调用者提供内存，并通过隐藏参数传入结果地址。浮点变体、复合类型、可变参数有额外规则。调试陌生汇编时先看完整函数原型与编译选项，再推断寄存器。</p>
+<h2 id="BL-保存的是返回地址，不是整个函数现场"><a href="#BL-保存的是返回地址，不是整个函数现场" class="headerlink" title="BL 保存的是返回地址，不是整个函数现场"></a>BL 保存的是返回地址，不是整个函数现场</h2><p>下面是解释调用关系的完整小例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs asm">.syntax unified<br>.arm<br><br>.global call_and_add_one<br>.type call_and_add_one, %function<br>call_and_add_one:<br>    push &#123;r4, lr&#125;       @ 保持 8 字节栈对齐，也保护自己的返回点<br>    mov  r0, #10<br>    mov  r1, #20<br>    bl   add_two<br>    add  r0, r0, #1<br>    pop  &#123;r4, pc&#125;<br><br>.type add_two, %function<br>add_two:<br>    add r0, r0, r1<br>    bx  lr<br></code></pre></td></tr></table></figure>
+
+<p><code>BL</code> 会改 LR。因此 call_and_add_one 在执行 BL 前必须把来自其调用者的 LR 保存起来；否则最后只能找到内部调用之后的位置。</p>
+<p>叶子函数 add_two 没有继续发起调用，又没有修改需要保持的寄存器，可以直接 BX LR 返回。r0 作为结果寄存器被改变是正常的。</p>
+<p>r12 也不能被当成跨 BL 的保险箱：链接器为远跳转或 ARM&#x2F;Thumb 互操作插入的 veneer 可能使用它。只有检查源代码而不看最终反汇编，很容易漏掉这种情况。</p>
+<h2 id="栈为什么有两个对齐要求"><a href="#栈为什么有两个对齐要求" class="headerlink" title="栈为什么有两个对齐要求"></a>栈为什么有两个对齐要求</h2><p>AAPCS 的基本栈约束要求 SP 至少按 4 字节对齐；在公共调用接口处要求 8 字节对齐。栈通常向低地址增长，SP 指向当前已分配栈区的边界。</p>
+<p>对齐要求的区别会直接影响 IRQ：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">函数入口：SP % 8 == 0<br>函数内部：可能临时只满足 SP % 4 == 0<br>          ↑ IRQ 可以恰好发生在这里<br>调用 C handler：必须重新保证 SP % 8 == 0<br></code></pre></td></tr></table></figure>
+
+<p>因此不能把“异常发生时任务 SP 不是 8 字节对齐”直接判成损坏。基础版把 C handler 放到链接脚本保证 8 字节对齐的独立栈上，解决的是 C 调用边界对齐；它不要求被打断任务的 SP 在任意时刻都 8 字节对齐。</p>
+<p>在普通汇编函数中，单独 <code>push &#123;lr&#125;</code> 会减去 4 字节。如果紧接着 BL 到 C，而原 SP 为 8 字节对齐，那么这个调用就破坏了规则。可以成对保存，或显式补齐，再在返回前精确恢复。</p>
+<h2 id="地址和值要分开读"><a href="#地址和值要分开读" class="headerlink" title="地址和值要分开读"></a>地址和值要分开读</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">ldr r0, =task_a_context<br>ldr r1, [r0, #32]<br>str sp, [r0, #32]<br></code></pre></td></tr></table></figure>
+
+<p>三条指令依次表示：</p>
+<ol>
+<li>把 task_a_context 的地址装入 r0；</li>
+<li>从该地址加 32 的内存读取一个 32 位值；</li>
+<li>把当前 SP 的值写入该地址加 32 的内存。</li>
+</ol>
+<p>第一条的 <code>=</code> 是汇编伪指令语法，最终可能变成 literal load 或其他适合的装常量方式；它不是“取 task_a_context 的第一个字段”。</p>
+<p>C 中对应的思路是：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">Context_Control *p = &amp;task_a_context;<br><span class="hljs-type">uint32_t</span> saved_sp = p-&gt;sp;<br>p-&gt;sp = current_sp;<br></code></pre></td></tr></table></figure>
+
+<p>一个上下文对象保存的是地址和数值；真正把这些数装回寄存器的动作仍由汇编完成。</p>
+<h2 id="STM-LDM-怎样决定内存布局"><a href="#STM-LDM-怎样决定内存布局" class="headerlink" title="STM&#x2F;LDM 怎样决定内存布局"></a>STM&#x2F;LDM 怎样决定内存布局</h2><p><code>STMIA</code> 是从基址向高地址存储多个寄存器，<code>LDMIA</code> 反向执行加载。寄存器按编号递增排列，不按花括号里的视觉书写顺序任意排序。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">stmia r0, &#123;r4-r11&#125;<br></code></pre></td></tr></table></figure>
+
+<p>对应：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">[r0 +  0] = r4<br>[r0 +  4] = r5<br>...<br>[r0 + 28] = r11<br></code></pre></td></tr></table></figure>
+
+<p>没有 <code>!</code>，r0 自身不做写回。若写成 <code>stmia r0!, &#123;...&#125;</code>，还会更新基址。上下文保存通常不希望无意改变保存对象指针，必须看清这个符号。</p>
+<p>栈常用的是另一对：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">stmdb sp!, &#123;r4, lr&#125;   @ PUSH 的常见等价写法<br>ldmia sp!, &#123;r4, lr&#125;   @ POP 的常见等价写法<br></code></pre></td></tr></table></figure>
+
+<p>假设原 SP 为 <code>0x2000</code>，第一条完成后 SP 为 <code>0x1ff8</code>，r4 位于 <code>0x1ff8</code>，LR 位于 <code>0x1ffc</code>。恢复后 SP 回到 <code>0x2000</code>。FD 是 full descending 的栈命名方式，必须结合存储或加载操作理解，不能把不同指令中的后缀机械替换。</p>
+<h2 id="为什么普通-context-不保存-r0-r3"><a href="#为什么普通-context-不保存-r0-r3" class="headerlink" title="为什么普通 context 不保存 r0-r3"></a>为什么普通 context 不保存 r0-r3</h2><p>基础版切换函数本身就是一次正常调用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">_CPU_Context_switch(&amp;task_a_context, &amp;task_b_context);<br></code></pre></td></tr></table></figure>
+
+<p>对编译器来说，这个调用可以破坏 r0-r3、r12 和条件标志。若任务在调用后还需要某个值，编译器会提前把它放进 callee-saved 寄存器或栈里。</p>
+<p>于是底层只需要维持普通调用所承诺的继续执行状态：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r4-r11：跨调用保持的通用寄存器<br>sp：    任务自己的调用栈<br>lr：    这次切换调用结束后的继续点<br>控制位：工程额外约定的模式与中断屏蔽状态<br></code></pre></td></tr></table></figure>
+
+<p>r0&#x2F;r1 此时已经是两个 context 指针，早已不再是任务在函数调用前随意使用的临时值。保存它们并不能还原“调用前的一切”，也没有必要。</p>
+<p>IRQ 没有这个编译器配合过程。它可以打断一个尚未执行完的表达式，r0 中可能就有不可丢的中间结果。因此异步现场必须另外处理这些寄存器。</p>
+<h2 id="C-结构体与汇编偏移必须共同维护"><a href="#C-结构体与汇编偏移必须共同维护" class="headerlink" title="C 结构体与汇编偏移必须共同维护"></a>C 结构体与汇编偏移必须共同维护</h2><p>基础版的布局为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r4, r5, r6, r7, r8, r9, r10, r11;<br>    <span class="hljs-type">uint32_t</span> sp;<br>    <span class="hljs-type">uint32_t</span> lr;<br>    <span class="hljs-type">uint32_t</span> cpsr;<br>&#125; Context_Control;<br></code></pre></td></tr></table></figure>
+
+<p>对应的关键偏移：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> ARM_CONTEXT_SP   32</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> ARM_CONTEXT_LR   36</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> ARM_CONTEXT_CPSR 40</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> ARM_CONTEXT_SIZE 44</span><br></code></pre></td></tr></table></figure>
+
+<p>44 字节大小并不违背 SP 8 字节对齐要求：结构体不是函数栈指针。真正需要向 8 字节对齐的是任务入口和调用边界的 SP。</p>
+<p>工程使用 <code>_Static_assert(offsetof(...))</code> 检查布局。这个检查比注释重要，因为给结构体插入字段以后，手写汇编不会自动知道所有偏移已移动。</p>
+<h2 id="少数指令就能读通主路径"><a href="#少数指令就能读通主路径" class="headerlink" title="少数指令就能读通主路径"></a>少数指令就能读通主路径</h2><table>
+<thead>
+<tr>
+<th>指令</th>
+<th>在工程里的职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MOV、ADD、SUB</td>
+<td>搬移指针，分配栈，修正返回 PC</td>
+</tr>
+<tr>
+<td>LDR、STR</td>
+<td>读写 context 字段、设备寄存器</td>
+</tr>
+<tr>
+<td>LDM、STM</td>
+<td>批量保存和恢复寄存器</td>
+</tr>
+<tr>
+<td>CMP 与条件执行</td>
+<td>分 CPU、比较状态、循环清 BSS</td>
+</tr>
+<tr>
+<td>B、BL、BX、BLX</td>
+<td>跳转、调用与指令状态互操作</td>
+</tr>
+<tr>
+<td>MRS、MSR、CPS</td>
+<td>状态寄存器和模式控制</td>
+</tr>
+<tr>
+<td>MRC、MCR</td>
+<td>访问 CP15 系统控制接口</td>
+</tr>
+<tr>
+<td>SRS、RFE</td>
+<td>异常返回状态转存与恢复</td>
+</tr>
+<tr>
+<td>DMB、DSB、ISB</td>
+<td>数据顺序、完成与指令上下文同步</td>
+</tr>
+<tr>
+<td>WFI、WFE、SEV</td>
+<td>等待中断、等待事件、发送事件</td>
+</tr>
+</tbody></table>
+<p>理解这些指令时最好总带一个具体地址、一组寄存器值和一个栈图。只记助记符的中文翻译，遇到写回、模式切换或 LR 的两种含义时仍容易混淆。</p>
+<p>下一篇：<a href="/post/armv7a-03-boot-linker.html">启动、链接与 UART</a>。</p>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>AAPCS32 是 C 与汇编共享的合同。调用者保护易失寄存器，被调用者保护 <code>r4-r11</code> 和 <code>sp</code>，公共调用边界保持 8 字节对齐。普通 context 的最小保存集合由这个合同推导，而 IRQ 现场不能照搬它。结构体偏移必须由静态断言与汇编常量共同约束。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>AAPCS32 是 C 与汇编共享的合同。调用者保护易失寄存器，被调用者保护 <code>r4-r11</code> 和 <code>sp</code>，公共调用边界保持 8 字节对齐。普通 context 的最小保存集合由这个合同推导，而 IRQ 现场不能照搬它。结构体偏移必须由静态断言与汇编常量共同约束。</p>
+<p>下一章把模式与 ABI 放进启动路径，用链接脚本和启动汇编建立第一个可观察的 C 环境。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（三）：AAPCS32、栈与上下文汇编</p><p><a href="https://goko-son626.github.io/post/armv7a-02-aapcs-assembly.html">https://goko-son626.github.io/post/armv7a-02-aapcs-assembly.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-14</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-14</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-06-gic-timers.html" target="_blank">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-05-exception-frames.html" target="_blank">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-04-context-threads.html" target="_blank">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-03-boot-linker.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（四）：从ELF、模式栈到第一行串口输出</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/armv7a-01-registers-modes.html"><span class="level-item">ARMv7-A小系统实践（二）：处理器模式、寄存器组与CPSR</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: 'cd2ad4999e862268baeddc13c1e25e97',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

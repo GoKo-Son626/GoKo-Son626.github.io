@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="区分硬件异常入口与软件现场保存，逐步推演SRS&amp;#x2F;RFE、64字节任务私有帧和独立IRQ处理栈。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="区分硬件异常入口与软件现场保存，逐步推演SRS&amp;#x2F;RFE、64字节任务私有帧和独立IRQ处理栈。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-21T02:15:00.000Z"><meta property="article:modified_time" content="2026-06-21T02:15:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="异常"><meta property="article:tag" content="IRQ"><meta property="article:tag" content="SRS"><meta property="article:tag" content="RFE"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-05-exception-frames.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-21T02:15:00.000Z","dateModified":"2026-06-21T02:15:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"区分硬件异常入口与软件现场保存，逐步推演SRS&#x2F;RFE、64字节任务私有帧和独立IRQ处理栈。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-05-exception-frames.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-21  <a class="commentCountImg" href="/post/armv7a-05-exception-frames.html#comment-container"><span class="display-none-class">e1cc3e36e509d7b3098a6e420dde8ca8</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="e1cc3e36e509d7b3098a6e420dde8ca8">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>8.6 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章解释异常入口与返回，并建立任务私有的 IRQ 异常帧。它要解决的不是“进入了哪个 C 函数”，而是任意指令执行到一半时，怎样保存足够的信息，使处理结束后能够像中断从未发生一样继续执行；如果调度器选择了另一个任务，又怎样改为恢复另一个任务的现场。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>上一章的协同切换发生在函数调用边界，因此可借助 AAPCS 只保存 callee-saved 状态。IRQ 没有这个便利：<code>r0-r3</code>、<code>r12</code>、条件标志和返回地址都可能正处于有效计算中。硬件只完成模式切换、CPSR 到 SPSR 的保存以及返回地址写入 banked <code>lr</code>，其余现场必须由入口汇编建立。</p>
+<p>本章先分清硬件动作和软件动作，再说明为什么返回 PC 需要修正、为什么异常帧应归属于被打断任务、为什么 C handler 可以使用独立中断栈但恢复现场不能长期停留在共享栈上。</p>
+<span id="more"></span>
+
+<p><a href="/post/armv7a-00-roadmap.html">系列目录</a> · 上一篇：<a href="/post/armv7a-04-context-threads.html">协同任务与普通上下文切换</a></p>
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="动手前的基础：异常入口、现场与返回"><a href="#动手前的基础：异常入口、现场与返回" class="headerlink" title="动手前的基础：异常入口、现场与返回"></a>动手前的基础：异常入口、现场与返回</h2><blockquote>
+<p>日期：2026-07-28<br>状态：本专题已完成并通过；只代表异常入口与返回完成，不代表整个第四目标完成<br>专题范围：CPU 看见异常以后发生什么<br>后续专题：GIC、设备中断号、定时器、acknowledge&#x2F;EOI</p>
+</blockquote>
+<h3 id="一、本节学完要形成的完整链"><a href="#一、本节学完要形成的完整链" class="headerlink" title="一、本节学完要形成的完整链"></a>一、本节学完要形成的完整链</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs text">原程序正在运行<br>→ 异常发生<br>→ CPSR 保存到目标模式 SPSR<br>→ 返回信息保存到目标模式 LR<br>→ CPU 切换模式和 banked SP/LR<br>→ PC 进入异常向量<br>→ 入口汇编保存软件现场<br>→ 调用 C handler<br>→ 恢复软件现场<br>→ 恢复 PC 与 CPSR<br>→ 原程序继续<br></code></pre></td></tr></table></figure>
+
+<p>本节最重要的不是背指令，而是分清三方责任：</p>
+<table>
+<thead>
+<tr>
+<th>责任方</th>
+<th>负责什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU 硬件</td>
+<td>切模式、保存旧 CPSR 到 SPSR、生成 LR、进入向量</td>
+</tr>
+<tr>
+<td>异常入口汇编</td>
+<td>修正返回地址、保存通用寄存器、构造帧、满足 AAPCS</td>
+</tr>
+<tr>
+<td>C handler &#x2F; OS</td>
+<td>判断原因、处理事件、记录故障、决定是否调度或终止</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="二、“中断”和“异常”是什么关系"><a href="#二、“中断”和“异常”是什么关系" class="headerlink" title="二、“中断”和“异常”是什么关系"></a>二、“中断”和“异常”是什么关系</h3><p>在 ARMv7-A 里，异常是更大的概念：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">异常 Exception<br>├── Reset<br>├── Undefined Instruction<br>├── SVC<br>├── Prefetch Abort<br>├── Data Abort<br>├── IRQ<br>└── FIQ<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>Undefined、SVC、Abort 通常与当前执行指令直接相关。</li>
+<li>IRQ&#x2F;FIQ 通常来自外部设备或中断控制器，可以异步打断当前代码。</li>
+<li>GIC 负责汇总和仲裁许多设备中断，再向 Cortex-A9 发出 IRQ&#x2F;FIQ 信号。</li>
+<li>CPU 收到 IRQ 信号后，才执行本节学习的“IRQ 异常进入”。</li>
+</ul>
+<p>因此：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">设备 → GIC → CPU 的 IRQ 异常入口<br></code></pre></td></tr></table></figure>
+
+<p>本节先掌握最后一段；下一轮再补设备和 GIC。</p>
+<hr>
+<h3 id="三、异常向量表"><a href="#三、异常向量表" class="headerlink" title="三、异常向量表"></a>三、异常向量表</h3><p>ARMv7-A 的普通异常向量有 8 个槽，每槽 4 字节：</p>
+<table>
+<thead>
+<tr>
+<th align="right">向量偏移</th>
+<th>异常</th>
+<th>目标模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x00</code></td>
+<td>Reset</td>
+<td>SVC</td>
+</tr>
+<tr>
+<td align="right"><code>0x04</code></td>
+<td>Undefined Instruction</td>
+<td>UND</td>
+</tr>
+<tr>
+<td align="right"><code>0x08</code></td>
+<td>SVC</td>
+<td>SVC</td>
+</tr>
+<tr>
+<td align="right"><code>0x0C</code></td>
+<td>Prefetch Abort</td>
+<td>ABT</td>
+</tr>
+<tr>
+<td align="right"><code>0x10</code></td>
+<td>Data Abort</td>
+<td>ABT</td>
+</tr>
+<tr>
+<td align="right"><code>0x14</code></td>
+<td>Reserved</td>
+<td>—</td>
+</tr>
+<tr>
+<td align="right"><code>0x18</code></td>
+<td>IRQ</td>
+<td>IRQ</td>
+</tr>
+<tr>
+<td align="right"><code>0x1C</code></td>
+<td>FIQ</td>
+<td>FIQ</td>
+</tr>
+</tbody></table>
+<p>向量表不是 8 个完整 handler，只是 8 个入口槽。常见写法：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs asm">vector_table:<br>    ldr pc, reset_handler_addr<br>    ldr pc, undef_handler_addr<br>    ldr pc, svc_handler_addr<br>    ldr pc, prefetch_abort_handler_addr<br>    ldr pc, data_abort_handler_addr<br>    udf<br>    ldr pc, irq_handler_addr<br>    ldr pc, fiq_handler_addr<br></code></pre></td></tr></table></figure>
+
+<p>后面再放真正地址：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">irq_handler_addr:<br>    .word irq_entry<br></code></pre></td></tr></table></figure>
+
+<p>为什么不能直接把整个 handler 写在向量槽中：相邻槽只相差 4 字节，一个槽只容纳一条 32 位 ARM 指令，所以通常先跳转。</p>
+<p>Cortex-A9 可以通过 VBAR 设置普通向量表基址。RTEMS 启动代码中可定点观察：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">RTEMS-6.2/bsps/arm/shared/start/start.S<br></code></pre></td></tr></table></figure>
+
+<p>它使用 8 条 <code>ldr pc, ...</code> 组成向量表，并在启动阶段设置向量基址。</p>
+<hr>
+<h3 id="四、异常发生时，硬件自动做什么"><a href="#四、异常发生时，硬件自动做什么" class="headerlink" title="四、异常发生时，硬件自动做什么"></a>四、异常发生时，硬件自动做什么</h3><p>以原程序处于 System 模式、IRQ 到来为例。</p>
+<p>异常前：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR      = 原程序状态<br>当前 SP   = SP_sys<br>当前 LR   = LR_sys<br>PC        = 原程序执行位置<br></code></pre></td></tr></table></figure>
+
+<p>CPU 接受 IRQ 后，概念上完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">SPSR_irq = 旧 CPSR<br>LR_irq   = 架构规定的 IRQ 返回信息<br>CPSR.M   = IRQ 模式<br>CPSR.I   = 1，屏蔽普通 IRQ<br>当前 SP  = SP_irq<br>当前 LR  = LR_irq<br>PC       = vector_base + 0x18<br></code></pre></td></tr></table></figure>
+
+<p>这里再次体现第一主题的 banked registers：</p>
+<ul>
+<li>原来的 <code>SP_sys/LR_sys</code> 没有被复制或覆盖；</li>
+<li>切到 IRQ 模式后，同名 <code>sp/lr</code> 映射成 <code>SP_irq/LR_irq</code>；</li>
+<li><code>SPSR_irq</code> 保存的是异常前完整 CPSR，里面包含旧模式、T 位、I&#x2F;F 位和条件标志等。</li>
+</ul>
+<h4 id="硬件没有自动做的事"><a href="#硬件没有自动做的事" class="headerlink" title="硬件没有自动做的事"></a>硬件没有自动做的事</h4><p>CPU 不会自动：</p>
+<ul>
+<li>把 <code>r0-r12</code> 压入栈；</li>
+<li>生成操作系统定义的 <code>ExceptionFrame</code> 结构；</li>
+<li>调用 C 函数；</li>
+<li>查询 GIC 中断号；</li>
+<li>清除设备中断源；</li>
+<li>决定是否切换任务。</li>
+</ul>
+<p>这些都属于软件。</p>
+<hr>
+<h3 id="五、为什么必须同时保存返回-PC-和旧-CPSR"><a href="#五、为什么必须同时保存返回-PC-和旧-CPSR" class="headerlink" title="五、为什么必须同时保存返回 PC 和旧 CPSR"></a>五、为什么必须同时保存返回 PC 和旧 CPSR</h3><p>只恢复 PC 不够。</p>
+<p>假设 IRQ 前：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">模式 = System<br>T = 0，ARM state<br>I = 0，允许 IRQ<br>条件标志 = 某个计算结果<br></code></pre></td></tr></table></figure>
+
+<p>IRQ 期间：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">模式 = IRQ 或 SVC<br>I = 1<br>条件标志可能被 handler 改写<br></code></pre></td></tr></table></figure>
+
+<p>返回时必须恢复：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">PC   = 原程序继续位置<br>CPSR = SPSR_irq 中保存的旧状态<br></code></pre></td></tr></table></figure>
+
+<p>恢复 CPSR 后：</p>
+<ul>
+<li>模式回到 System；</li>
+<li>当前可见 SP&#x2F;LR bank 回到 <code>SP_sys/LR_sys</code>；</li>
+<li>ARM&#x2F;Thumb 状态恢复；</li>
+<li>IRQ 屏蔽状态恢复；</li>
+<li>条件标志恢复。</li>
+</ul>
+<p>这正是第一主题“模式 bank”和本主题“异常返回”的闭环。</p>
+<hr>
+<h3 id="六、LR-为什么还要修正"><a href="#六、LR-为什么还要修正" class="headerlink" title="六、LR 为什么还要修正"></a>六、LR 为什么还要修正</h3><p>异常进入时的 LR 是架构规定的“返回信息”，不保证对所有异常都等于最终继续 PC。不同异常与流水线语义不同，常见 ARM-state 返回方式如下：</p>
+<table>
+<thead>
+<tr>
+<th>异常</th>
+<th>常见返回&#x2F;重试形式</th>
+<th>意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SVC</td>
+<td><code>movs pc, lr</code></td>
+<td>从 SVC 后一条继续</td>
+</tr>
+<tr>
+<td>Undefined</td>
+<td><code>movs pc, lr</code></td>
+<td>跳过未定义指令</td>
+</tr>
+<tr>
+<td>IRQ&#x2F;FIQ</td>
+<td><code>subs pc, lr, #4</code></td>
+<td>回到被打断程序的继续位置</td>
+</tr>
+<tr>
+<td>Prefetch Abort</td>
+<td><code>subs pc, lr, #4</code></td>
+<td>修复原因后重试取指</td>
+</tr>
+<tr>
+<td>Data Abort</td>
+<td><code>subs pc, lr, #8</code></td>
+<td>修复原因后重试数据访问</td>
+</tr>
+</tbody></table>
+<p>这张表用于建立差异意识，不要求现在死背。实际返回还取决于：</p>
+<ul>
+<li>希望跳过故障指令还是重试；</li>
+<li>异常前是 ARM 还是 Thumb；</li>
+<li>使用 <code>SUBS/MOVS PC,LR</code>、<code>RFE</code>，还是先构造统一异常帧；</li>
+<li>系统是否把 LR 预先修正成最终 PC。</li>
+</ul>
+<p>RTEMS 的 IRQ 入口先做：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">sub lr, lr, #4<br></code></pre></td></tr></table></figure>
+
+<p>把 <code>LR_irq</code> 预先变成最终继续 PC，然后使用 SRS&#x2F;RFE 形式统一保存和返回。</p>
+<hr>
+<h3 id="七、异常入口为什么和普通上下文不同"><a href="#七、异常入口为什么和普通上下文不同" class="headerlink" title="七、异常入口为什么和普通上下文不同"></a>七、异常入口为什么和普通上下文不同</h3><p>普通任务切换：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">发生在函数调用边界<br>→ AAPCS 已允许 r0-r3、r12 被破坏<br>→ 通常保存 r4-r11、SP、LR<br></code></pre></td></tr></table></figure>
+
+<p>IRQ：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">可能发生在任意指令之后<br>→ r0-r3、r12 中可能有尚未使用的中间结果<br>→ 入口汇编调用 C 前必须保护它们<br></code></pre></td></tr></table></figure>
+
+<p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">add r0, r1, r2<br>// IRQ 恰好发生<br>str r0, [r3]<br></code></pre></td></tr></table></figure>
+
+<p>如果 IRQ 的 C handler 改写 r0，回来后 <code>str</code> 就会写入错误数据。</p>
+<p>但这不意味着每个 IRQ 入口一定机械保存所有 r0-r15：</p>
+<ul>
+<li>入口汇编自身和被调用 C 函数会破坏的状态必须保存；</li>
+<li><code>r4-r11</code> 若完全交给符合 AAPCS 的 C handler，C handler 自己必须保持它们；</li>
+<li>如果入口汇编把某些 r4-r11 当临时寄存器，就必须额外保存；</li>
+<li>PC&#x2F;CPSR 通过 LR&#x2F;SPSR 或异常帧专门保存；</li>
+<li>VFP&#x2F;NEON 是否保存取决于系统策略。</li>
+</ul>
+<p>正确问题不是“是不是全保存”，而是：</p>
+<blockquote>
+<p>从异常点返回时，原程序仍然需要的每一项状态，是否都能得到原值？</p>
+</blockquote>
+<hr>
+<h3 id="八、一条简化的-IRQ-入口路径"><a href="#八、一条简化的-IRQ-入口路径" class="headerlink" title="八、一条简化的 IRQ 入口路径"></a>八、一条简化的 IRQ 入口路径</h3><p>下面是教学用骨架，不包含 SMP、嵌套中断、独立中断栈和 VFP：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs asm">irq_entry:<br>    // 当前处于 IRQ 模式，当前 lr 是 LR_irq，SPSR 是 SPSR_irq<br>    sub     lr, lr, #4<br><br>    // 把修正后的返回 PC 与 SPSR_irq 保存到 SVC 栈，<br>    // 存储格式与后面的 RFE 匹配<br>    srsdb   sp!, #0x13<br><br>    // 进入 SVC 模式，开始使用 SP_svc<br>    cps     #0x13<br><br>    // 保存 C handler 可破坏的易失寄存器和当前 SVC LR<br>    push    &#123;r0-r3, r12, lr&#125;<br><br>    // SP 必须在公共调用边界满足 8 字节对齐<br>    bl      irq_dispatch<br><br>    pop     &#123;r0-r3, r12, lr&#125;<br><br>    // 从 SVC 栈恢复 PC 与 CPSR<br>    rfeia   sp!<br></code></pre></td></tr></table></figure>
+
+<p>逐步解释：</p>
+<ol>
+<li><code>sub lr,lr,#4</code>：将 IRQ 架构 LR 修正为最终继续地址。</li>
+<li><code>SRS</code>：保存 Return State，也就是返回 PC 与旧 CPSR。</li>
+<li><code>CPS #0x13</code>：切换到 SVC 模式，使用 SVC 栈运行公共处理逻辑。</li>
+<li><code>PUSH</code>：保护任意异常点上可能活跃、又会被 C 调用破坏的寄存器。</li>
+<li><code>BL</code>：进入 C 后重新受 AAPCS32 约束。</li>
+<li><code>POP</code>：恢复被中断程序的易失寄存器。</li>
+<li><code>RFE</code>：同时恢复 PC&#x2F;CPSR；CPSR.M 恢复后重新看到原模式的 banked SP&#x2F;LR。</li>
+</ol>
+<p>这里 6 个寄存器共 24 字节，<code>SRS</code> 的返回状态占 8 字节；如果入口 SVC SP 原本 8 字节对齐，则公共调用前仍保持 8 字节对齐。</p>
+<p>实际 RTEMS 代码位于：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">RTEMS-6.2/cpukit/score/cpu/arm/arm_exc_interrupt.S<br></code></pre></td></tr></table></figure>
+
+<p>可只观察这些关键点：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">sub lr, lr, #4<br>srsfd sp!, #ARM_PSR_M_SVC<br>cps #ARM_PSR_M_SVC<br>push &#123;...&#125;<br>对齐 SP<br>bl bsp_interrupt_dispatch<br>pop &#123;...&#125;<br>rfefd sp!<br></code></pre></td></tr></table></figure>
+
+<p>其余嵌套计数、SMP、VFP、临时中断栈和调度逻辑暂时忽略。</p>
+<hr>
+<h3 id="九、SRS-RFE-SUBS-PC-LR-是什么关系"><a href="#九、SRS-RFE-SUBS-PC-LR-是什么关系" class="headerlink" title="九、SRS/RFE SUBS PC,LR&#96; 是什么关系"></a>九、<code>SRS/RFE</code> SUBS PC,LR&#96; 是什么关系</h3><h4 id="简单-handler"><a href="#简单-handler" class="headerlink" title="简单 handler"></a>简单 handler</h4><p>如果整个 IRQ handler 一直留在 IRQ 模式，并把 <code>LR_irq/SPSR_irq</code> 保持好，可以：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">subs pc, lr, #4<br></code></pre></td></tr></table></figure>
+
+<p>这里 <code>S</code> 与写 PC 的组合完成异常返回语义：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">PC = LR_irq - 4<br>CPSR = SPSR_irq<br></code></pre></td></tr></table></figure>
+
+<h4 id="统一异常帧"><a href="#统一异常帧" class="headerlink" title="统一异常帧"></a>统一异常帧</h4><p>复杂 OS 往往要：</p>
+<ul>
+<li>换到 SVC 栈或独立中断栈；</li>
+<li>允许嵌套；</li>
+<li>调用 C；</li>
+<li>可能在 IRQ 尾部调度；</li>
+<li>让不同异常共享一套帧。</li>
+</ul>
+<p>因此先把返回 PC 和 CPSR 存进内存，最后使用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">rfeia sp!<br></code></pre></td></tr></table></figure>
+
+<p>从内存同时恢复它们。</p>
+<p>二者最终目标相同：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复正确 PC + 恢复异常前 CPSR<br></code></pre></td></tr></table></figure>
+
+<p>只是返回状态保存在寄存器还是内存、处理过程简单还是复杂。</p>
+<hr>
+<h3 id="十、异常帧是什么"><a href="#十、异常帧是什么" class="headerlink" title="十、异常帧是什么"></a>十、异常帧是什么</h3><p>异常帧是 OS 在内存中定义的数据结构，不是 ARM 硬件统一规定的 C 结构体。</p>
+<p>示意：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r0;<br>    <span class="hljs-type">uint32_t</span> r1;<br>    <span class="hljs-comment">// ...</span><br>    <span class="hljs-type">uint32_t</span> r12;<br>    <span class="hljs-type">uint32_t</span> interrupted_sp;<br>    <span class="hljs-type">uint32_t</span> interrupted_lr;<br>    <span class="hljs-type">uint32_t</span> return_pc;<br>    <span class="hljs-type">uint32_t</span> saved_cpsr;<br>&#125; ExceptionFrame;<br></code></pre></td></tr></table></figure>
+
+<p>它的作用：</p>
+<ul>
+<li>让 C handler 查看异常现场；</li>
+<li>让调试器打印寄存器；</li>
+<li>修改返回值或返回地址；</li>
+<li>支持异常尾部调度；</li>
+<li>最终由汇编按相同偏移恢复。</li>
+</ul>
+<p>ARM 规定的是异常入口和返回的架构语义；帧字段顺序由 OS 决定。但一旦汇编执行 <code>BL c_handler</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r3 参数<br>r4-r11 保持责任<br>SP 8 字节对齐<br>返回值位置<br></code></pre></td></tr></table></figure>
+
+<p>仍必须遵守 AAPCS32。</p>
+<hr>
+<h3 id="十一、IRQ-的完整分层"><a href="#十一、IRQ-的完整分层" class="headerlink" title="十一、IRQ 的完整分层"></a>十一、IRQ 的完整分层</h3><p>先建立全图，下一轮再展开中间部分：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs text">设备产生事件<br>    ↓<br>设备设置自己的 pending/status 位<br>    ↓<br>GIC Distributor 判断使能、优先级、目标 CPU<br>    ↓<br>GIC CPU Interface 向 Cortex-A9 发 IRQ<br>    ↓<br>CPU 执行 IRQ 异常硬件入口<br>    ↓<br>vector_base + 0x18<br>    ↓<br>IRQ 汇编保存现场<br>    ↓<br>读取 GIC acknowledge 寄存器，得到 interrupt ID<br>    ↓<br>调用对应 C handler<br>    ↓<br>清设备中断源<br>    ↓<br>写 GIC EOI<br>    ↓<br>恢复现场并异常返回<br></code></pre></td></tr></table></figure>
+
+<p>“CPU 进入 IRQ 模式”并不能告诉软件到底是 UART、定时器还是网卡触发。真正的中断号来自 GIC acknowledge，这就是下一轮的核心。</p>
+<hr>
+<h3 id="十二、常见错误与-Debug-现象"><a href="#十二、常见错误与-Debug-现象" class="headerlink" title="十二、常见错误与 Debug 现象"></a>十二、常见错误与 Debug 现象</h3><h4 id="1-没有初始化-SP-irq"><a href="#1-没有初始化-SP-irq" class="headerlink" title="1. 没有初始化 SP_irq"></a>1. 没有初始化 <code>SP_irq</code></h4><p>现象：第一次 IRQ 一压栈就访问错误地址，常表现为 Data Abort 或直接死机。</p>
+<h4 id="2-忘记修正-IRQ-LR"><a href="#2-忘记修正-IRQ-LR" class="headerlink" title="2. 忘记修正 IRQ LR"></a>2. 忘记修正 IRQ LR</h4><p>现象：返回后跳过或重复一条指令，可能持续出现难以解释的逻辑错误。</p>
+<h4 id="3-没保存-r0-r3-r12-就调用-C"><a href="#3-没保存-r0-r3-r12-就调用-C" class="headerlink" title="3. 没保存 r0-r3&#x2F;r12 就调用 C"></a>3. 没保存 r0-r3&#x2F;r12 就调用 C</h4><p>现象：中断返回后普通代码变量随机改变。</p>
+<h4 id="4-SP-未按-8-字节对齐就-BL"><a href="#4-SP-未按-8-字节对齐就-BL" class="headerlink" title="4. SP 未按 8 字节对齐就 BL"></a>4. SP 未按 8 字节对齐就 <code>BL</code></h4><p>现象：简单 handler 似乎可运行，稍微优化、增加 64 位访问或换编译器后崩溃。</p>
+<h4 id="5-只恢复-PC，没恢复-CPSR"><a href="#5-只恢复-PC，没恢复-CPSR" class="headerlink" title="5. 只恢复 PC，没恢复 CPSR"></a>5. 只恢复 PC，没恢复 CPSR</h4><p>现象：仍处于异常模式、IRQ 一直被屏蔽、栈 bank 错误或 ARM&#x2F;Thumb 状态错误。</p>
+<h4 id="6-没清设备-pending-或没写-EOI"><a href="#6-没清设备-pending-或没写-EOI" class="headerlink" title="6. 没清设备 pending 或没写 EOI"></a>6. 没清设备 pending 或没写 EOI</h4><p>现象：返回后立刻再次进入 IRQ，形成中断风暴。此项将在下一轮展开。</p>
+<hr>
+<h3 id="十三、自检题与解析"><a href="#十三、自检题与解析" class="headerlink" title="十三、自检题与解析"></a>十三、自检题与解析</h3><p>完成这一章后，可以不看正文回答下面六个问题。</p>
+<ol>
+<li><p><strong>硬件进入 IRQ 时自动保存什么？</strong></p>
+<p>硬件把旧 CPSR 保存到 <code>SPSR_irq</code>，按异常类型生成 <code>LR_irq</code>，切换到 IRQ 模式并跳到 <code>VBAR+0x18</code>。它不会自动保存 <code>r0-r12</code>，也不会替操作系统建立 C 结构体形式的异常帧。</p>
+</li>
+<li><p><strong>为什么只恢复 PC 不够？</strong></p>
+<p>异常前的模式、I&#x2F;F&#x2F;T 位和条件标志都在旧 CPSR 中。正确返回必须同时恢复 PC 与 CPSR，否则即使地址正确，处理器也可能留在错误模式或使用错误指令状态。</p>
+</li>
+<li><p><strong>为什么 IRQ 入口要保护 <code>r0-r3</code> 和 <code>r12</code>？</strong></p>
+<p>IRQ 可发生在任意指令边界，这些寄存器可能含有尚未消费的中间值；入口又要调用遵循 AAPCS 的 C 函数，而 C 函数有权改写 caller-saved 寄存器。</p>
+</li>
+<li><p><strong><code>SRS</code> 与 <code>RFE</code> 分别做什么？</strong></p>
+<p><code>SRS</code> 把当前异常模式的返回地址和 SPSR 放入目标模式栈；<code>RFE</code> 从匹配布局中同时装回 PC 与 CPSR。它们是一组适合构造统一异常帧的指令，但仍需软件保存通用寄存器。</p>
+</li>
+<li><p><strong>独立 IRQ 栈和任务私有 frame 是否矛盾？</strong></p>
+<p>不矛盾。任务私有 frame 保存将来恢复任务所需的状态；独立 IRQ 栈承载 C handler 的调用深度。前者解决现场所有权，后者隔离中断处理过程的栈消耗。</p>
+</li>
+<li><p><strong>怎样口述一次完整 IRQ？</strong></p>
+<p>设备提出请求，GIC 交付 IRQ，处理器保存 CPSR&#x2F;LR 并进入向量，汇编修正返回地址并建立 frame，C 分发器读取 IAR、处理设备、清源并写 EOIR，IRQ 尾部选择最终 frame，最后恢复通用寄存器并以 <code>RFE</code> 或等价序列恢复 PC&#x2F;CPSR。</p>
+</li>
+</ol>
+<h3 id="十四、自检结论"><a href="#十四、自检结论" class="headerlink" title="十四、自检结论"></a>十四、自检结论</h3><p>如果能够独立解释硬件与软件的责任边界、返回地址修正、异常帧所有权和 PC&#x2F;CPSR 成对恢复，就具备继续连接 GIC 与设备中断的基础。</p>
+<h2 id="架构手册规则怎样落到-IRQ-frame"><a href="#架构手册规则怎样落到-IRQ-frame" class="headerlink" title="架构手册规则怎样落到 IRQ frame"></a>架构手册规则怎样落到 IRQ frame</h2><h2 id="第一部分：ARM-架构异常入口与返回"><a href="#第一部分：ARM-架构异常入口与返回" class="headerlink" title="第一部分：ARM 架构异常入口与返回"></a>第一部分：ARM 架构异常入口与返回</h2><h3 id="3-异常与中断不是完全同义"><a href="#3-异常与中断不是完全同义" class="headerlink" title="3. 异常与中断不是完全同义"></a>3. 异常与中断不是完全同义</h3><p>ARM 异常包括同步和异步来源：</p>
+<table>
+<thead>
+<tr>
+<th>异常</th>
+<th>典型原因</th>
+<th>同步性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reset</td>
+<td>复位</td>
+<td>特殊</td>
+</tr>
+<tr>
+<td>Undefined Instruction</td>
+<td>指令不支持&#x2F;编码非法</td>
+<td>同步</td>
+</tr>
+<tr>
+<td>SVC</td>
+<td>软件执行 <code>SVC</code></td>
+<td>同步</td>
+</tr>
+<tr>
+<td>Prefetch Abort</td>
+<td>取指失败</td>
+<td>同步</td>
+</tr>
+<tr>
+<td>Data Abort</td>
+<td>数据访问失败</td>
+<td>同步</td>
+</tr>
+<tr>
+<td>IRQ</td>
+<td>普通外部中断请求</td>
+<td>异步</td>
+</tr>
+<tr>
+<td>FIQ</td>
+<td>快速外部中断请求</td>
+<td>异步</td>
+</tr>
+</tbody></table>
+<p>因此：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">IRQ/FIQ 是异常类型<br>但异常不只有中断<br></code></pre></td></tr></table></figure>
+
+<p>GIC 只负责外部中断分发，不负责修复 Data Abort，也不决定 SVC 的语义。</p>
+<hr>
+<h3 id="4-向量表"><a href="#4-向量表" class="headerlink" title="4. 向量表"></a>4. 向量表</h3><p>普通 AArch32 异常向量偏移：</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th>向量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x00</code></td>
+<td>Reset</td>
+</tr>
+<tr>
+<td align="right"><code>0x04</code></td>
+<td>Undefined Instruction</td>
+</tr>
+<tr>
+<td align="right"><code>0x08</code></td>
+<td>SVC</td>
+</tr>
+<tr>
+<td align="right"><code>0x0C</code></td>
+<td>Prefetch Abort</td>
+</tr>
+<tr>
+<td align="right"><code>0x10</code></td>
+<td>Data Abort</td>
+</tr>
+<tr>
+<td align="right"><code>0x14</code></td>
+<td>Reserved</td>
+</tr>
+<tr>
+<td align="right"><code>0x18</code></td>
+<td>IRQ</td>
+</tr>
+<tr>
+<td align="right"><code>0x1C</code></td>
+<td>FIQ</td>
+</tr>
+</tbody></table>
+<p>向量表每槽只有 4 字节，通常放一条跳转或装载 PC 指令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs asm">vectors:<br>    b reset_entry<br>    b undef_entry<br>    b svc_entry<br>    b prefetch_abort_entry<br>    b data_abort_entry<br>    b reserved_entry<br>    b irq_entry<br>    b fiq_entry<br></code></pre></td></tr></table></figure>
+
+<p>实际可使用 <code>VBAR</code> 指向对齐的向量基址，也可能受高向量配置影响。移植时必须确认：</p>
+<ul>
+<li>向量内容位于 CPU 可执行地址；</li>
+<li>VBAR 设置的是运行地址，不是错误的链接&#x2F;加载地址；</li>
+<li>写 VBAR 后按架构要求使用同步措施；</li>
+<li>每个异常入口符号和指令状态正确；</li>
+<li>IRQ 栈在开放 IRQ 前已经初始化。</li>
+</ul>
+<h4 id="向量与-GIC-ID-再次区分"><a href="#向量与-GIC-ID-再次区分" class="headerlink" title="向量与 GIC ID 再次区分"></a>向量与 GIC ID 再次区分</h4><p>所有 GIC 普通 IRQ 都进入 <code>+0x18</code>。向量表没有 1024 个槽。设备 ID 是在 IRQ 软件入口读取 <code>GICC_IAR</code> 后才得到。</p>
+<hr>
+<h3 id="5-异常入口：硬件做什么"><a href="#5-异常入口：硬件做什么" class="headerlink" title="5. 异常入口：硬件做什么"></a>5. 异常入口：硬件做什么</h3><p>以普通 IRQ 进入 IRQ 模式为主线，架构效果可理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">1. 保存异常前 CPSR 到 SPSR_irq<br>2. 把架构定义的首选返回信息写入 LR_irq<br>3. 修改 CPSR.M，进入 IRQ 模式<br>4. 修改相应屏蔽位，IRQ 入口至少设置 I<br>5. 按架构配置确定 ARM/Thumb 状态和端序<br>6. PC 跳到 IRQ 向量<br>7. 当前可见 SP/LR 切为 SP_irq/LR_irq<br></code></pre></td></tr></table></figure>
+
+<p>硬件通常没有替软件完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">保存 r0-r12<br>分配 C 结构体异常帧<br>读取 GIC ID<br>清设备中断状态<br>写 GIC EOI<br>调用调度器<br></code></pre></td></tr></table></figure>
+
+<p>所以“异常发生时 CPU 自动保存全部寄存器”是错误认识。</p>
+<h4 id="为什么要尽快保存-LR-irq-与-SPSR-irq"><a href="#为什么要尽快保存-LR-irq-与-SPSR-irq" class="headerlink" title="为什么要尽快保存 LR_irq 与 SPSR_irq"></a>为什么要尽快保存 LR_irq 与 SPSR_irq</h4><p>它们是当前异常的关键返回状态。同模式再次嵌套或入口代码误改可能覆盖它们。成熟入口会尽快将其搬到受控栈帧。</p>
+<hr>
+<h3 id="6-返回地址为什么不能统一写死"><a href="#6-返回地址为什么不能统一写死" class="headerlink" title="6. 返回地址为什么不能统一写死"></a>6. 返回地址为什么不能统一写死</h3><p>不同异常的 <code>LR_mode</code> 语义不同，处理目标也不同：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">IRQ/FIQ：通常要回到被打断后应继续的位置<br>Prefetch Abort：可能修复后重试取指<br>Data Abort：可能修复后重试数据访问，也可能终止任务<br>SVC/Undefined：通常回到触发指令之后<br></code></pre></td></tr></table></figure>
+
+<p>常见 A32 形式：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">subs pc, lr, #4      @ 常见 IRQ/FIQ 返回<br>subs pc, lr, #8      @ 常见 Data Abort 重试<br>movs pc, lr          @ 常见 SVC/Undefined 返回<br></code></pre></td></tr></table></figure>
+
+<p>但实际返回必须结合：</p>
+<ul>
+<li>异常类型；</li>
+<li>ARM&#x2F;Thumb 状态；</li>
+<li>是重试故障指令还是跳过；</li>
+<li>入口是否已经提前修正 LR；</li>
+<li>使用 <code>RFE</code> 还是经典带 <code>S</code> 返回。</li>
+</ul>
+<p>最稳妥的方法是依据 ARM ARM B1.8.3 的 Table B1-6&#x2F;B1-7，而不是背一句“所有异常 LR 都减 4”。</p>
+<hr>
+<h3 id="7-软件入口怎样建立异常帧"><a href="#7-软件入口怎样建立异常帧" class="headerlink" title="7. 软件入口怎样建立异常帧"></a>7. 软件入口怎样建立异常帧</h3><p>一种可读的逻辑布局：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>    <span class="hljs-type">uint32_t</span> r0;<br>    <span class="hljs-type">uint32_t</span> r1;<br>    ...<br>    <span class="hljs-type">uint32_t</span> r12;<br>    <span class="hljs-type">uint32_t</span> lr_irq_raw;<br>    <span class="hljs-type">uint32_t</span> return_pc;<br>    <span class="hljs-type">uint32_t</span> return_cpsr;<br>&#125; arm_irq_frame;<br></code></pre></td></tr></table></figure>
+
+<p>入口的职责：</p>
+<ol>
+<li>修正或保存原始 <code>LR_irq</code>。</li>
+<li>保存 <code>SPSR_irq</code>。</li>
+<li>保存会被入口和 C handler 改写的通用寄存器。</li>
+<li>保证 frame 布局与 C 定义一致。</li>
+<li>保证调用 C 时 SP 8 字节对齐。</li>
+<li>处理 IRQ 栈、SVC 栈或 per-CPU interrupt stack 的切换策略。</li>
+<li>记录中断嵌套状态。</li>
+</ol>
+<h4 id="SRS-RFE-路线"><a href="#SRS-RFE-路线" class="headerlink" title="SRS&#x2F;RFE 路线"></a><code>SRS</code>&#x2F;<code>RFE</code> 路线</h4><p>支持相应 ARMv7 指令时，可用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs asm">sub   lr, lr, #4<br>srsfd sp!, #svc_mode<br>cps   #svc_mode<br>...<br>rfeia sp!<br></code></pre></td></tr></table></figure>
+
+<p><code>SRS</code> 把异常返回状态保存到指定模式栈；<code>RFE</code> 从内存同时恢复 PC 与 CPSR。具体寻址后缀必须与栈布局匹配。</p>
+<h4 id="经典路线"><a href="#经典路线" class="headerlink" title="经典路线"></a>经典路线</h4><p>也可以：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs asm">sub   lr, lr, #4<br>stmdb sp!, &#123;r0-r12, lr&#125;<br>mrs   r0, spsr<br>...<br>msr   spsr_cxsf, saved_state<br>ldmia sp!, &#123;r0-r12, lr&#125;<br>subs  pc, lr, #0<br></code></pre></td></tr></table></figure>
+
+<p>这只是示意。实际代码若把状态搬到 SVC 栈、支持嵌套或调度，布局会更复杂。</p>
+<h4 id="为什么-handler-不能直接普通-return"><a href="#为什么-handler-不能直接普通-return" class="headerlink" title="为什么 handler 不能直接普通 return"></a>为什么 handler 不能直接普通 <code>return</code></h4><p>C 的 <code>return</code> 只遵循 AAPCS 返回到调用它的汇编入口，并不会自动：</p>
+<ul>
+<li>把 <code>SPSR_irq</code> 恢复到 CPSR；</li>
+<li>从 IRQ 模式回到原模式；</li>
+<li>选择异常返回语义；</li>
+<li>重新装载完整异常现场。</li>
+</ul>
+<p>真正异常返回仍由汇编出口完成。</p>
+<hr>
+<h3 id="8-异常返回的本质"><a href="#8-异常返回的本质" class="headerlink" title="8. 异常返回的本质"></a>8. 异常返回的本质</h3><p>无论使用哪种指令形式，最终必须原子地实现逻辑：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">PC   ← 保存的返回地址<br>CPSR ← 异常前程序状态<br></code></pre></td></tr></table></figure>
+
+<p>恢复 CPSR 带来的效果包括：</p>
+<ul>
+<li>原模式恢复；</li>
+<li>原 <code>I/F/A</code> 屏蔽状态恢复；</li>
+<li>原 ARM&#x2F;Thumb 状态恢复；</li>
+<li>原条件标志恢复；</li>
+<li>当前可见 SP&#x2F;LR bank 回到原模式。</li>
+</ul>
+<p>如果只恢复 PC、不恢复 CPSR，代码可能从正确地址以错误模式或错误指令状态执行，通常很快崩溃。</p>
+<hr>
+<h2 id="从普通-context-走到任务私有-IRQ-frame"><a href="#从普通-context-走到任务私有-IRQ-frame" class="headerlink" title="从普通 context 走到任务私有 IRQ frame"></a>从普通 context 走到任务私有 IRQ frame</h2><h3 id="实现步骤四：建立真正的-IRQ-异常帧"><a href="#实现步骤四：建立真正的-IRQ-异常帧" class="headerlink" title="实现步骤四：建立真正的 IRQ 异常帧"></a>实现步骤四：建立真正的 IRQ 异常帧</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">69aac20 irq: add the ARM exception frame and return path<br></code></pre></td></tr></table></figure>
+
+<h4 id="为什么要和普通上下文分开"><a href="#为什么要和普通上下文分开" class="headerlink" title="为什么要和普通上下文分开"></a>为什么要和普通上下文分开</h4><p>普通切换发生在函数调用边界，受 AAPCS 保护；IRQ 可以发生在任意指令之间，因此<br><code>r0-r3/r12</code> 也可能保存着仍然有效的中间值，不能丢。</p>
+<h4 id="先看什么"><a href="#先看什么" class="headerlink" title="先看什么"></a>先看什么</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">异常入口自检清单<br>GIC 状态机自检清单<br>rtems-6.2/bsps/arm/shared/start/start.S<br>rtems-6.2/cpukit/score/cpu/arm/armv4-exception-default.S<br>rtems-6.2/cpukit/score/cpu/arm/armv4-exception-resume.S<br></code></pre></td></tr></table></figure>
+
+<p>官方资料重点：</p>
+<ul>
+<li>IRQ 自动执行 <code>CPSR → SPSR_irq</code>；</li>
+<li><code>LR_irq</code> 的返回地址语义；</li>
+<li>IRQ 模式有 banked SP&#x2F;LR；</li>
+<li><code>subs pc, lr, #4</code> 或 RFE 类返回如何恢复 CPSR。</li>
+</ul>
+<h4 id="必须先回答的问题"><a href="#必须先回答的问题" class="headerlink" title="必须先回答的问题"></a>必须先回答的问题</h4><ol>
+<li>硬件自动保存了哪些内容，哪些必须由软件保存？</li>
+<li>为什么 IRQ 入口要保存 <code>r0-r12</code>？</li>
+<li>为什么调用 C dispatcher 前 SP 必须仍为 8 字节对齐？</li>
+<li>为什么保存的是 <code>SPSR_irq</code>，而不是只保存 handler 当前 CPSR？</li>
+<li>为什么普通 <code>bx lr</code> 不能完成异常返回？</li>
+</ol>
+<h4 id="本实现的-64-字节异常帧"><a href="#本实现的-64-字节异常帧" class="headerlink" title="本实现的 64 字节异常帧"></a>本实现的 64 字节异常帧</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">offset 0   SPSR_irq<br>offset 4   对齐填充<br>offset 8   r0<br>...<br>offset 56  r12<br>offset 60  LR_irq<br></code></pre></td></tr></table></figure>
+
+<p><code>r0-r12,lr</code> 共 56 字节，再为 SPSR 和 padding 留 8 字节，总计 64 字节，C 调用前仍满足<br>8 字节对齐。</p>
+<h4 id="返回顺序"><a href="#返回顺序" class="headerlink" title="返回顺序"></a>返回顺序</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复SPSR_irq<br>→ 丢弃padding<br>→ 恢复r0-r12和LR_irq<br>→ subs pc, lr, #4<br></code></pre></td></tr></table></figure>
+
+<p>这一步仍不主动打开 IRQ。目的是把“异常保存&#x2F;返回合同”与“中断控制器配置”拆开。</p>
+<hr>
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="异常是总称，IRQ-只是其中一种"><a href="#异常是总称，IRQ-只是其中一种" class="headerlink" title="异常是总称，IRQ 只是其中一种"></a>异常是总称，IRQ 只是其中一种</h2><p>在这里采用的经典 ARM 向量布局中：</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>异常</th>
+<th>常见原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0x00</td>
+<td>Reset</td>
+<td>复位入口</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>Undefined</td>
+<td>不能执行的指令或相应扩展不可用</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td>SVC</td>
+<td>软件执行 SVC 指令</td>
+</tr>
+<tr>
+<td>0x0c</td>
+<td>Prefetch Abort</td>
+<td>取指访问失败</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td>Data Abort</td>
+<td>数据访问失败</td>
+</tr>
+<tr>
+<td>0x14</td>
+<td>Reserved</td>
+<td>保留</td>
+</tr>
+<tr>
+<td>0x18</td>
+<td>IRQ</td>
+<td>普通中断请求</td>
+</tr>
+<tr>
+<td>0x1c</td>
+<td>FIQ</td>
+<td>快速中断请求</td>
+</tr>
+</tbody></table>
+<p>SVC、Undefined、精确 Abort 与当前指令有明确关系；IRQ&#x2F;FIQ 来自异步请求。Data Abort 还要区分精确与非精确情形，不能把所有异常都看成“当前 PC 的一条指令出错”。</p>
+<p>CPU 的 IRQ 向量只有一个。UART 和 Timer 的 IRQ 并不会分别跳到向量表中第 UART 号、第 Timer 号的位置；具体设备号要进入后读取 GIC。</p>
+<h2 id="硬件自动做了什么，没做什么"><a href="#硬件自动做了什么，没做什么" class="headerlink" title="硬件自动做了什么，没做什么"></a>硬件自动做了什么，没做什么</h2><p>对本工程从 SVC 进入 IRQ 的路径，硬件完成的核心动作是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">旧 CPSR → SPSR_irq<br>返回相关地址 → LR_irq<br>切换到 IRQ 模式，并更新异常入口相关控制状态<br>PC → IRQ 向量<br></code></pre></td></tr></table></figure>
+
+<p>它不会自动把 r0-r12、任务 LR 和所有局部变量压进内存。也不会创建 C 栈帧、调用 irq_dispatch，或查找哪个任务最该运行。这些都是入口软件的责任。</p>
+<p>IRQ 模式有自己的 SP&#x2F;LR，可以让入口先取得一组独立寄存器，但普通通用寄存器仍然可能包含被打断代码的活跃数据。在保存前拿 r0 当临时变量，就可能破坏任务。</p>
+<h2 id="LR-irq-为什么减-4"><a href="#LR-irq-为什么减-4" class="headerlink" title="LR_irq 为什么减 4"></a>LR_irq 为什么减 4</h2><p>异常 LR 是架构定义的返回信息，不能当成普通 BL 留下的 LR。对当前 IRQ 处理方式，入口执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">sub lr, lr, #4<br></code></pre></td></tr></table></figure>
+
+<p>得到适合恢复的返回 PC，再把它放入异常帧。后面的 RFE 已使用修正后的值，不应再次减 4。</p>
+<p>在本系列 ARM 状态的常见处理约定中，可以这样理解：</p>
+<table>
+<thead>
+<tr>
+<th>异常</th>
+<th>常见返回位置处理</th>
+<th>限定条件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IRQ&#x2F;FIQ</td>
+<td>LR 减 4 后回到被打断执行流</td>
+<td>采用经典 PL1 返回语义</td>
+</tr>
+<tr>
+<td>SVC</td>
+<td>通常使用异常 LR，继续下一条</td>
+<td>不重复执行 SVC</td>
+</tr>
+<tr>
+<td>Undefined</td>
+<td>要看模拟、跳过还是终止</td>
+<td>不能统一套一个修正常量</td>
+</tr>
+<tr>
+<td>Prefetch Abort</td>
+<td>若修复后重试，常用 LR 减 4</td>
+<td>先确认异常与执行状态</td>
+</tr>
+<tr>
+<td>精确 Data Abort</td>
+<td>若修复后重试，常用 LR 减 8</td>
+<td>不是对所有 Data Abort 都可恢复</td>
+</tr>
+</tbody></table>
+<p>Thumb 指令宽度、异常种类和期望重试行为都会影响推理。系统故障诊断应保存原始 LR&#x2F;SPSR，并据异常类型解释，不能把 IRQ 的减 4 抄遍所有 handler。</p>
+<h2 id="基础版把完整现场留在任务自己的栈上"><a href="#基础版把完整现场留在任务自己的栈上" class="headerlink" title="基础版把完整现场留在任务自己的栈上"></a>基础版把完整现场留在任务自己的栈上</h2><p>基础版 <code>src/start.S</code> 的 IRQ 主体：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs asm">irq_entry:<br>    sub   lr, lr, #4<br>    srsdb sp!, #0x13<br>    cps   #0x13<br><br>    stmdb sp!, &#123;r0-r12, lr&#125;<br>    mov   r0, sp<br><br>    mrc   p15, 0, r1, c0, c0, 5<br>    and   r1, r1, #0x3<br>    cmp   r1, #0<br>    ldreq sp, =__stack_irq_cpu0_top<br>    ldrne sp, =__stack_irq_cpu1_top<br>    bl    irq_dispatch<br><br>    mov   sp, r0<br>    ldmia sp!, &#123;r0-r12, lr&#125;<br>    rfefd sp!<br></code></pre></td></tr></table></figure>
+
+<p>不要一口气读完。它其实有四个阶段。</p>
+<h3 id="把-IRQ-bank-中的返回信息转移到-SVC-栈"><a href="#把-IRQ-bank-中的返回信息转移到-SVC-栈" class="headerlink" title="把 IRQ bank 中的返回信息转移到 SVC 栈"></a>把 IRQ bank 中的返回信息转移到 SVC 栈</h3><p><code>SRSDB sp!, #0x13</code> 使用当前异常模式的 LR&#x2F;SPSR，把它们存到指定目标模式 SVC 的栈，并更新那个目标 SP。此时 CPU 尚在 IRQ 模式。</p>
+<p>接着 <code>cps #0x13</code> 切到 SVC，名字 SP 便能看到刚刚更新后的 SVC 栈位置，名字 LR 看到的是原任务的 LR_svc。随后保存 r0-r12 和 LR_svc。</p>
+<p>这里严格依赖“被打断任务使用 SVC 栈”的设计。如果以后任务在 User 模式，SVC 栈不再自动等于该用户任务自己的栈，必须另外安排用户 SP&#x2F;LR 和内核栈的归属。</p>
+<h3 id="得到-64-字节的任务私有-frame"><a href="#得到-64-字节的任务私有-frame" class="headerlink" title="得到 64 字节的任务私有 frame"></a>得到 64 字节的任务私有 frame</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">低地址 ← 当前任务 SP<br>+0       r0<br>+4       r1<br>...<br>+48      r12<br>+52      lr_svc<br>+56      return_pc<br>+60      cpsr（原 SPSR_irq）<br>高地址 ← 被打断前的任务 SP<br></code></pre></td></tr></table></figure>
+
+<p>总计 16 个字，64 字节。r13 没作为字段保存，因为 frame 地址加上帧大小就是这段恢复序列应还原的 SP；PC 与 CPSR 来自额外的两个返回字。</p>
+<p>对应 C 定义是 r[13]、svc_lr、return_pc、cpsr。工程用 offsetof 和 sizeof 静态断言核对 52&#x2F;56&#x2F;60&#x2F;64 这些数字，避免 C 布局与汇编脱节。</p>
+<h3 id="把-C-handler-移到独立栈"><a href="#把-C-handler-移到独立栈" class="headerlink" title="把 C handler 移到独立栈"></a>把 C handler 移到独立栈</h3><p>frame 指针放在 r0，作为 irq_dispatch 的参数。随后入口按 MPIDR 选本核中断栈顶，再执行 BL。</p>
+<p>此时 CPU 处于 SVC 模式。当前 SP 是 SVC bank 的寄存器，只是它的值落在名为 irq_stack 的内存区。因此“中断里读 SP 就一定是 sp_irq”在这个实现里不成立。</p>
+<p>两种“IRQ 栈”概念必须分开：</p>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>banked sp_irq</td>
+<td>IRQ 模式下名为 SP 的硬件寄存器</td>
+</tr>
+<tr>
+<td>独立软件中断栈</td>
+<td>专门留给 handler 调用链使用的内存</td>
+</tr>
+<tr>
+<td>任务私有异常帧</td>
+<td>被打断任务未来恢复所需的内存状态</td>
+</tr>
+</tbody></table>
+<p>一块内存可以在启动时作为 sp_irq 的初始值，之后又被 SVC 模式用作 C 处理栈；这不改变 banked 寄存器的架构定义。</p>
+<h3 id="从分发器选择的现场返回"><a href="#从分发器选择的现场返回" class="headerlink" title="从分发器选择的现场返回"></a>从分发器选择的现场返回</h3><p>irq_dispatch 返回一个 frame 指针。它可以是原任务 A 的 frame，也可以是任务 B 的 frame。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov sp, r0<br>ldmia sp!, &#123;r0-r12, lr&#125;<br>rfefd sp!<br></code></pre></td></tr></table></figure>
+
+<p>先恢复普通寄存器和任务 LR，再从剩下的两个字同时恢复 PC&#x2F;CPSR。RFE 不是普通 BX：它携带异常状态恢复语义，使任务模式、中断屏蔽与条件标志一起回到保存时的状态。</p>
+<h2 id="为什么不能把两个任务的现场一直留在同一-IRQ-栈"><a href="#为什么不能把两个任务的现场一直留在同一-IRQ-栈" class="headerlink" title="为什么不能把两个任务的现场一直留在同一 IRQ 栈"></a>为什么不能把两个任务的现场一直留在同一 IRQ 栈</h2><p>假定 A 被打断，现场保存在共享中断栈；IRQ 尾部切到 B。下一次 B 被打断又从同一个中断栈顶压入现场，A 尚未恢复的数据就可能被覆盖。</p>
+<p>于是出现一种典型假象：第一次切换成功，第二次返回就跳飞。寄存器保存集合可能完全正确，错误来自内存所有权。</p>
+<p>本实现的分工是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">A 栈：A 的调用链 + A 的异步 frame<br>B 栈：B 的调用链 + B 的异步 frame<br>CPU0 IRQ 栈：当前 handler 的临时调用链<br>CPU1 IRQ 栈：另一个核的 handler 临时调用链<br></code></pre></td></tr></table></figure>
+
+<p>任务可恢复状态随任务保留；中断栈只承担当前中断处理的临时工作。</p>
+<h2 id="不支持嵌套，是当前实现的重要约束"><a href="#不支持嵌套，是当前实现的重要约束" class="headerlink" title="不支持嵌套，是当前实现的重要约束"></a>不支持嵌套，是当前实现的重要约束</h2><p>每次入口都把 handler SP 直接设到同一个本核 IRQ 栈顶。如果处理中再次允许 IRQ，新入口会覆盖第一层 handler 的调用链。因此当前代码保持 IRQ 屏蔽，不支持重入式嵌套。</p>
+<p>真要加嵌套，至少要处理：</p>
+<ul>
+<li>异常 LR&#x2F;SPSR 已经转移到安全内存；</li>
+<li>仅最外层切到中断栈，内层沿当前中断栈继续压栈；</li>
+<li>嵌套深度和 dispatch-disable 状态；</li>
+<li>GIC 优先级与 EOIR 的对应顺序；</li>
+<li>只在允许的最外层返回点调度。</li>
+</ul>
+<p>RTEMS 参考路径中多出的这些计数和检查都有具体用途，并不是可以随手删除的冗余代码。</p>
+<h2 id="栈对齐与栈容量要分别验证"><a href="#栈对齐与栈容量要分别验证" class="headerlink" title="栈对齐与栈容量要分别验证"></a>栈对齐与栈容量要分别验证</h2><p>被打断时任务 SP 可能只按 4 字节对齐，64 字节保存并不会改变它的模 8 余数。当前入口在调用 C 前换到 8 字节对齐的中断栈，从而满足公共接口要求。</p>
+<p>中断栈底有四个哨兵字，handler 还记录见到的最小 SP。哨兵能发现部分越界，最小 SP 能观察到采样点处的使用量，但不能证明任意更深调用从未达到更低地址。完整高水位分析需要填充整个栈并扫描，或在更多位置记录。</p>
+<p>小系统没有为每个任务提供完善的 guard page。扩大 printf 调用、局部数组或递归以后，仍然要重新计算栈预算。</p>
+<h2 id="Abort-的记录比盲目返回更重要"><a href="#Abort-的记录比盲目返回更重要" class="headerlink" title="Abort 的记录比盲目返回更重要"></a>Abort 的记录比盲目返回更重要</h2><p>当前 fatal 路径输出 vector、异常 LR、SPSR，以及 DFSR&#x2F;DFAR&#x2F;IFSR&#x2F;IFAR，然后停止。它没有实现缺页修复和用户异常信号。</p>
+<p>诊断顺序应是：先用 vector 判断异常类别，再解码对应 FSR，结合有效 FAR、SPSR 和反汇编定位。对于某些非精确异常，FAR 或 LR 不足以精确定位出错的那条访存，不能机械使用“打印地址减常量”。</p>
+<p>异常规则可查 <a target="_blank" rel="noopener" href="https://documentation-service.arm.com/static/5f8daeb7f86e16515cdb8c4e">ARM ARM</a> 的 B1.8，尤其是 Exception return addresses 与 Exception return。结合源码画出上面的 frame，比只记住一个 SUBS 返回公式更可靠。</p>
+<p>下一篇：<a href="/post/armv7a-06-gic-timers.html">GIC、Timer 与一条完整 IRQ 链路</a>。</p>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>IRQ 可发生在任意指令边界，硬件只保存少量控制状态，软件必须建立完整可恢复 frame。返回 PC 需要按异常类型修正，C handler 可以运行在独立 IRQ 栈上，但任务的可恢复现场必须有稳定所有者。恢复 PC 和 CPSR 是一个不可拆开的动作。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>IRQ 可发生在任意指令边界，硬件只保存少量控制状态，软件必须建立完整可恢复 frame。返回 PC 需要按异常类型修正，C handler 可以运行在独立 IRQ 栈上，但任务的可恢复现场必须有稳定所有者。恢复 PC 和 CPSR 是一个不可拆开的动作。</p>
+<p>下一章把安全的 IRQ 入口接到 GIC 与 Private Timer，建立可重复中断的状态闭环。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</p><p><a href="https://goko-son626.github.io/post/armv7a-05-exception-frames.html">https://goko-son626.github.io/post/armv7a-05-exception-frames.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-21</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-21</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-06-gic-timers.html" target="_blank">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-04-context-threads.html" target="_blank">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-03-boot-linker.html" target="_blank">ARMv7-A小系统实践（四）：从ELF、模式栈到第一行串口输出</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-06-gic-timers.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/armv7a-04-context-threads.html"><span class="level-item">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: 'e1cc3e36e509d7b3098a6e420dde8ca8',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

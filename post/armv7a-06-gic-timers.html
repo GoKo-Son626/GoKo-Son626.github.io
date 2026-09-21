@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="从Private Timer到期追踪到GIC应答、清源、EOI和IRQ返回，解释SGI&amp;#x2F;PPI&amp;#x2F;SPI以及Pending与Active状态。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="从Private Timer到期追踪到GIC应答、清源、EOI和IRQ返回，解释SGI&amp;#x2F;PPI&amp;#x2F;SPI以及Pending与Active状态。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-27T01:40:00.000Z"><meta property="article:modified_time" content="2026-06-27T01:40:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="Zynq"><meta property="article:tag" content="GIC"><meta property="article:tag" content="Timer"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-06-gic-timers.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-27T01:40:00.000Z","dateModified":"2026-06-27T01:40:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"从Private Timer到期追踪到GIC应答、清源、EOI和IRQ返回，解释SGI&#x2F;PPI&#x2F;SPI以及Pending与Active状态。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-06-gic-timers.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-27  <a class="commentCountImg" href="/post/armv7a-06-gic-timers.html#comment-container"><span class="display-none-class">8b0bd779927a732c45f86a051956dd3a</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="8b0bd779927a732c45f86a051956dd3a">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>11.8 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章沿着一枚定时器中断走完整条链：Private Timer 产生事件，GIC Distributor 和本核 CPU Interface 判断是否交付，处理器进入 IRQ，软件读取 IAR 完成应答，设备 handler 清除中断源，最后把原始 IAR 写回 EOIR。目标是理解一个状态机，而不是记住几组地址。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>上一章已经能够安全进入和离开 IRQ，但入口正确并不代表设备中断能够重复工作。还需要解决三层使能、优先级、目标 CPU、Pending&#x2F;Active 状态以及设备侧状态。任何一层遗漏，现象都可能只是“没有输出”或“只进入一次”。</p>
+<p>本章会先解释 SGI、PPI、SPI 和 GIC 两大组成，再用 ID29 建立周期 tick。所有关键寄存器语义、分发器骨架和排错顺序都在文章内展开，不要求读者另开工程才能补齐上下文。</p>
+<span id="more"></span>
+
+<p><a href="/post/armv7a-00-roadmap.html">系列目录</a> · 上一篇：<a href="/post/armv7a-05-exception-frames.html">异常入口、独立中断栈与恢复</a></p>
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="动手前的基础：GIC、定时器和完整-IRQ-链"><a href="#动手前的基础：GIC、定时器和完整-IRQ-链" class="headerlink" title="动手前的基础：GIC、定时器和完整 IRQ 链"></a>动手前的基础：GIC、定时器和完整 IRQ 链</h2><h2 id="第二部分：GICv1-与-Zynq-7000-中断集成"><a href="#第二部分：GICv1-与-Zynq-7000-中断集成" class="headerlink" title="第二部分：GICv1 与 Zynq-7000 中断集成"></a>第二部分：GICv1 与 Zynq-7000 中断集成</h2><h3 id="9-GIC-的三类中断"><a href="#9-GIC-的三类中断" class="headerlink" title="9. GIC 的三类中断"></a>9. GIC 的三类中断</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">SGI：ID 0–15<br>PPI：ID 16–31<br>SPI：ID 32 及以上<br></code></pre></td></tr></table></figure>
+
+<h4 id="9-1-SGI"><a href="#9-1-SGI" class="headerlink" title="9.1 SGI"></a>9.1 SGI</h4><p>Software Generated Interrupt：</p>
+<ul>
+<li>软件向 GIC 写寄存器产生；</li>
+<li>可指定本核、其他核或一组核；</li>
+<li>SMP 常用于 reschedule IPI、call-function、停止另一核。</li>
+</ul>
+<h4 id="9-2-PPI"><a href="#9-2-PPI" class="headerlink" title="9.2 PPI"></a>9.2 PPI</h4><p>Private Peripheral Interrupt：</p>
+<ul>
+<li>与每个 CPU 私有外设或私有信号关联；</li>
+<li>enable、pending、active 等相关状态按 CPU banked；</li>
+<li>不像 SPI 那样通过 target 字节任意路由。</li>
+</ul>
+<p>CPU0 和 CPU1 都可看到 ID29，但分别代表本核 Private Timer 状态，不是两核共享同一个 timer pending 位。</p>
+<h4 id="9-3-SPI"><a href="#9-3-SPI" class="headerlink" title="9.3 SPI"></a>9.3 SPI</h4><p>Shared Peripheral Interrupt：</p>
+<ul>
+<li>来自 UART、TTC、GPIO、网卡、PL 等共享外设；</li>
+<li>Distributor 维护共享状态；</li>
+<li>可配置目标 CPU；</li>
+<li>需要明确 edge&#x2F;level、优先级和目标核。</li>
+</ul>
+<hr>
+<h3 id="10-Distributor-与-CPU-Interface"><a href="#10-Distributor-与-CPU-Interface" class="headerlink" title="10. Distributor 与 CPU Interface"></a>10. Distributor 与 CPU Interface</h3><h4 id="10-1-Distributor"><a href="#10-1-Distributor" class="headerlink" title="10.1 Distributor"></a>10.1 Distributor</h4><p>共享 Distributor 负责：</p>
+<ul>
+<li>中断源使能；</li>
+<li>pending&#x2F;active 管理；</li>
+<li>优先级；</li>
+<li>SPI 目标 CPU；</li>
+<li>edge&#x2F;level 类型；</li>
+<li>从候选中选出可交付给各 CPU 的最高优先级中断。</li>
+</ul>
+<h4 id="10-2-每核-CPU-Interface"><a href="#10-2-每核-CPU-Interface" class="headerlink" title="10.2 每核 CPU Interface"></a>10.2 每核 CPU Interface</h4><p>每个 CPU Interface 负责：</p>
+<ul>
+<li>接收 Distributor 为本核选出的中断；</li>
+<li>用 Priority Mask 再过滤；</li>
+<li>向本核输出 IRQ&#x2F;FIQ；</li>
+<li>提供 <code>GICC_IAR</code> acknowledge；</li>
+<li>接收 <code>GICC_EOIR</code> 完成通知；</li>
+<li>维护本核当前运行优先级。</li>
+</ul>
+<p>CPU0 和 CPU1 从相同私有外设地址访问时，会到达各自的 banked CPU Interface 实例。</p>
+<h4 id="10-3-GIC-优先级方向"><a href="#10-3-GIC-优先级方向" class="headerlink" title="10.3 GIC 优先级方向"></a>10.3 GIC 优先级方向</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">数值越小，优先级越高<br></code></pre></td></tr></table></figure>
+
+<p>例如 <code>0x20</code> 高于 <code>0xA0</code>。Zynq 只实现优先级字段的高若干位，低位写入后可能读回为 0。初始化阶段可把 <code>GICC_PMR</code> 设到宽松范围，先打通链路，再设计正式优先级层次。</p>
+<hr>
+<h3 id="11-Zynq-7000-关键实际地址"><a href="#11-Zynq-7000-关键实际地址" class="headerlink" title="11. Zynq-7000 关键实际地址"></a>11. Zynq-7000 关键实际地址</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th align="right">基址</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SCU</td>
+<td align="right"><code>0xF8F00000</code></td>
+</tr>
+<tr>
+<td>GIC CPU Interface</td>
+<td align="right"><code>0xF8F00100</code></td>
+</tr>
+<tr>
+<td>Global Timer</td>
+<td align="right"><code>0xF8F00200</code></td>
+</tr>
+<tr>
+<td>CPU Private Timer &#x2F; Private Watchdog</td>
+<td align="right"><code>0xF8F00600</code></td>
+</tr>
+<tr>
+<td>GIC Distributor</td>
+<td align="right"><code>0xF8F01000</code></td>
+</tr>
+</tbody></table>
+<p>常用 CPU Interface 寄存器：</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th>旧名称</th>
+<th>通用名称</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x000</code></td>
+<td>ICCICR</td>
+<td><code>GICC_CTLR</code></td>
+<td>本核接口开关</td>
+</tr>
+<tr>
+<td align="right"><code>0x004</code></td>
+<td>ICCPMR</td>
+<td><code>GICC_PMR</code></td>
+<td>优先级门槛</td>
+</tr>
+<tr>
+<td align="right"><code>0x008</code></td>
+<td>ICCBPR</td>
+<td><code>GICC_BPR</code></td>
+<td>优先级分组</td>
+</tr>
+<tr>
+<td align="right"><code>0x00C</code></td>
+<td>ICCIAR</td>
+<td><code>GICC_IAR</code></td>
+<td>读取 ID 并 acknowledge</td>
+</tr>
+<tr>
+<td align="right"><code>0x010</code></td>
+<td>ICCEOIR</td>
+<td><code>GICC_EOIR</code></td>
+<td>报告处理完成</td>
+</tr>
+</tbody></table>
+<p>常用 Distributor 寄存器族：</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移族</th>
+<th>名称</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x000</code></td>
+<td><code>GICD_CTLR</code></td>
+<td>Distributor 开关</td>
+</tr>
+<tr>
+<td align="right"><code>0x100+n*4</code></td>
+<td><code>GICD_ISENABLERn</code></td>
+<td>写 1 使能</td>
+</tr>
+<tr>
+<td align="right"><code>0x180+n*4</code></td>
+<td><code>GICD_ICENABLERn</code></td>
+<td>写 1 禁用</td>
+</tr>
+<tr>
+<td align="right"><code>0x280+n*4</code></td>
+<td><code>GICD_ICPENDRn</code></td>
+<td>写 1 清 pending</td>
+</tr>
+<tr>
+<td align="right"><code>0x400+ID</code></td>
+<td><code>GICD_IPRIORITYR</code></td>
+<td>每 ID 优先级字节</td>
+</tr>
+<tr>
+<td align="right"><code>0x800+ID</code></td>
+<td><code>GICD_ITARGETSR</code></td>
+<td>SPI 目标 CPU 字节</td>
+</tr>
+<tr>
+<td align="right"><code>0xC00+...</code></td>
+<td><code>GICD_ICFGR</code></td>
+<td>edge&#x2F;level 配置</td>
+</tr>
+</tbody></table>
+<p>旧手册使用 <code>ICD.../ICC...</code> 命名，新文档常用 <code>GICD.../GICC...</code>。不要误以为是两套硬件。</p>
+<hr>
+<h3 id="12-Zynq-中与本节相关的中断-ID"><a href="#12-Zynq-中与本节相关的中断-ID" class="headerlink" title="12. Zynq 中与本节相关的中断 ID"></a>12. Zynq 中与本节相关的中断 ID</h3><table>
+<thead>
+<tr>
+<th>来源</th>
+<th>类型</th>
+<th align="right">ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Global Timer comparator</td>
+<td>PPI</td>
+<td align="right">27</td>
+</tr>
+<tr>
+<td>CPU Private Timer</td>
+<td>PPI</td>
+<td align="right">29</td>
+</tr>
+<tr>
+<td>Private Watchdog</td>
+<td>PPI</td>
+<td align="right">30</td>
+</tr>
+<tr>
+<td>TTC0 Counter 0&#x2F;1&#x2F;2</td>
+<td>SPI</td>
+<td align="right">42 &#x2F; 43 &#x2F; 44</td>
+</tr>
+<tr>
+<td>TTC1 Counter 0&#x2F;1&#x2F;2</td>
+<td>SPI</td>
+<td align="right">69 &#x2F; 70 &#x2F; 71</td>
+</tr>
+</tbody></table>
+<p>使能 ID29：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">register_index = 29 / 32 = 0<br>bit_index      = 29 % 32 = 29<br></code></pre></td></tr></table></figure>
+
+<p>即本核：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">GICD_ISENABLER0 = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">29</span>;<br></code></pre></td></tr></table></figure>
+
+<p>因为 ID0–31 的相关状态按 CPU banked，CPU1 启动时仍要为自己配置 PPI；CPU0 的写入不能代替 CPU1 本核初始化。</p>
+<hr>
+<h3 id="13-GICC-IAR：读取本身就是-acknowledge"><a href="#13-GICC-IAR：读取本身就是-acknowledge" class="headerlink" title="13. GICC_IAR：读取本身就是 acknowledge"></a>13. <code>GICC_IAR</code>：读取本身就是 acknowledge</h3><p>典型：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">uint32_t</span> iar = GICC_IAR;<br><span class="hljs-type">uint32_t</span> id  = iar &amp; <span class="hljs-number">0x3ffu</span>;<br></code></pre></td></tr></table></figure>
+
+<p>读取的语义不是普通“查询寄存器”：</p>
+<ul>
+<li>返回当前最高优先级、满足交付条件的中断；</li>
+<li>对有效 ID 执行 acknowledge；</li>
+<li>相应中断由 pending 转为 active，或按状态机更新；</li>
+<li>本核 running priority 相应改变。</li>
+</ul>
+<p>对于 SGI，<code>iar</code> 高位还可能携带源 CPU 信息。因此结束时推荐写回完整 <code>iar</code>，不只写低 10 位 ID。</p>
+<h4 id="特殊-伪中断-ID"><a href="#特殊-伪中断-ID" class="headerlink" title="特殊&#x2F;伪中断 ID"></a>特殊&#x2F;伪中断 ID</h4><p>ID <code>1020–1023</code> 是特殊值范围，最常见 spurious 是 <code>1023</code>。若读到非有效普通 ID：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">if</span> (id &gt;= <span class="hljs-number">1020u</span>) &#123;<br>    <span class="hljs-keyword">return</span>;                 <span class="hljs-comment">/* 不为未 acknowledge 的普通中断写 EOI */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>spurious 可能来自请求在 CPU 读 IAR 前消失、优先级条件改变或没有合格 pending 中断。它不是一个应派发到设备 handler 的真实 ID。</p>
+<hr>
+<h3 id="14-GICC-EOIR：结束-GIC-侧的处理"><a href="#14-GICC-EOIR：结束-GIC-侧的处理" class="headerlink" title="14. GICC_EOIR：结束 GIC 侧的处理"></a>14. <code>GICC_EOIR</code>：结束 GIC 侧的处理</h3><p>对每次有效 IAR acknowledge，软件必须有匹配的 EOI：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">GICC_EOIR = iar;<br></code></pre></td></tr></table></figure>
+
+<p>它告诉 CPU Interface&#x2F;GIC：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">本 CPU 对这个 active interrupt 的处理已经完成<br></code></pre></td></tr></table></figure>
+
+<p>在 GICv1 的本节模型中，EOI 会完成运行优先级下降及对应 active 处理。若允许嵌套中断，EOI 必须遵守架构规定的活动中断嵌套次序；不要随意乱序结束。</p>
+<h4 id="EOI-不等于清设备"><a href="#EOI-不等于清设备" class="headerlink" title="EOI 不等于清设备"></a>EOI 不等于清设备</h4><p>这是整个 GIC 学习最重要的区分：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">清 Timer/UART/网卡状态<br>  通知设备：“产生事件的条件已处理”<br><br>写 GICC_EOIR<br>  通知 GIC：“CPU 对 active interrupt 的服务已完成”<br></code></pre></td></tr></table></figure>
+
+<p>对于 level-sensitive 中断：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">只 EOI、不清设备<br>→ 设备电平仍有效<br>→ GIC 再次 pending<br>→ CPU 返回后立刻重进<br>→ 中断风暴<br></code></pre></td></tr></table></figure>
+
+<p>只清设备、不 EOI：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">设备不再请求<br>但 GIC 仍认为该 ID active<br>→ 优先级/后续交付异常<br>→ 常见表现是只进入一次或其他中断被阻塞<br></code></pre></td></tr></table></figure>
+
+<p>常见处理顺序：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">IAR<br>→ handler<br>→ 清设备源<br>→ EOI<br></code></pre></td></tr></table></figure>
+
+<p>某些设备要求更早清源，具体以设备手册为准，但两个动作都必须存在。</p>
+<hr>
+<h3 id="15-edge-与-level：为什么清源行为不同"><a href="#15-edge-与-level：为什么清源行为不同" class="headerlink" title="15. edge 与 level：为什么清源行为不同"></a>15. edge 与 level：为什么清源行为不同</h3><h4 id="level-sensitive"><a href="#level-sensitive" class="headerlink" title="level-sensitive"></a>level-sensitive</h4><p>只要设备线保持有效，GIC 就认为请求条件仍存在。软件通常必须在 EOI 前让设备撤销电平。</p>
+<h4 id="edge-triggered"><a href="#edge-triggered" class="headerlink" title="edge-triggered"></a>edge-triggered</h4><p>GIC 记录一个边沿事件为 pending。即使外部线已经恢复，pending 事件仍需服务。设备内部可能仍有状态位、FIFO 或新事件，所以 handler 仍必须按设备规则确认和清理。</p>
+<p>不能仅靠 GIC 配置猜设备行为。UG585 Table 7-4 给出 Zynq PS&#x2F;PL SPI 连接和敏感性，实际初始化要与 SoC 连接一致。</p>
+<hr>
+<h3 id="16-单核与双核初始化边界"><a href="#16-单核与双核初始化边界" class="headerlink" title="16. 单核与双核初始化边界"></a>16. 单核与双核初始化边界</h3><h4 id="16-1-CPU0-执行一次的共享初始化"><a href="#16-1-CPU0-执行一次的共享初始化" class="headerlink" title="16.1 CPU0 执行一次的共享初始化"></a>16.1 CPU0 执行一次的共享初始化</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">关闭 Distributor<br>配置共享 SPI 的类型<br>配置共享 SPI 优先级<br>配置 SPI 目标 CPU<br>清理可安全清理的旧共享 pending 状态<br>打开 Distributor<br></code></pre></td></tr></table></figure>
+
+<h4 id="16-2-每个-CPU-都要执行的本核初始化"><a href="#16-2-每个-CPU-都要执行的本核初始化" class="headerlink" title="16.2 每个 CPU 都要执行的本核初始化"></a>16.2 每个 CPU 都要执行的本核初始化</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">准备本核各模式栈和 per-CPU 数据<br>设置向量环境<br>配置本核 GICC_PMR/GICC_BPR<br>使能本核 CPU Interface<br>配置本核 SGI/PPI enable 与优先级<br>初始化本核 Private Timer 或 comparator<br>完成必要同步后再清 CPSR.I<br></code></pre></td></tr></table></figure>
+
+<p>第一版只启动 CPU0 时，不要提前：</p>
+<ul>
+<li>把共享 SPI 路由给尚未就绪的 CPU1；</li>
+<li>向 CPU1 发 SGI；</li>
+<li>假设 CPU1 的 <code>SP_irq</code>、CPU Interface 或 PPI 已初始化。</li>
+</ul>
+<hr>
+<h2 id="第三部分：UG585-Chapter-8-的完整定时器地图"><a href="#第三部分：UG585-Chapter-8-的完整定时器地图" class="headerlink" title="第三部分：UG585 Chapter 8 的完整定时器地图"></a>第三部分：UG585 Chapter 8 的完整定时器地图</h2><h3 id="17-第-8-章到底包含哪些内容"><a href="#17-第-8-章到底包含哪些内容" class="headerlink" title="17. 第 8 章到底包含哪些内容"></a>17. 第 8 章到底包含哪些内容</h3><p>准确目录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">8.1 Introduction / System Diagram<br>8.2 CPU Private Timers and Watchdog Timers<br>8.3 Global Timer<br>8.4 System Watchdog Timer<br>8.5 Triple Timer Counters<br>8.6 I/O Signals<br></code></pre></td></tr></table></figure>
+
+<p>学习优先级：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>当前需要程度</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU Private Timer</td>
+<td>精读</td>
+<td>最简单的单核周期 tick，PPI 29</td>
+</tr>
+<tr>
+<td>Global Timer</td>
+<td>精读</td>
+<td>RTEMS 实际选择，共享 64 位时间基准，PPI 27</td>
+</tr>
+<tr>
+<td>Private Watchdog</td>
+<td>认识</td>
+<td>与每核 private timer 同区，但不是首选系统 tick</td>
+</tr>
+<tr>
+<td>System Watchdog</td>
+<td>认识</td>
+<td>系统健康监控与复位输出</td>
+</tr>
+<tr>
+<td>TTC</td>
+<td>掌握选型</td>
+<td>独立外设计时器，SPI 42–44&#x2F;69–71</td>
+</tr>
+<tr>
+<td>I&#x2F;O Signals</td>
+<td>用到外部引脚再查</td>
+<td>TTC 波形&#x2F;外部时钟及 Watchdog 信号</td>
+</tr>
+</tbody></table>
+<p>所以纠正页码后不意味着读者现在要背完 Watchdog&#x2F;TTC 的每个寄存器。需要能说出每类定时器属于谁、适合什么任务、怎样进 GIC。</p>
+<hr>
+<h3 id="18-CPU-Private-Timer"><a href="#18-CPU-Private-Timer" class="headerlink" title="18. CPU Private Timer"></a>18. CPU Private Timer</h3><p>每个 Cortex-A9 CPU 有自己的 32 位递减 Private Timer：</p>
+<ul>
+<li>每核独立；</li>
+<li>自动重装；</li>
+<li>可产生 PPI 29；</li>
+<li>寄存器从当前核看是自己的 banked 实例；</li>
+<li>很适合第一版单核系统 tick。</li>
+</ul>
+<p>基址：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">0xF8F00600<br></code></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th>寄存器</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x00</code></td>
+<td>Load</td>
+<td>重装值</td>
+</tr>
+<tr>
+<td align="right"><code>0x04</code></td>
+<td>Counter</td>
+<td>当前递减值</td>
+</tr>
+<tr>
+<td align="right"><code>0x08</code></td>
+<td>Control</td>
+<td>prescaler、IRQ、auto-reload、enable</td>
+</tr>
+<tr>
+<td align="right"><code>0x0C</code></td>
+<td>Interrupt Status</td>
+<td>到期状态，W1C</td>
+</tr>
+</tbody></table>
+<p>Control 关键位：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">[15:8] Prescaler<br>[2]    IRQ enable<br>[1]    Auto reload<br>[0]    Timer enable<br></code></pre></td></tr></table></figure>
+
+<p>Interrupt Status bit0：</p>
+<ul>
+<li>counter 到期后置位；</li>
+<li>是 sticky 状态；</li>
+<li>写 <code>1</code> 清除，写 <code>0</code> 不是清除。</li>
+</ul>
+<h4 id="周期公式"><a href="#周期公式" class="headerlink" title="周期公式"></a>周期公式</h4><p>设 Private Timer 输入时钟为 <code>PERIPHCLK</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">period =<br>    (prescaler + 1) × (load + 1) / PERIPHCLK<br></code></pre></td></tr></table></figure>
+
+<p>目标 tick：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">load =<br>    PERIPHCLK / ((prescaler + 1) × tick_hz) - 1<br></code></pre></td></tr></table></figure>
+
+<p>Zynq 中相关私有外设时钟与 CPU 时钟配置相关，常见为 CPU 频率的一半。真正移植不能根据开发板宣传频率硬编码，必须从 FSBL&#x2F;时钟寄存器&#x2F;BSP 配置确认实际 <code>PERIPHCLK</code>。</p>
+<p>例：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">PERIPHCLK = 333,000,000 Hz<br>prescaler = 0<br>tick_hz   = 1000<br><br>load = 333000000 / 1000 - 1<br>     = 332999<br></code></pre></td></tr></table></figure>
+
+<h4 id="最小初始化顺序"><a href="#最小初始化顺序" class="headerlink" title="最小初始化顺序"></a>最小初始化顺序</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs c">PT_CONTROL = <span class="hljs-number">0</span>;             <span class="hljs-comment">/* 先停 */</span><br>PT_STATUS  = <span class="hljs-number">1</span>;             <span class="hljs-comment">/* W1C 清旧事件 */</span><br>PT_LOAD    = load;<br><br>gic_set_priority(<span class="hljs-number">29</span>, <span class="hljs-number">0xA0</span>);<br>gic_enable_id_for_this_cpu(<span class="hljs-number">29</span>);<br><br>PT_CONTROL =<br>      (prescaler &lt;&lt; <span class="hljs-number">8</span>)<br>    | (<span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">2</span>)             <span class="hljs-comment">/* IRQ enable */</span><br>    | (<span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">1</span>)             <span class="hljs-comment">/* auto reload */</span><br>    | (<span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">0</span>);            <span class="hljs-comment">/* timer enable */</span><br></code></pre></td></tr></table></figure>
+
+<p>handler：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">private_timer_handler</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    PT_STATUS = <span class="hljs-number">1u</span>;<br>    ++ticks;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="19-Private-Watchdog"><a href="#19-Private-Watchdog" class="headerlink" title="19. Private Watchdog"></a>19. Private Watchdog</h3><p>Private Watchdog 与每核 Private Timer 位于同一私有外设区域，每核有自己的实例。它可工作在：</p>
+<ul>
+<li>timer 模式；</li>
+<li>watchdog 模式；</li>
+<li>到期产生中断；</li>
+<li>watchdog 模式下进一步触发复位行为。</li>
+</ul>
+<p>Watchdog 从普通 timer 模式切到 watchdog 模式通常有受保护的写序列，避免软件误操作。它的核心用途是检测某个 CPU&#x2F;软件路径长时间失去响应，不是第一版周期 tick 的首选。</p>
+<p>本节需要知道：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">Private Timer ID29<br>Private Watchdog ID30<br>二者都属于每核 PPI<br></code></pre></td></tr></table></figure>
+
+<p>具体 watchdog disable、reset status 和魔数序列，在真正实现看门狗时再精读 MPCore TRM 4.2.5–4.2.10。</p>
+<hr>
+<h3 id="20-Global-Timer"><a href="#20-Global-Timer" class="headerlink" title="20. Global Timer"></a>20. Global Timer</h3><p>Global Timer 的核心结构：</p>
+<ul>
+<li>一个双核共享的 64 位递增 counter；</li>
+<li>每个 CPU 有自己的 comparator 相关视图&#x2F;状态；</li>
+<li>支持 comparator 中断；</li>
+<li>支持 auto-increment；</li>
+<li>中断为本核 PPI 27；</li>
+<li>适合做统一时间基准和每核时钟事件。</li>
+</ul>
+<p>基址：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">0xF8F00200<br></code></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>0x00</code></td>
+<td>Counter Low</td>
+</tr>
+<tr>
+<td align="right"><code>0x04</code></td>
+<td>Counter High</td>
+</tr>
+<tr>
+<td align="right"><code>0x08</code></td>
+<td>Control</td>
+</tr>
+<tr>
+<td align="right"><code>0x0C</code></td>
+<td>Interrupt Status，W1C</td>
+</tr>
+<tr>
+<td align="right"><code>0x10</code></td>
+<td>Comparator Low</td>
+</tr>
+<tr>
+<td align="right"><code>0x14</code></td>
+<td>Comparator High</td>
+</tr>
+<tr>
+<td align="right"><code>0x18</code></td>
+<td>Auto-increment</td>
+</tr>
+</tbody></table>
+<p>典型流程：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">读取共享 64 位 counter<br>设置 comparator = counter + interval<br>设置 auto_increment = interval<br>使能 comparator、IRQ、auto-increment、timer<br>使能本核 PPI 27<br>每次到期写状态位清事件<br></code></pre></td></tr></table></figure>
+
+<h4 id="为什么-RTEMS-选-Global-Timer"><a href="#为什么-RTEMS-选-Global-Timer" class="headerlink" title="为什么 RTEMS 选 Global Timer"></a>为什么 RTEMS 选 Global Timer</h4><p>本地参考：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">rtems-6.2/bsps/arm/shared/clock/clock-a9mpcore.c<br></code></pre></td></tr></table></figure>
+
+<p>它使用：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">Global Timer base = 0xF8F00200<br>PPI ID = 27<br></code></pre></td></tr></table></figure>
+
+<p>优势：</p>
+<ul>
+<li>64 位 counter 不易快速回绕；</li>
+<li>双核共享同一时间基准；</li>
+<li>comparator 和 auto-increment 同时支持 tick；</li>
+<li>可兼作 timecounter。</li>
+</ul>
+<p>Private Timer 更适合先学通最小 IRQ；正式移植若准备走向 SMP，Global Timer 是很值得优先评估的实现。</p>
+<p>读取或更新 64 位 MMIO 时，要遵循 TRM 推荐的一致性方法，不能在 32 位 CPU 上把两个独立读取想当然视为原子 64 位操作。</p>
+<hr>
+<h3 id="21-System-Watchdog-Timer"><a href="#21-System-Watchdog-Timer" class="headerlink" title="21. System Watchdog Timer"></a>21. System Watchdog Timer</h3><p>UG585 8.4 描述的是 Zynq PS 的 System Watchdog，不是 Cortex-A9 每核 Private Watchdog。</p>
+<p>它的特点包括：</p>
+<ul>
+<li>面向整个系统健康监控；</li>
+<li>可选择内部或外部时钟来源；</li>
+<li>可产生复位输出；</li>
+<li>有专门的使能、模式、状态和重启编程序列；</li>
+<li>与 MIO&#x2F;EMIO 等外部信号连接相关。</li>
+</ul>
+<p>移植阶段的使用顺序通常是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">系统先稳定启动和处理中断<br>→ 再启用 watchdog<br>→ 设计周期喂狗点<br>→ 验证故意停止喂狗后确实按预期复位<br></code></pre></td></tr></table></figure>
+
+<p>若启动早期已有固件打开 watchdog，必须先识别并妥善接管，否则调试时会出现“固定时间莫名复位”。</p>
+<hr>
+<h3 id="22-Triple-Timer-Counters（TTC）"><a href="#22-Triple-Timer-Counters（TTC）" class="headerlink" title="22. Triple Timer Counters（TTC）"></a>22. Triple Timer Counters（TTC）</h3><p>Zynq 有两组 TTC，每组包含三个独立的 16 位 counter：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">TTC0: Counter 0/1/2 → SPI 42/43/44<br>TTC1: Counter 0/1/2 → SPI 69/70/71<br></code></pre></td></tr></table></figure>
+
+<p>TTC 能提供：</p>
+<ul>
+<li>内部或外部时钟输入；</li>
+<li>prescaler；</li>
+<li>interval&#x2F;overflow&#x2F;match 事件；</li>
+<li>递增或递减计数；</li>
+<li>波形输出；</li>
+<li>共享外设形式的 SPI 中断。</li>
+</ul>
+<p>它与 Private Timer 的工程区别：</p>
+<table>
+<thead>
+<tr>
+<th>Private Timer</th>
+<th>TTC</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>每核私有</td>
+<td>PS 共享外设</td>
+</tr>
+<tr>
+<td>PPI 29</td>
+<td>SPI 42–44&#x2F;69–71</td>
+</tr>
+<tr>
+<td>32 位递减，链路简单</td>
+<td>16 位、多模式、外部 I&#x2F;O 更灵活</td>
+</tr>
+<tr>
+<td>适合最小 per-CPU tick</td>
+<td>适合板级计时、波形、独立时钟或共享 tick</td>
+</tr>
+</tbody></table>
+<p>使用 TTC 时，除了计数器自身寄存器，还必须配置：</p>
+<ul>
+<li>对应 SPI enable；</li>
+<li>SPI priority；</li>
+<li>SPI target CPU；</li>
+<li>edge&#x2F;level 类型按 UG585 连接；</li>
+<li>TTC 自身事件状态清除；</li>
+<li>时钟源与 prescaler。</li>
+</ul>
+<hr>
+<h3 id="23-定时器选型结论"><a href="#23-定时器选型结论" class="headerlink" title="23. 定时器选型结论"></a>23. 定时器选型结论</h3><p>当前学习与移植建议：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs text">为了最快验证 IRQ：<br>  CPU Private Timer，ID29<br><br>为了参考 RTEMS 并面向 SMP/统一时间：<br>  Global Timer，ID27<br><br>为了独立外设时钟、波形或共享 SPI：<br>  TTC<br><br>为了系统失效复位：<br>  System Watchdog 或按需求使用 Private Watchdog<br></code></pre></td></tr></table></figure>
+
+<p>第一版不需要同时驱动所有计时器。懂得完整地图，是为了遇到现有固件、BSP 或原定目标选型时能判断，而不是增加实现工作量。</p>
+<hr>
+<h2 id="第四部分：从-Private-Timer-到任务继续的完整过程"><a href="#第四部分：从-Private-Timer-到任务继续的完整过程" class="headerlink" title="第四部分：从 Private Timer 到任务继续的完整过程"></a>第四部分：从 Private Timer 到任务继续的完整过程</h2><h3 id="24-一次-ID29-IRQ-的逐步状态变化"><a href="#24-一次-ID29-IRQ-的逐步状态变化" class="headerlink" title="24. 一次 ID29 IRQ 的逐步状态变化"></a>24. 一次 ID29 IRQ 的逐步状态变化</h3><h4 id="阶段-A：设备"><a href="#阶段-A：设备" class="headerlink" title="阶段 A：设备"></a>阶段 A：设备</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">Private Timer counter 到 0<br>→ Interrupt Status bit0 = 1<br>→ 若 IRQ enable=1，向本核输出 PPI 29 请求<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-B：GIC-pending-与交付"><a href="#阶段-B：GIC-pending-与交付" class="headerlink" title="阶段 B：GIC pending 与交付"></a>阶段 B：GIC pending 与交付</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">GIC 看到本核 ID29 请求<br>→ 若 ID29 enable，置为 pending<br>→ Distributor/CPU Interface 结合 priority、PMR、当前 running priority 选择<br>→ 向当前 Cortex-A9 核断言 IRQ<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-C：ARM-架构异常入口"><a href="#阶段-C：ARM-架构异常入口" class="headerlink" title="阶段 C：ARM 架构异常入口"></a>阶段 C：ARM 架构异常入口</h4><p>前提是 CPSR.I 允许 IRQ。CPU：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR → SPSR_irq<br>返回信息 → LR_irq<br>切 IRQ 模式并屏蔽普通 IRQ<br>PC → VBAR + 0x18<br>当前 SP → SP_irq<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-D：汇编保存"><a href="#阶段-D：汇编保存" class="headerlink" title="阶段 D：汇编保存"></a>阶段 D：汇编保存</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">修正返回 PC<br>保存 r0-r12、返回 PC、SPSR<br>保证栈对齐<br>必要时切换到 per-CPU interrupt stack<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-E：GIC-acknowledge"><a href="#阶段-E：GIC-acknowledge" class="headerlink" title="阶段 E：GIC acknowledge"></a>阶段 E：GIC acknowledge</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">iar = GICC_IAR;<br>id = iar &amp; <span class="hljs-number">0x3ff</span>;<br></code></pre></td></tr></table></figure>
+
+<p>得到 ID29，GIC 将其置 active。</p>
+<h4 id="阶段-F：设备-handler"><a href="#阶段-F：设备-handler" class="headerlink" title="阶段 F：设备 handler"></a>阶段 F：设备 handler</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">PT_STATUS = <span class="hljs-number">1</span>;       <span class="hljs-comment">/* W1C 清设备事件 */</span><br>clock_tick();<br></code></pre></td></tr></table></figure>
+
+<p><code>clock_tick()</code> 更新系统时间和时间片，必要时只设置：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">need_reschedule = true<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-G：GIC-完成"><a href="#阶段-G：GIC-完成" class="headerlink" title="阶段 G：GIC 完成"></a>阶段 G：GIC 完成</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">GICC_EOIR = iar;<br></code></pre></td></tr></table></figure>
+
+<p>结束 GIC active 状态。</p>
+<h4 id="阶段-H：IRQ-尾部"><a href="#阶段-H：IRQ-尾部" class="headerlink" title="阶段 H：IRQ 尾部"></a>阶段 H：IRQ 尾部</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">降低嵌套/dispatch disable 计数<br>若最外层 IRQ 且 need_reschedule<br>  调 scheduler 选择 heir<br>  在统一出口切换/替换待恢复现场<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-I：异常返回"><a href="#阶段-I：异常返回" class="headerlink" title="阶段 I：异常返回"></a>阶段 I：异常返回</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复通用寄存器<br>恢复 PC 和 CPSR<br>恢复异常前模式与 SP bank<br>原任务或新选中的任务继续<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="25-一个教学用-Dispatcher-骨架"><a href="#25-一个教学用-Dispatcher-骨架" class="headerlink" title="25. 一个教学用 Dispatcher 骨架"></a>25. 一个教学用 Dispatcher 骨架</h3><p>下面只表达寄存器语义，不是完整生产驱动：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> MMIO32(a) (*(volatile uint32_t *)(uintptr_t)(a))</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_BASE       0xF8F00100u</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICD_BASE       0xF8F01000u</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_BASE         0xF8F00600u</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_IAR        MMIO32(GICC_BASE + 0x00Cu)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_EOIR       MMIO32(GICC_BASE + 0x010u)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_STATUS       MMIO32(PT_BASE   + 0x00Cu)</span><br><br><span class="hljs-type">void</span> <span class="hljs-title function_">irq_dispatch</span><span class="hljs-params">(arm_irq_frame *frame)</span><br>&#123;<br>    <span class="hljs-type">uint32_t</span> iar = GICC_IAR;<br>    <span class="hljs-type">uint32_t</span> id = iar &amp; <span class="hljs-number">0x3ffu</span>;<br><br>    <span class="hljs-keyword">if</span> (id &gt;= <span class="hljs-number">1020u</span>) &#123;<br>        <span class="hljs-keyword">return</span>;<br>    &#125;<br><br>    <span class="hljs-keyword">switch</span> (id) &#123;<br>    <span class="hljs-keyword">case</span> <span class="hljs-number">29</span>:<br>        PT_STATUS = <span class="hljs-number">1u</span>;<br>        clock_tick(frame);<br>        <span class="hljs-keyword">break</span>;<br>    <span class="hljs-keyword">default</span>:<br>        handle_unexpected_irq(id, frame);<br>        <span class="hljs-keyword">break</span>;<br>    &#125;<br><br>    GICC_EOIR = iar;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>生产实现还要确定：</p>
+<ul>
+<li>GIC security&#x2F;group 配置；</li>
+<li>嵌套中断策略；</li>
+<li>未知有效 ID 的屏蔽与日志策略；</li>
+<li>MMIO 内存属性和屏障；</li>
+<li>handler 注册表并发；</li>
+<li>per-CPU 数据；</li>
+<li>EOI 前后调度边界；</li>
+<li>中断亲和性；</li>
+<li>统计和超时保护。</li>
+</ul>
+<p><code>volatile</code> 只防止编译器删除&#x2F;合并访问，不自动提供设备访问所需全部屏障和顺序保证。</p>
+<hr>
+<h3 id="26-初始化顺序：不要先开总闸再补配置"><a href="#26-初始化顺序：不要先开总闸再补配置" class="headerlink" title="26. 初始化顺序：不要先开总闸再补配置"></a>26. 初始化顺序：不要先开总闸再补配置</h3><p>建议第一版：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs text">1. 屏蔽 CPU IRQ/FIQ<br>2. 建立 CPU0 的 SVC/IRQ/Abort/Undefined 等栈<br>3. 安装向量并设置 VBAR<br>4. 初始化 UART，具备最小可观察性<br>5. 关闭并配置 GIC Distributor<br>6. 配置 CPU0 的 CPU Interface、PMR<br>7. 停止并清理 Private Timer 旧状态<br>8. 设置 ID29 priority 和 enable<br>9. 配置 timer load/auto-reload/IRQ enable<br>10. 打开 GIC Distributor 和 CPU Interface<br>11. 完成必要 DSB/ISB<br>12. 最后 CPSIE I<br></code></pre></td></tr></table></figure>
+
+<p>实际某些模块开关的先后可根据复位状态调整，但原则是：</p>
+<blockquote>
+<p>在 CPU 能接受 IRQ 之前，向量、栈、设备状态、GIC 和 handler 必须全部就绪。</p>
+</blockquote>
+<p>启动由 FSBL&#x2F;U-Boot 交接时，不能盲信所有寄存器处于上电默认值。先读取和记录现状，明确由谁负责复位&#x2F;接管。</p>
+<hr>
+<h3 id="27-WFI：休眠不是中断处理"><a href="#27-WFI：休眠不是中断处理" class="headerlink" title="27. WFI：休眠不是中断处理"></a>27. <code>WFI</code>：休眠不是中断处理</h3><p>空闲任务常执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">wfi<br></code></pre></td></tr></table></figure>
+
+<p>它让处理器等待事件&#x2F;中断条件，降低空转。需要区分：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">处理器从 WFI 唤醒<br>与<br>IRQ 满足屏蔽、优先级和路由条件并真正进入 handler<br></code></pre></td></tr></table></figure>
+
+<p>两者条件相关但不是一句“醒了就一定执行了 handler”可以概括。调试时仍要检查 CPSR.I、GIC enable、PMR 和设备状态。</p>
+<hr>
+<h2 id="把-Pending、Active、清源与-EOI-彻底分开"><a href="#把-Pending、Active、清源与-EOI-彻底分开" class="headerlink" title="把 Pending、Active、清源与 EOI 彻底分开"></a>把 Pending、Active、清源与 EOI 彻底分开</h2><h3 id="二、第一层：CPU0-与-CPU1-各有自己的-Private-Timer"><a href="#二、第一层：CPU0-与-CPU1-各有自己的-Private-Timer" class="headerlink" title="二、第一层：CPU0 与 CPU1 各有自己的 Private Timer"></a>二、第一层：CPU0 与 CPU1 各有自己的 Private Timer</h3><p>双核上不是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 ─┐<br>      ├─ 共同使用一个 Private Timer ID29<br>CPU1 ─┘<br></code></pre></td></tr></table></figure>
+
+<p>而是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 Private Timer ─→ CPU0 的 PPI29<br><br>CPU1 Private Timer ─→ CPU1 的 PPI29<br></code></pre></td></tr></table></figure>
+
+<p>编号相同不等于设备相同。</p>
+<p>这类似于：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 有自己的 SP_irq<br>CPU1 也有自己的 SP_irq<br></code></pre></td></tr></table></figure>
+
+<p>名字相同，是因为每个 CPU 都采用相同的架构编号；实际物理状态属于各自 CPU。</p>
+<h4 id="每核独立的内容"><a href="#每核独立的内容" class="headerlink" title="每核独立的内容"></a>每核独立的内容</h4><p>对 ID29，至少要形成下面的图：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0<br>  PT_LOAD<br>  PT_COUNTER<br>  PT_CONTROL<br>  PT_STATUS<br>  GIC enable[29]<br>  GIC pending[29]<br>  GIC active[29]<br>  GICC_IAR / GICC_EOIR<br><br>CPU1<br>  PT_LOAD<br>  PT_COUNTER<br>  PT_CONTROL<br>  PT_STATUS<br>  GIC enable[29]<br>  GIC pending[29]<br>  GIC active[29]<br>  GICC_IAR / GICC_EOIR<br></code></pre></td></tr></table></figure>
+
+<p>所以 CPU0 初始化 ID29 后，CPU1 仍然需要：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">初始化 CPU1 Private Timer<br>使能 CPU1 banked PPI29<br>初始化 CPU1 CPU Interface<br>准备 CPU1 IRQ 栈和异常入口环境<br></code></pre></td></tr></table></figure>
+
+<h4 id="与-SPI-的对照"><a href="#与-SPI-的对照" class="headerlink" title="与 SPI 的对照"></a>与 SPI 的对照</h4><p>假设 UART 是一个 SPI：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">一个 UART 设备<br>  ↓<br>一个共享 SPI ID<br>  ↓<br>Distributor 根据 target 选择 CPU0 或 CPU1<br></code></pre></td></tr></table></figure>
+
+<p>Private Timer 则是两套设备、两套 PPI 状态，不需要用 SPI target 在两核之间争抢同一个事件。</p>
+<hr>
+<h3 id="三、第二层：GIC-中断状态机"><a href="#三、第二层：GIC-中断状态机" class="headerlink" title="三、第二层：GIC 中断状态机"></a>三、第二层：GIC 中断状态机</h3><p>第一次只需掌握四种状态：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Inactive</td>
+<td>没有等待处理，也没有正在处理</td>
+</tr>
+<tr>
+<td>Pending</td>
+<td>中断事件已经到达，等待 CPU acknowledge</td>
+</tr>
+<tr>
+<td>Active</td>
+<td>CPU 已通过 IAR acknowledge，正在处理</td>
+</tr>
+<tr>
+<td>Active + Pending</td>
+<td>正在处理期间又来了一个新事件</td>
+</tr>
+</tbody></table>
+<h4 id="一次正常中断"><a href="#一次正常中断" class="headerlink" title="一次正常中断"></a>一次正常中断</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs text">Inactive<br>  │ Timer 到期、请求进入 GIC<br>  ↓<br>Pending<br>  │ CPU 读取 GICC_IAR<br>  ↓<br>Active<br>  │ CPU 写 GICC_EOIR<br>  ↓<br>Inactive<br></code></pre></td></tr></table></figure>
+
+<p>如果设备源没有清除：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">Active<br>  │ 设备请求仍保持有效<br>  │ CPU 写 EOI<br>  ↓<br>重新 Pending<br></code></pre></td></tr></table></figure>
+
+<p>这就是中断风暴的根本原因之一。</p>
+<h4 id="IAR-的位置"><a href="#IAR-的位置" class="headerlink" title="IAR 的位置"></a>IAR 的位置</h4><p>CPU 已经进入 IRQ 向量之后，软件才读取 IAR：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">GIC 先向 CPU 断言 IRQ<br>→ CPU 进入 VBAR+0x18<br>→ 汇编保存现场<br>→ 软件读取 IAR<br></code></pre></td></tr></table></figure>
+
+<p>IAR 不负责唤醒 GIC。GIC 一直在运行。IAR 的含义是：</p>
+<blockquote>
+<p>CPU 正式领取当前最高优先级的有效中断。</p>
+</blockquote>
+<p>读取有效 IAR 后：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">返回 ID<br>pending → active<br>本核 running priority 更新<br></code></pre></td></tr></table></figure>
+
+<h4 id="EOI-的位置"><a href="#EOI-的位置" class="headerlink" title="EOI 的位置"></a>EOI 的位置</h4><p>handler 完成后：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">GICC_EOIR = iar<br></code></pre></td></tr></table></figure>
+
+<p>含义是：</p>
+<blockquote>
+<p>CPU 告诉 GIC，这次已经领取的 active interrupt 处理结束。</p>
+</blockquote>
+<p>每次有效 IAR 与 EOI 要一一配对。</p>
+<hr>
+<h3 id="四、第三层：设备清源与-GIC-EOI"><a href="#四、第三层：设备清源与-GIC-EOI" class="headerlink" title="四、第三层：设备清源与 GIC EOI"></a>四、第三层：设备清源与 GIC EOI</h3><p>把它们想成两个不同的“工单系统”。</p>
+<h4 id="Private-Timer-工单"><a href="#Private-Timer-工单" class="headerlink" title="Private Timer 工单"></a>Private Timer 工单</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">PT_STATUS = 1<br></code></pre></td></tr></table></figure>
+
+<p>通知对象是 Private Timer：</p>
+<blockquote>
+<p>读者的到期事件已经被软件看见，请清除 sticky status。</p>
+</blockquote>
+<p>它不通知另一个 CPU，也不直接修改 GIC 的 active 状态。</p>
+<h4 id="GIC-工单"><a href="#GIC-工单" class="headerlink" title="GIC 工单"></a>GIC 工单</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">GICC_EOIR = iar<br></code></pre></td></tr></table></figure>
+
+<p>通知对象是 GIC：</p>
+<blockquote>
+<p>CPU 对刚才 IAR 领取的中断已经处理完毕。</p>
+</blockquote>
+<p>它不会替读者清 Private Timer、UART、网卡或 TTC 内部的事件状态。</p>
+<h4 id="两个动作的最小表"><a href="#两个动作的最小表" class="headerlink" title="两个动作的最小表"></a>两个动作的最小表</h4><table>
+<thead>
+<tr>
+<th>动作</th>
+<th>通知谁</th>
+<th>解决什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PT_STATUS = 1</code></td>
+<td>Private Timer</td>
+<td>清设备事件&#x2F;撤销请求条件</td>
+</tr>
+<tr>
+<td><code>GICC_EOIR = iar</code></td>
+<td>GIC</td>
+<td>结束 active 与运行优先级状态</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="五、ID1023-到底是什么"><a href="#五、ID1023-到底是什么" class="headerlink" title="五、ID1023 到底是什么"></a>五、ID1023 到底是什么</h3><p>读取 IAR 返回 1023，表示：</p>
+<blockquote>
+<p>当前没有满足条件、可以被本次读取 acknowledge 的有效 pending 中断。</p>
+</blockquote>
+<p>可能出现的窗口包括：</p>
+<ul>
+<li>IRQ 请求在 CPU 读取 IAR 前消失。</li>
+<li>中断优先级或屏蔽条件发生变化。</li>
+<li>软件进入公共 IRQ 入口时已经没有合格中断。</li>
+<li>多核竞争可能是某些共享中断场景中的原因之一，但不是 1023 的固定含义。</li>
+</ul>
+<p>因此不能说：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">1023 = 一定被另一个 CPU 处理了<br></code></pre></td></tr></table></figure>
+
+<p>正确处理：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">uint32_t</span> iar = GICC_IAR;<br><span class="hljs-type">uint32_t</span> id = iar &amp; <span class="hljs-number">0x3ffu</span>;<br><br><span class="hljs-keyword">if</span> (id &gt;= <span class="hljs-number">1020u</span>) &#123;<br>    <span class="hljs-keyword">return</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>没有有效 acknowledge，就没有普通 active interrupt 需要 EOI。</p>
+<hr>
+<h3 id="六、ID29-为什么是-ISENABLER0-bit29"><a href="#六、ID29-为什么是-ISENABLER0-bit29" class="headerlink" title="六、ID29 为什么是 ISENABLER0.bit29"></a>六、ID29 为什么是 <code>ISENABLER0.bit29</code></h3><p>每个 <code>ISENABLERn</code> 管 32 个 ID：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">ISENABLER0：ID 0–31<br>ISENABLER1：ID 32–63<br>ISENABLER2：ID 64–95<br>...<br></code></pre></td></tr></table></figure>
+
+<p>通用计算：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">index = id / <span class="hljs-number">32</span>;<br>bit   = id % <span class="hljs-number">32</span>;<br></code></pre></td></tr></table></figure>
+
+<p>ID29：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">index = 29 / 32 = 0<br>bit   = 29 % 32 = 29<br></code></pre></td></tr></table></figure>
+
+<p>所以：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">GICD_ISENABLER0 = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">29</span>;<br></code></pre></td></tr></table></figure>
+
+<p>ID42：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">index = 42 / 32 = 1<br>bit   = 42 % 32 = 10<br></code></pre></td></tr></table></figure>
+
+<p>所以：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">GICD_ISENABLER1 = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">10</span>;<br></code></pre></td></tr></table></figure>
+
+<p>注意：</p>
+<ul>
+<li>ID29 是 PPI，<code>ISENABLER0</code> 的对应状态对每核 banked。</li>
+<li>ID42 是 SPI，对应 Distributor 共享状态，还需要配置目标 CPU。</li>
+</ul>
+<hr>
+<h3 id="七、一条完整链只分五层记"><a href="#七、一条完整链只分五层记" class="headerlink" title="七、一条完整链只分五层记"></a>七、一条完整链只分五层记</h3><p>不要一次背十二步。先记五层：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">设备<br>→ GIC<br>→ CPU 异常入口<br>→ 软件 handler<br>→ 异常返回/可选调度<br></code></pre></td></tr></table></figure>
+
+<h4 id="第-1-层：设备"><a href="#第-1-层：设备" class="headerlink" title="第 1 层：设备"></a>第 1 层：设备</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 Private Timer counter 到 0<br>→ PT_STATUS=1<br>→ 向 GIC 提交 CPU0 PPI29<br></code></pre></td></tr></table></figure>
+
+<h4 id="第-2-层：GIC"><a href="#第-2-层：GIC" class="headerlink" title="第 2 层：GIC"></a>第 2 层：GIC</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 ID29 → pending<br>→ 检查 enable、priority、PMR<br>→ CPU0 CPU Interface 断言 IRQ<br></code></pre></td></tr></table></figure>
+
+<h4 id="第-3-层：CPU-异常入口"><a href="#第-3-层：CPU-异常入口" class="headerlink" title="第 3 层：CPU 异常入口"></a>第 3 层：CPU 异常入口</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR → SPSR_irq<br>返回信息 → LR_irq<br>切 IRQ 模式，看到 SP_irq<br>PC → VBAR+0x18<br>汇编保存 r0-r12、返回 PC、SPSR<br></code></pre></td></tr></table></figure>
+
+<h4 id="第-4-层：软件-handler"><a href="#第-4-层：软件-handler" class="headerlink" title="第 4 层：软件 handler"></a>第 4 层：软件 handler</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">读取 IAR<br>→ 得到 29<br>→ pending 变 active<br>→ dispatcher 调 timer handler<br>→ PT_STATUS 写 1 清设备源<br>→ 更新 tick<br>→ 必要时 need_reschedule=1<br>→ EOI 写回完整 iar<br></code></pre></td></tr></table></figure>
+
+<h4 id="第-5-层：返回或调度"><a href="#第-5-层：返回或调度" class="headerlink" title="第 5 层：返回或调度"></a>第 5 层：返回或调度</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">IRQ 尾部检查 need_reschedule<br>→ 不切换：恢复原任务<br>→ 要切换：选择 heir，恢复 heir 的最终现场<br>→ RFE/等价序列恢复 PC+CPSR<br></code></pre></td></tr></table></figure>
+
+<h4 id="一句话版本"><a href="#一句话版本" class="headerlink" title="一句话版本"></a>一句话版本</h4><blockquote>
+<p>Timer 产生 PPI29，GIC 先 pending 并向 CPU 发 IRQ；CPU 进入统一 IRQ 向量，软件读 IAR 才把 ID29 领成 active；handler 清 Timer 状态，EOI 结束 GIC active；IRQ 尾部可调度，最后 RFE 恢复 PC 和 CPSR。</p>
+</blockquote>
+<hr>
+<h2 id="按故障现象逐层定位"><a href="#按故障现象逐层定位" class="headerlink" title="按故障现象逐层定位"></a>按故障现象逐层定位</h2><h3 id="十、完整-IRQ-Dispatcher-骨架"><a href="#十、完整-IRQ-Dispatcher-骨架" class="headerlink" title="十、完整 IRQ Dispatcher 骨架"></a>十、完整 IRQ Dispatcher 骨架</h3><p>下面代码是教学伪代码，不是可直接提交的完整驱动。它暂时假设启动环境和 GIC security&#x2F;group 配置与当前执行状态匹配。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> MMIO32(addr) \</span><br><span class="hljs-meta">    (*(volatile uint32_t *)(uintptr_t)(addr))</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_BASE       0xF8F00100u</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICD_BASE       0xF8F01000u</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_BASE         0xF8F00600u</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_CTLR       MMIO32(GICC_BASE + 0x000)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_PMR        MMIO32(GICC_BASE + 0x004)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_BPR        MMIO32(GICC_BASE + 0x008)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_IAR        MMIO32(GICC_BASE + 0x00C)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICC_EOIR       MMIO32(GICC_BASE + 0x010)</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICD_CTLR       MMIO32(GICD_BASE + 0x000)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> GICD_ISENABLER0 MMIO32(GICD_BASE + 0x100)</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_LOAD         MMIO32(PT_BASE + 0x00)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_CONTROL      MMIO32(PT_BASE + 0x08)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PT_STATUS       MMIO32(PT_BASE + 0x0C)</span><br><br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint64_t</span> ticks;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">irq_dispatch</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>    <span class="hljs-type">uint32_t</span> iar = GICC_IAR;<br>    <span class="hljs-type">uint32_t</span> id = iar &amp; <span class="hljs-number">0x3ffu</span>;<br><br>    <span class="hljs-keyword">if</span> (id &gt;= <span class="hljs-number">1020u</span>) &#123;<br>        <span class="hljs-keyword">return</span>;<br>    &#125;<br><br>    <span class="hljs-keyword">if</span> (id == <span class="hljs-number">29u</span>) &#123;<br>        PT_STATUS = <span class="hljs-number">1u</span>;<br>        ++ticks;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        unexpected_irq(id);<br>    &#125;<br><br>    GICC_EOIR = iar;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>注意：</p>
+<ul>
+<li>入口汇编已经保存异常现场并满足 AAPCS，C dispatcher 才能安全运行。</li>
+<li><code>volatile</code> 防止编译器把 MMIO 访问缓存或删除，但它不替代必要的硬件 memory barrier。</li>
+<li>真正初始化完成、执行必要 DSB&#x2F;ISB 后，才能 <code>CPSIE I</code>。</li>
+<li>对未知有效 ID 也必须采取明确策略并匹配 EOI，不能直接永远挂起 active 状态。</li>
+<li>security group、初始固件状态和寄存器访问权限必须在实际启动环境中确认。</li>
+</ul>
+<hr>
+<h3 id="十一、从定时器到任务抢占"><a href="#十一、从定时器到任务抢占" class="headerlink" title="十一、从定时器到任务抢占"></a>十一、从定时器到任务抢占</h3><p>最小 tick 只做：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">ticks++<br></code></pre></td></tr></table></figure>
+
+<p>接入调度器后：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">定时器 handler<br>→ 更新系统时间和当前任务时间片<br>→ scheduler 判断 need_reschedule<br>→ IRQ 尾部检查标志<br>→ 若需要，执行任务 dispatch/context switch<br>→ 恢复最终选中任务的异常现场<br></code></pre></td></tr></table></figure>
+
+<p>为什么通常在 IRQ 尾部统一调度，而不是设备 handler 中直接随意切换：</p>
+<ul>
+<li>此时异常现场布局已知；</li>
+<li>中断嵌套层数可检查；</li>
+<li>GIC active 状态和设备清源可以先正确收尾；</li>
+<li>多个 handler 只需设置调度请求；</li>
+<li>能避免在任意驱动函数深处切走导致栈和锁状态混乱。</li>
+</ul>
+<p>这正是原定目标所说两块移植工作的汇合：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">中断控制器移植<br>        +<br>上下文调度移植<br>        ↓<br>IRQ 尾部抢占式任务切换<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="十二、建议的真实实现顺序"><a href="#十二、建议的真实实现顺序" class="headerlink" title="十二、建议的真实实现顺序"></a>十二、建议的真实实现顺序</h3><h4 id="阶段-1：只验证-GIC"><a href="#阶段-1：只验证-GIC" class="headerlink" title="阶段 1：只验证 GIC"></a>阶段 1：只验证 GIC</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">向量和 IRQ 栈就绪<br>→ 初始化 Distributor/CPU Interface<br>→ 暂不开定时器<br>→ 用软件 pending 或已知外设验证一个 ID<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-2：只做可观察-tick"><a href="#阶段-2：只做可观察-tick" class="headerlink" title="阶段 2：只做可观察 tick"></a>阶段 2：只做可观察 tick</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">配置 Private Timer<br>→ handler 清状态<br>→ ticks++<br>→ 主循环偶尔打印 ticks<br></code></pre></td></tr></table></figure>
+
+<p>不要每次中断都打印，UART 很慢，会严重扰动时序。</p>
+<h4 id="阶段-3：主动上下文切换"><a href="#阶段-3：主动上下文切换" class="headerlink" title="阶段 3：主动上下文切换"></a>阶段 3：主动上下文切换</h4><p>两个任务主动 <code>yield</code>，先证明普通上下文正确。</p>
+<h4 id="阶段-4：tick-请求调度"><a href="#阶段-4：tick-请求调度" class="headerlink" title="阶段 4：tick 请求调度"></a>阶段 4：tick 请求调度</h4><p>handler 只设置 <code>need_reschedule</code>，IRQ 尾部执行安全调度。</p>
+<h4 id="阶段-5：SMP"><a href="#阶段-5：SMP" class="headerlink" title="阶段 5：SMP"></a>阶段 5：SMP</h4><p>最后才：</p>
+<ul>
+<li>启动 CPU1；</li>
+<li>初始化 CPU1 的 banked PPI、CPU Interface、栈和 per-CPU 数据；</li>
+<li>使用 SGI 做核间 reschedule；</li>
+<li>设计每核 tick 或统一 tick；</li>
+<li>处理锁、屏障、Cache 一致性和任务归属。</li>
+</ul>
+<hr>
+<h3 id="十三、Debug-检查表"><a href="#十三、Debug-检查表" class="headerlink" title="十三、Debug 检查表"></a>十三、Debug 检查表</h3><h4 id="完全进不了-IRQ"><a href="#完全进不了-IRQ" class="headerlink" title="完全进不了 IRQ"></a>完全进不了 IRQ</h4><p>依次查：</p>
+<ol>
+<li>CPSR.I 是否仍为 1；</li>
+<li>VBAR 和 IRQ 向量是否正确；</li>
+<li>SP_irq 是否有效；</li>
+<li>GICD_CTLR 是否 enable；</li>
+<li>本核 GICC_CTLR 是否 enable；</li>
+<li>GICC_PMR 是否放行优先级；</li>
+<li>ID29 是否在本核 enable；</li>
+<li>timer Control 的 timer&#x2F;IRQ 位是否打开；</li>
+<li>timer Counter 是否递减。</li>
+</ol>
+<h4 id="进入一次后再也不进"><a href="#进入一次后再也不进" class="headerlink" title="进入一次后再也不进"></a>进入一次后再也不进</h4><p>查：</p>
+<ul>
+<li>是否写 1 清 Private Timer Status；</li>
+<li>是否写回 GICC_EOIR；</li>
+<li>auto-reload 是否开启；</li>
+<li>是否误关 CPSR.I。</li>
+</ul>
+<h4 id="返回后立刻再次进入"><a href="#返回后立刻再次进入" class="headerlink" title="返回后立刻再次进入"></a>返回后立刻再次进入</h4><p>查：</p>
+<ul>
+<li>设备状态是否真正清除；</li>
+<li>清源寄存器是否 W1C，却错误写了 0；</li>
+<li>level-sensitive 外设电平是否仍有效；</li>
+<li>EOI 和清源顺序是否正确。</li>
+</ul>
+<h4 id="双核时只有一个核正常"><a href="#双核时只有一个核正常" class="headerlink" title="双核时只有一个核正常"></a>双核时只有一个核正常</h4><p>查：</p>
+<ul>
+<li>CPU1 是否执行了本核 CPU Interface 初始化；</li>
+<li>CPU1 是否写了 banked PPI enable；</li>
+<li>CPU1 的 private timer&#x2F;comparator 是否初始化；</li>
+<li>CPU1 的 IRQ&#x2F;SVC 栈和 per-CPU 指针是否正确；</li>
+<li>SPI target mask 是否指向期望 CPU。</li>
+</ul>
+<hr>
+<h3 id="十四、十个自检问题"><a href="#十四、十个自检问题" class="headerlink" title="十四、十个自检问题"></a>十四、十个自检问题</h3><ol>
+<li><strong>四类手册分别解决什么？</strong> Cortex-A9 Core TRM 说明单核实现，MPCore TRM 说明簇级 SCU&#x2F;GIC&#x2F;Timer，UG585 说明 Zynq 集成与物理地址，GIC 架构规范裁决通用状态机语义。</li>
+<li><strong>三类中断怎样区分？</strong> SGI 为 0～15，由软件指定目标核；PPI 为 16～31，每核私有；SPI 为 32～1019，由 Distributor 配置候选目标核。</li>
+<li><strong>为什么两个核都可以出现 ID29？</strong> 每个核都有自己的 Private Timer，ID0～31 的相关 GIC 状态也是每核 banked；编号相同不等于共享同一事件。</li>
+<li><strong>为什么初始化分成共享和每核两部分？</strong> Distributor 的共享 SPI 配置只做一次，GICC、SGI&#x2F;PPI banked 状态、Private Timer 和模式栈则由每个 CPU 分别建立。</li>
+<li><strong>读 IAR 发生什么？</strong> 返回最高优先级有效中断，并完成 acknowledge，使该中断进入 Active 处理，同时更新运行优先级。</li>
+<li><strong>为什么 EOI 写回完整 IAR？</strong> 一次有效 acknowledge 必须匹配一次完成操作；SGI 的 IAR 还可能含源 CPU 信息，保留完整值最稳妥。</li>
+<li><strong>ID1023 怎样处理？</strong> 它表示本次没有可交付的有效中断，不调用普通 handler，也不按普通有效中断写 EOI。</li>
+<li><strong>设备清源与 EOI 分别通知谁？</strong> 前者通知具体外设到期事件已处理，后者通知 GIC 当前 Active 服务结束，二者缺一都会破坏重复中断。</li>
+<li><strong>ID29 位于哪个使能位？</strong> <code>29/32=0</code>、<code>29%32=29</code>，因此是 <code>GICD_ISENABLER0.bit29</code>；CPU1 仍需在本核写自己的 banked PPI 使能。</li>
+<li><strong>Timer load 怎样计算？</strong> <code>load = PERIPHCLK / ((prescaler+1) × tick_hz) - 1</code>。例如 333 MHz、prescaler 为 0、1 kHz tick 得到 332999。</li>
+</ol>
+<h3 id="十五、用一句话复述整条链"><a href="#十五、用一句话复述整条链" class="headerlink" title="十五、用一句话复述整条链"></a>十五、用一句话复述整条链</h3><p>Private Timer 到期并设置状态，GIC 将 ID29 置为 Pending 并向本核交付 IRQ，处理器进入向量，入口汇编建立异常帧，软件读 IAR 使中断进入 Active，handler 清 Timer 状态并可设置 <code>need_reschedule</code>，随后写 EOIR，IRQ 尾部选择返回现场，最终恢复 PC 与 CPSR。</p>
+<h2 id="GIC-分发、Private-Timer-与-SGI-的完整实现"><a href="#GIC-分发、Private-Timer-与-SGI-的完整实现" class="headerlink" title="GIC 分发、Private Timer 与 SGI 的完整实现"></a>GIC 分发、Private Timer 与 SGI 的完整实现</h2><p>下面给出文章对应的完整实现片段。即使没有配套仓库，也可以沿着注释、寄存器访问和调用关系逐行阅读。代码之后的分析只讨论本章主题，不要求预先掌握其他目录结构。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stddef.h&gt;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdint.h&gt;</span></span><br><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;irq.h&quot;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;cache.h&quot;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;platform.h&quot;</span></span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;scheduler.h&quot;</span></span><br><br><span class="hljs-keyword">extern</span> <span class="hljs-type">uint8_t</span> __stack_irq_cpu0_bottom[];<br><span class="hljs-keyword">extern</span> <span class="hljs-type">uint8_t</span> __stack_irq_cpu0_top[];<br><span class="hljs-keyword">extern</span> <span class="hljs-type">uint8_t</span> __stack_irq_cpu1_bottom[];<br><span class="hljs-keyword">extern</span> <span class="hljs-type">uint8_t</span> __stack_irq_cpu1_top[];<br><br><span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span><br>  GICC_BASE = ZYNQ_A9_PRIVATE_PERIPHERAL_BASE + <span class="hljs-number">0x0100u</span>,<br>  PRIVATE_TIMER_BASE = ZYNQ_A9_PRIVATE_PERIPHERAL_BASE + <span class="hljs-number">0x0600u</span>,<br>  GICD_BASE = ZYNQ_A9_PRIVATE_PERIPHERAL_BASE + <span class="hljs-number">0x1000u</span>,<br><br>  GICC_CTLR = <span class="hljs-number">0x000u</span>,<br>  GICC_PMR = <span class="hljs-number">0x004u</span>,<br>  GICC_BPR = <span class="hljs-number">0x008u</span>,<br>  GICC_IAR = <span class="hljs-number">0x00cu</span>,<br>  GICC_EOIR = <span class="hljs-number">0x010u</span>,<br><br>  GICD_CTLR = <span class="hljs-number">0x000u</span>,<br>  GICD_ISENABLER = <span class="hljs-number">0x100u</span>,<br>  GICD_ICENABLER = <span class="hljs-number">0x180u</span>,<br>  GICD_ICPENDR = <span class="hljs-number">0x280u</span>,<br>  GICD_ICACTIVER = <span class="hljs-number">0x380u</span>,<br>  GICD_IPRIORITYR = <span class="hljs-number">0x400u</span>,<br>  GICD_SGIR = <span class="hljs-number">0xf00u</span>,<br><br>  PRIVATE_TIMER_LOAD = <span class="hljs-number">0x00u</span>,<br>  PRIVATE_TIMER_CONTROL = <span class="hljs-number">0x08u</span>,<br>  PRIVATE_TIMER_STATUS = <span class="hljs-number">0x0cu</span>,<br><br>  PRIVATE_TIMER_ENABLE = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">0</span>,<br>  PRIVATE_TIMER_AUTO_RELOAD = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">1</span>,<br>  PRIVATE_TIMER_IRQ_ENABLE = <span class="hljs-number">1u</span> &lt;&lt; <span class="hljs-number">2</span>,<br><br>  <span class="hljs-comment">/* 栈向低地址增长，在最低地址放 4 个哨兵字检测越界。 */</span><br>  IRQ_STACK_GUARD_WORDS = <span class="hljs-number">4u</span>,<br>  IRQ_STACK_GUARD_VALUE = <span class="hljs-number">0x49525147u</span><br>&#125;;<br><br><span class="hljs-keyword">_Static_assert</span>(<span class="hljs-keyword">sizeof</span>(CPU_Interrupt_frame) == <span class="hljs-number">64u</span>, <span class="hljs-string">&quot;IRQ frame size&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(CPU_Interrupt_frame, r) == <span class="hljs-number">0u</span>, <span class="hljs-string">&quot;IRQ r0 offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(CPU_Interrupt_frame, svc_lr) == <span class="hljs-number">52u</span>, <span class="hljs-string">&quot;IRQ SVC LR offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(CPU_Interrupt_frame, return_pc) == <span class="hljs-number">56u</span>, <span class="hljs-string">&quot;IRQ PC offset&quot;</span>);<br><span class="hljs-keyword">_Static_assert</span>(offsetof(CPU_Interrupt_frame, cpsr) == <span class="hljs-number">60u</span>, <span class="hljs-string">&quot;IRQ CPSR offset&quot;</span>);<br><br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> tick_count;<br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> last_irq_id = GIC_SPURIOUS_IRQ_ID;<br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> unhandled_irq_count;<br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> irq_stack_minimum_sp[<span class="hljs-number">2</span>];<br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> irq_stack_last_frame[<span class="hljs-number">2</span>];<br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> irq_stack_valid[<span class="hljs-number">2</span>];<br><br><span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span><br>  zynq_irq_handler handler;<br>  <span class="hljs-type">void</span> *argument;<br>&#125; Irq_Entry;<br><br><span class="hljs-type">static</span> Irq_Entry irq_table[ZYNQ_GIC_MAX_IRQS];<br><br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *<span class="hljs-title function_">register32</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> address)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *)(<span class="hljs-type">uintptr_t</span>)address;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint8_t</span> *<span class="hljs-title function_">register8</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> address)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">volatile</span> <span class="hljs-type">uint8_t</span> *)(<span class="hljs-type">uintptr_t</span>)address;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">private_timer_acknowledge</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-comment">/* PT_STATUS is write-one-to-clear: write 1 after observing ID29. */</span><br>  *register32(PRIVATE_TIMER_BASE + PRIVATE_TIMER_STATUS) = <span class="hljs-number">1u</span>;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">private_timer_handler</span><span class="hljs-params">(</span><br><span class="hljs-params">  <span class="hljs-type">uint32_t</span> interrupt_id,</span><br><span class="hljs-params">  <span class="hljs-type">void</span> *argument,</span><br><span class="hljs-params">  CPU_Interrupt_frame *frame</span><br><span class="hljs-params">)</span><br>&#123;<br>  (<span class="hljs-type">void</span>)interrupt_id;<br>  (<span class="hljs-type">void</span>)argument;<br>  (<span class="hljs-type">void</span>)frame;<br>  private_timer_acknowledge();<br>  ++tick_count;<br>  scheduler_request();<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">uintptr_t</span> <span class="hljs-title function_">irq_stack_bottom_for_cpu</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> cpu)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> cpu == <span class="hljs-number">0u</span> ? (<span class="hljs-type">uintptr_t</span>)__stack_irq_cpu0_bottom :<br>    (<span class="hljs-type">uintptr_t</span>)__stack_irq_cpu1_bottom;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">uintptr_t</span> <span class="hljs-title function_">irq_stack_top_for_cpu</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> cpu)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> cpu == <span class="hljs-number">0u</span> ? (<span class="hljs-type">uintptr_t</span>)__stack_irq_cpu0_top :<br>    (<span class="hljs-type">uintptr_t</span>)__stack_irq_cpu1_top;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *<span class="hljs-title function_">irq_stack_guard</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> cpu)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *)irq_stack_bottom_for_cpu(cpu);<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">uint32_t</span> <span class="hljs-title function_">irq_stack_guard_is_valid</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> cpu)</span><br>&#123;<br>  <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *guard = irq_stack_guard(cpu);<br><br>  <span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> index = <span class="hljs-number">0u</span>; index &lt; IRQ_STACK_GUARD_WORDS; ++index) &#123;<br>    <span class="hljs-keyword">if</span> (guard[index] != IRQ_STACK_GUARD_VALUE) &#123;<br>      <span class="hljs-keyword">return</span> <span class="hljs-number">0u</span>;<br>    &#125;<br>  &#125;<br>  <span class="hljs-keyword">return</span> <span class="hljs-number">1u</span>;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">irq_stack_monitor_initialize</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> cpu)</span><br>&#123;<br>  <span class="hljs-keyword">volatile</span> <span class="hljs-type">uint32_t</span> *guard = irq_stack_guard(cpu);<br><br>  <span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> index = <span class="hljs-number">0u</span>; index &lt; IRQ_STACK_GUARD_WORDS; ++index) &#123;<br>    guard[index] = IRQ_STACK_GUARD_VALUE;<br>  &#125;<br><br>  irq_stack_minimum_sp[cpu] = (<span class="hljs-type">uint32_t</span>)irq_stack_top_for_cpu(cpu);<br>  irq_stack_last_frame[cpu] = <span class="hljs-number">0u</span>;<br>  irq_stack_valid[cpu] = <span class="hljs-number">1u</span>;<br>&#125;<br><br><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">irq_stack_monitor_record</span><span class="hljs-params">(<span class="hljs-type">const</span> CPU_Interrupt_frame *frame)</span><br>&#123;<br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> cpu = arm_cpu_index() &amp; <span class="hljs-number">1u</span>;<br>  <span class="hljs-type">const</span> <span class="hljs-type">uintptr_t</span> bottom = irq_stack_bottom_for_cpu(cpu);<br>  <span class="hljs-type">const</span> <span class="hljs-type">uintptr_t</span> usable_bottom = bottom + IRQ_STACK_GUARD_WORDS * <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">uint32_t</span>);<br>  <span class="hljs-type">const</span> <span class="hljs-type">uintptr_t</span> top = irq_stack_top_for_cpu(cpu);<br>  <span class="hljs-type">const</span> <span class="hljs-type">uintptr_t</span> current_sp = arm_read_sp();<br>  <span class="hljs-type">const</span> <span class="hljs-type">uintptr_t</span> frame_address = (<span class="hljs-type">uintptr_t</span>)frame;<br><br>  irq_stack_last_frame[cpu] = (<span class="hljs-type">uint32_t</span>)frame_address;<br>  <span class="hljs-keyword">if</span> (current_sp &lt; irq_stack_minimum_sp[cpu]) &#123;<br>    irq_stack_minimum_sp[cpu] = (<span class="hljs-type">uint32_t</span>)current_sp;<br>  &#125;<br><br>  <span class="hljs-comment">/* frame属于任务栈；只有C handler的SP必须落在独立软件IRQ栈。 */</span><br>  <span class="hljs-keyword">if</span> (current_sp &lt; usable_bottom || current_sp &gt;= top ||<br>      frame_address == <span class="hljs-number">0u</span> || irq_stack_guard_is_valid(cpu) == <span class="hljs-number">0u</span>) &#123;<br>    irq_stack_valid[cpu] = <span class="hljs-number">0u</span>;<br>  &#125;<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">zynq_irq_initialize</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  arm_disable_irq();<br>  irq_stack_monitor_initialize(<span class="hljs-number">0u</span>);<br><br>  <span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> index = <span class="hljs-number">0u</span>; index &lt; ZYNQ_GIC_MAX_IRQS; ++index) &#123;<br>    irq_table[index].handler = <span class="hljs-literal">NULL</span>;<br>    irq_table[index].argument = <span class="hljs-literal">NULL</span>;<br>  &#125;<br><br>  *register32(GICC_BASE + GICC_CTLR) = <span class="hljs-number">0u</span>;<br>  *register32(GICD_BASE + GICD_CTLR) = <span class="hljs-number">0u</span>;<br><br>  <span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> word = <span class="hljs-number">0u</span>; word &lt; ZYNQ_GIC_MAX_IRQS / <span class="hljs-number">32u</span>; ++word) &#123;<br>    *register32(GICD_BASE + GICD_ICENABLER + word * <span class="hljs-number">4u</span>) = <span class="hljs-number">0xffffffffu</span>;<br>    *register32(GICD_BASE + GICD_ICPENDR + word * <span class="hljs-number">4u</span>) = <span class="hljs-number">0xffffffffu</span>;<br>    *register32(GICD_BASE + GICD_ICACTIVER + word * <span class="hljs-number">4u</span>) = <span class="hljs-number">0xffffffffu</span>;<br>  &#125;<br><br>  *register32(GICC_BASE + GICC_PMR) = <span class="hljs-number">0xffu</span>;<br>  *register32(GICC_BASE + GICC_BPR) = <span class="hljs-number">0u</span>;<br>  *register32(GICD_BASE + GICD_CTLR) = <span class="hljs-number">1u</span>;<br>  *register32(GICC_BASE + GICC_CTLR) = <span class="hljs-number">1u</span>;<br><br>  arm_data_sync_barrier();<br>  arm_instruction_sync_barrier();<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">zynq_irq_initialize_cpu_interface</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> cpu = arm_cpu_index() &amp; <span class="hljs-number">1u</span>;<br>  irq_stack_monitor_initialize(cpu);<br>  *register32(GICC_BASE + GICC_CTLR) = <span class="hljs-number">0u</span>;<br>  *register32(GICC_BASE + GICC_PMR) = <span class="hljs-number">0xffu</span>;<br>  *register32(GICC_BASE + GICC_BPR) = <span class="hljs-number">0u</span>;<br>  *register32(GICC_BASE + GICC_CTLR) = <span class="hljs-number">1u</span>;<br>  arm_data_sync_barrier();<br>  arm_instruction_sync_barrier();<br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">zynq_irq_register</span><span class="hljs-params">(</span><br><span class="hljs-params">  <span class="hljs-type">uint32_t</span> interrupt_id,</span><br><span class="hljs-params">  zynq_irq_handler handler,</span><br><span class="hljs-params">  <span class="hljs-type">void</span> *argument</span><br><span class="hljs-params">)</span><br>&#123;<br>  <span class="hljs-keyword">if</span> (interrupt_id &gt;= ZYNQ_GIC_MAX_IRQS || handler == <span class="hljs-literal">NULL</span>) &#123;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;<br>  &#125;<br><br>  irq_table[interrupt_id].handler = handler;<br>  irq_table[interrupt_id].argument = argument;<br>  zynq_cache_clean_range(&amp;irq_table[interrupt_id], <span class="hljs-keyword">sizeof</span>(irq_table[interrupt_id]));<br>  arm_data_sync_barrier();<br>  <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br><br><span class="hljs-type">int</span> <span class="hljs-title function_">zynq_irq_enable</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> interrupt_id, <span class="hljs-type">uint8_t</span> priority)</span><br>&#123;<br>  <span class="hljs-keyword">if</span> (interrupt_id &gt;= ZYNQ_GIC_MAX_IRQS) &#123;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;<br>  &#125;<br><br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> word_offset = (interrupt_id / <span class="hljs-number">32u</span>) * <span class="hljs-number">4u</span>;<br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> mask = <span class="hljs-number">1u</span> &lt;&lt; (interrupt_id % <span class="hljs-number">32u</span>);<br>  *register8(GICD_BASE + GICD_IPRIORITYR + interrupt_id) = priority;<br>  *register32(GICD_BASE + GICD_ICPENDR + word_offset) = mask;<br>  *register32(GICD_BASE + GICD_ICACTIVER + word_offset) = mask;<br>  *register32(GICD_BASE + GICD_ISENABLER + word_offset) = mask;<br>  arm_data_sync_barrier();<br>  <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">zynq_irq_send_sgi</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> interrupt_id, <span class="hljs-type">uint32_t</span> target_mask)</span><br>&#123;<br>  <span class="hljs-keyword">if</span> (interrupt_id &lt; <span class="hljs-number">16u</span>) &#123;<br>    *register32(GICD_BASE + GICD_SGIR) =<br>      ((target_mask &amp; <span class="hljs-number">0xffu</span>) &lt;&lt; <span class="hljs-number">16</span>) | interrupt_id;<br>    arm_data_sync_barrier();<br>  &#125;<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">zynq_private_timer_start</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> reload_value)</span><br>&#123;<br>  (<span class="hljs-type">void</span>)zynq_irq_register(ZYNQ_PRIVATE_TIMER_IRQ_ID, private_timer_handler, <span class="hljs-literal">NULL</span>);<br>  (<span class="hljs-type">void</span>)zynq_irq_enable(ZYNQ_PRIVATE_TIMER_IRQ_ID, <span class="hljs-number">0xa0u</span>);<br>  *register32(PRIVATE_TIMER_BASE + PRIVATE_TIMER_CONTROL) = <span class="hljs-number">0u</span>;<br>  private_timer_acknowledge();<br>  *register32(PRIVATE_TIMER_BASE + PRIVATE_TIMER_LOAD) = reload_value;<br>  *register32(PRIVATE_TIMER_BASE + PRIVATE_TIMER_CONTROL) =<br>    PRIVATE_TIMER_ENABLE | PRIVATE_TIMER_AUTO_RELOAD | PRIVATE_TIMER_IRQ_ENABLE;<br>  arm_data_sync_barrier();<br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">zynq_private_timer_stop</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  *register32(PRIVATE_TIMER_BASE + PRIVATE_TIMER_CONTROL) = <span class="hljs-number">0u</span>;<br>  private_timer_acknowledge();<br>  arm_data_sync_barrier();<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_tick_count</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> tick_count;<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_last_irq_id</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> last_irq_id;<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_unhandled_irq_count</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> unhandled_irq_count;<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_bottom</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> (<span class="hljs-type">uint32_t</span>)irq_stack_bottom_for_cpu(arm_cpu_index() &amp; <span class="hljs-number">1u</span>);<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_top</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> (<span class="hljs-type">uint32_t</span>)irq_stack_top_for_cpu(arm_cpu_index() &amp; <span class="hljs-number">1u</span>);<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_minimum_sp</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> irq_stack_minimum_sp[arm_cpu_index() &amp; <span class="hljs-number">1u</span>];<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_last_frame</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> irq_stack_last_frame[arm_cpu_index() &amp; <span class="hljs-number">1u</span>];<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_used_bytes</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-keyword">return</span> zynq_irq_stack_top() - irq_stack_minimum_sp[arm_cpu_index() &amp; <span class="hljs-number">1u</span>];<br>&#125;<br><br><span class="hljs-type">uint32_t</span> <span class="hljs-title function_">zynq_irq_stack_is_valid</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span><br>&#123;<br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> cpu = arm_cpu_index() &amp; <span class="hljs-number">1u</span>;<br>  <span class="hljs-keyword">return</span> irq_stack_valid[cpu] != <span class="hljs-number">0u</span> &amp;&amp; irq_stack_guard_is_valid(cpu) != <span class="hljs-number">0u</span>;<br>&#125;<br><br>CPU_Interrupt_frame *<span class="hljs-title function_">irq_dispatch</span><span class="hljs-params">(CPU_Interrupt_frame *frame)</span><br>&#123;<br>  <span class="hljs-comment">/* C处理运行在每核独立IRQ软件栈；frame仍位于被打断任务的SVC栈。 */</span><br>  irq_stack_monitor_record(frame);<br><br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> iar = *register32(GICC_BASE + GICC_IAR);<br>  <span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> interrupt_id = iar &amp; <span class="hljs-number">0x3ffu</span>;<br><br>  last_irq_id = interrupt_id;<br><br>  <span class="hljs-keyword">if</span> (interrupt_id == GIC_SPURIOUS_IRQ_ID) &#123;<br>    <span class="hljs-keyword">return</span> frame;<br>  &#125;<br><br>  <span class="hljs-keyword">if</span> (interrupt_id &lt; ZYNQ_GIC_MAX_IRQS &amp;&amp;<br>      irq_table[interrupt_id].handler != <span class="hljs-literal">NULL</span>) &#123;<br>    irq_table[interrupt_id].handler(<br>      interrupt_id,<br>      irq_table[interrupt_id].argument,<br>      frame<br>    );<br>  &#125; <span class="hljs-keyword">else</span> &#123;<br>    ++unhandled_irq_count;<br>  &#125;<br><br>  <span class="hljs-comment">/* Preserve the complete IAR value: it can include the source CPU field. */</span><br>  arm_data_sync_barrier();<br>  *register32(GICC_BASE + GICC_EOIR) = iar;<br>  arm_data_sync_barrier();<br>  <span class="hljs-keyword">return</span> scheduler_irq_tail(frame);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="三层使能，一条路径"><a href="#三层使能，一条路径" class="headerlink" title="三层使能，一条路径"></a>三层使能，一条路径</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">Private Timer 倒计时到期<br>    ↓ PT_STATUS 置位，设备中断输出有效<br>GIC Distributor<br>    ↓ 检查该中断使能、Pending、优先级及相关路由<br>当前核 GIC CPU Interface<br>    ↓ 检查优先级屏蔽与运行优先级<br>Cortex-A9<br>    ↓ IRQ 允许时进入 IRQ 异常向量<br>irq_entry → irq_dispatch → 对应设备 handler<br></code></pre></td></tr></table></figure>
+
+<p>因此“开 IRQ”至少有三层含义：设备允许产生中断，GIC 接受并转发，CPU 没有屏蔽。只做 <code>cpsie i</code> 无法代替前两层。</p>
+<p>中断还受安全分组、路由和实现配置影响。本工程在已满足基本访问权限的启动环境中，使用一套较简单的使能路径，没有实现通用安全世界中断管理。</p>
+<h2 id="SGI、PPI、SPI-不只是编号不同"><a href="#SGI、PPI、SPI-不只是编号不同" class="headerlink" title="SGI、PPI、SPI 不只是编号不同"></a>SGI、PPI、SPI 不只是编号不同</h2><table>
+<thead>
+<tr>
+<th>类型</th>
+<th align="right">ID 范围</th>
+<th>所属关系</th>
+<th>本工程例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SGI</td>
+<td align="right">0–15</td>
+<td>软件生成，可指定目标 CPU</td>
+<td>SGI0 核间握手或调度请求</td>
+</tr>
+<tr>
+<td>PPI</td>
+<td align="right">16–31</td>
+<td>每 CPU 私有外设中断</td>
+<td>Private Timer：29</td>
+</tr>
+<tr>
+<td>SPI</td>
+<td align="right">32 起</td>
+<td>共享外设中断，可路由到 CPU</td>
+<td>UART、TTC、PL 中断等</td>
+</tr>
+</tbody></table>
+<p>相同的 PPI29，在 CPU0 和 CPU1 上对应各自的 Private Timer。若只初始化 CPU0 的 banked enable，不代表 CPU1 的 PPI29 也已经打开。</p>
+<p>GICD 虽然总体是共享 Distributor，但 SGI&#x2F;PPI 相关寄存器的一部分是 banked。GICC 则是本核接口：两个核使用相同 MMIO 地址访问，也可能看到各自不同的状态。不要用“地址相同”推断“所有寄存器都是全局同一份”。</p>
+<p>工程 <code>irq_table[160]</code> 的长度是软件容量，不能据此宣称芯片上全部 160 个 ID 都实际连接了设备。具体实现 ID 与保留范围要查 SoC 中断表。</p>
+<h2 id="几个真正需要对上的地址"><a href="#几个真正需要对上的地址" class="headerlink" title="几个真正需要对上的地址"></a>几个真正需要对上的地址</h2><p>本工程 private peripheral base 为 <code>0xF8F00000</code>。</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th align="right">相对偏移</th>
+<th align="right">实际基址</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SCU</td>
+<td align="right">0x0000</td>
+<td align="right">0xF8F00000</td>
+</tr>
+<tr>
+<td>GIC CPU Interface</td>
+<td align="right">0x0100</td>
+<td align="right">0xF8F00100</td>
+</tr>
+<tr>
+<td>Global Timer</td>
+<td align="right">0x0200</td>
+<td align="right">0xF8F00200</td>
+</tr>
+<tr>
+<td>Private Timer</td>
+<td align="right">0x0600</td>
+<td align="right">0xF8F00600</td>
+</tr>
+<tr>
+<td>GIC Distributor</td>
+<td align="right">0x1000</td>
+<td align="right">0xF8F01000</td>
+</tr>
+<tr>
+<td>L2C-310</td>
+<td align="right">0x2000</td>
+<td align="right">0xF8F02000</td>
+</tr>
+</tbody></table>
+<p>例如 <code>GICC_IAR</code> 相对 CPU Interface 基址偏移 0x0c，因此地址为 <code>0xF8F0010c</code>。不要把手册里的寄存器偏移直接当成 SoC 的绝对地址。</p>
+<h2 id="Pending-与-Active-描述不同阶段"><a href="#Pending-与-Active-描述不同阶段" class="headerlink" title="Pending 与 Active 描述不同阶段"></a>Pending 与 Active 描述不同阶段</h2><p>一个简化的非嵌套中断状态过程：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">Inactive<br>   └─ 收到事件 → Pending<br>                    └─ CPU 读 IAR 应答 → Active<br>                                               └─ EOI → Inactive<br></code></pre></td></tr></table></figure>
+
+<p>如果 Active 期间又有新事件或电平仍有效，还可能出现 Active and Pending，结束当前服务后重新投递。</p>
+<p>Pending 表示有待处理请求；Active 表示已经被 CPU 接手处理。二者不是“中断开&#x2F;关”的同义词。使能位则控制是否允许参与投递，是另一个维度。</p>
+<p>优先级通常数值越小越高。<code>GICC_PMR</code> 是门槛，运行优先级与 BPR 又影响抢占判定。仅把 PMR 写宽松，并不会跳过 Distributor 或设备的使能。</p>
+<p>当前实现禁止 IRQ 嵌套，因此虽然初始化了优先级和 BPR，却没有提供多层 handler 抢占流程。</p>
+<h2 id="读-IAR-是有副作用的"><a href="#读-IAR-是有副作用的" class="headerlink" title="读 IAR 是有副作用的"></a>读 IAR 是有副作用的</h2><p>基础版 <code>irq_dispatch()</code> 读取一次 IAR，把完整结果保存到局部变量：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> iar = *register32(GICC_BASE + GICC_IAR);<br><span class="hljs-type">const</span> <span class="hljs-type">uint32_t</span> id = iar &amp; <span class="hljs-number">0x3ffu</span>;<br></code></pre></td></tr></table></figure>
+
+<p>IAR 的读取不仅报告 ID，还执行 acknowledge。它不是随便查看 Pending 的无副作用状态寄存器。</p>
+<p>所以不能这样调试：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">print_id(read_iar());<br>dispatch(read_iar());  <span class="hljs-comment">/* 错误示意：第二次读取不保证还是同一次中断 */</span><br></code></pre></td></tr></table></figure>
+
+<p>GDB 中对 IAR 做 <code>x/wx</code> 也可能改变硬件状态。优先查看代码已保存的 <code>iar</code> 或 <code>last_irq_id</code>，不要让调试动作抢走系统应答。</p>
+<p>IAR 除了 ID，还可能包含 SGI 来源 CPU 信息。工程最后写回 EOIR 的是原始完整 IAR，而不是只写掩码后的 id。</p>
+<h2 id="设备清源和-GIC-EOI-缺一不可"><a href="#设备清源和-GIC-EOI-缺一不可" class="headerlink" title="设备清源和 GIC EOI 缺一不可"></a>设备清源和 GIC EOI 缺一不可</h2><p>Private Timer handler 很短：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">private_timer_acknowledge();  <span class="hljs-comment">/* PT_STATUS 写 1 清除 */</span><br>++tick_count;<br>scheduler_request();<br></code></pre></td></tr></table></figure>
+
+<p>其中 PT_STATUS 是 W1C。写 0 不会清除，写入旧值并按普通 R&#x2F;W 位理解也可能不符合寄存器语义。</p>
+<p>设备清源后，分发器执行：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c">arm_data_sync_barrier();<br>*register32(GICC_BASE + GICC_EOIR) = iar;<br>arm_data_sync_barrier();<br><span class="hljs-keyword">return</span> scheduler_irq_tail(frame);<br></code></pre></td></tr></table></figure>
+
+<p>在当前 GICv1 使用方式下，EOI 完成控制器侧本次服务的结束处理，包括相应运行优先级&#x2F;活动状态更新。不能把 GICv2 某些配置中 priority drop 与 deactivate 分开的写法套进来。</p>
+<p>只清设备、不写 EOI：设备安静了，GIC 仍可能认为该中断处于服务中，后续投递受阻。</p>
+<p>只写 EOI、不清设备：若中断线仍有效，就可能立即再进 IRQ，表现为中断风暴。</p>
+<p>DSB 用于满足这里的访问完成和排序需求。某些真实外设还可能要求特定读回或额外同步步骤，要遵循设备手册，不能假定所有芯片只插一条屏障都足够。</p>
+<h2 id="Spurious-ID-的处理"><a href="#Spurious-ID-的处理" class="headerlink" title="Spurious ID 的处理"></a>Spurious ID 的处理</h2><p>本路径把 ID1023 作为 spurious，即此次没有可正常处理的有效中断。不能用 1023 当 handler 数组索引，也不能为它机械写一次 EOIR。</p>
+<p>基础版直接返回当前 frame；精简版返回“不切换”的结果。若以后扩展到其他 GIC 版本、安全状态或特殊 ID，需要按对应规范补齐保留值处理，不能只保留一个 1023 特判就宣称通用。</p>
+<h2 id="Private-Timer-怎样产生周期事件"><a href="#Private-Timer-怎样产生周期事件" class="headerlink" title="Private Timer 怎样产生周期事件"></a>Private Timer 怎样产生周期事件</h2><p>基础版的启动流程如下，PT_* 用符号化寄存器简写；实际 MMIO 访问封装在 irq.c 中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c">zynq_irq_register(<span class="hljs-number">29u</span>, private_timer_handler, <span class="hljs-literal">NULL</span>);<br>zynq_irq_enable(<span class="hljs-number">29u</span>, <span class="hljs-number">0xa0u</span>);<br>PT_CONTROL = <span class="hljs-number">0u</span>;<br>PT_STATUS = <span class="hljs-number">1u</span>;<br>PT_LOAD = reload_value;<br>PT_CONTROL = ENABLE | AUTO_RELOAD | IRQ_ENABLE;<br></code></pre></td></tr></table></figure>
+
+<p>最后再在合适位置允许 CPU IRQ。先建立向量、模式栈、handler 表和 GIC，再启动事件源，可以避免第一下 Timer 提前到来。</p>
+<p>Private Timer 是递减计数器。周期取决于输入时钟、预分频、load 值和计数器的到零&#x2F;重载规则。只看源码常量无法直接得到真实秒数。</p>
+<p>精简版命名为 HALF_SECOND 的常量取值 <code>166666667</code>，来自约 333.333 MHz 的时钟假设。这是配置意图。QEMU 模型与实际 PS 时钟配置可能不同，需要用可信时基测量；日志打印“0.5s”不是周期证明。</p>
+<h2 id="Zynq-的定时器不只有一种"><a href="#Zynq-的定时器不只有一种" class="headerlink" title="Zynq 的定时器不只有一种"></a>Zynq 的定时器不只有一种</h2><table>
+<thead>
+<tr>
+<th>定时器</th>
+<th>特征</th>
+<th>当前用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A9 Private Timer</td>
+<td>每核独立，递减，可周期 IRQ</td>
+<td>tick、抢占实验</td>
+</tr>
+<tr>
+<td>A9 Global Timer</td>
+<td>64 位递增计数器，支持比较功能</td>
+<td>基础版仪表盘轮询</td>
+</tr>
+<tr>
+<td>Private Watchdog</td>
+<td>每核看门狗相关功能</td>
+<td>未作为本系列调度源</td>
+</tr>
+<tr>
+<td>System Watchdog</td>
+<td>SoC 级监控</td>
+<td>未接入</td>
+</tr>
+<tr>
+<td>TTC</td>
+<td>多通道计数、间隔等功能</td>
+<td>后续外设计时可考虑</td>
+</tr>
+</tbody></table>
+<p>Cortex-A9 Global Timer 不能与其他 ARM 处理器上的 Generic Timer 混为一谈。它们的寄存器模型和中断连接不同。</p>
+<p>基础版在抢占自检结束后停止 Private Timer、屏蔽 IRQ，进入永久协同演示。因此旧 tick 会冻结。仪表盘增加 Global Timer 轮询是为了提供独立的动态计数，不会重新触发旧的抢占调度器。</p>
+<p>当前只显示 Global Timer 低 32 位原始计数。它会回绕，不是系统运行秒数；若要做长期时间，读取 64 位计数需要正确处理 high&#x2F;low 跨越，常见方式是 high→low→high 并在高位变化时重读。</p>
+<h2 id="handler-注册表只是最小分发框架"><a href="#handler-注册表只是最小分发框架" class="headerlink" title="handler 注册表只是最小分发框架"></a>handler 注册表只是最小分发框架</h2><p>注册表把 <code>ID → handler + argument</code> 分开，使 Timer 与 SGI 共用一个分发流程：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">IAR → ID → irq_table[id] → handler<br>                       → 清源 → 完整 IAR 写 EOIR → IRQ tail<br></code></pre></td></tr></table></figure>
+
+<p>但它还没有动态注销时的并发保护、共享 IRQ 的多个 handler、复杂的设备生命周期管理和未知中断抑制。未知中断仅增加计数时，如果源始终不清，仍可能反复进入；完善驱动框架需要另外定义隔离策略。</p>
+<h2 id="从现象定位层次"><a href="#从现象定位层次" class="headerlink" title="从现象定位层次"></a>从现象定位层次</h2><table>
+<thead>
+<tr>
+<th>现象</th>
+<th>优先检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Timer counter 不动</td>
+<td>时钟、Timer enable、MMIO 地址</td>
+</tr>
+<tr>
+<td>状态位置位但没有 IRQ</td>
+<td>设备 IRQ enable、GIC enable&#x2F;PMR、CPSR.I</td>
+</tr>
+<tr>
+<td>进 IRQ 却没有 handler</td>
+<td>IAR 是否只读一次、ID 是否正确、表项是否注册</td>
+</tr>
+<tr>
+<td>只来一次</td>
+<td>自动重载、清源、EOIR</td>
+</tr>
+<tr>
+<td>无休止重进 IRQ</td>
+<td>设备源未清、W1C 写法、触发方式</td>
+</tr>
+<tr>
+<td>调试后行为变化</td>
+<td>是否读取了 IAR、串口延迟是否改变时序</td>
+</tr>
+</tbody></table>
+<p>资料定位：本地 UG585 v1.12.2 第 7 章 <strong>Interrupts</strong>、第 8 章 <strong>Timers</strong>；Cortex-A9 MPCore TRM 第 3、4 章；GIC 规范中的 <strong>Interrupt Acknowledge Register</strong> 与 <strong>End of Interrupt Register</strong>。第 8 章不能只读最初几页就认为涵盖了 TTC 和看门狗。</p>
+<p>下一篇：<a href="/post/armv7a-07-preemption-rtems.html">IRQ 尾部调度、精简现场与 RTEMS</a>。</p>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>重复工作的 IRQ 依赖设备、GIC 和 CPU 三层共同闭环。读 IAR 会把中断从 Pending 推向 Active，设备 handler 负责清源，EOIR 负责结束 GIC 侧服务，二者不能互相替代。PPI29 是每核私有状态，Distributor 与 GICC 的初始化归属也不同。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>重复工作的 IRQ 依赖设备、GIC 和 CPU 三层共同闭环。读 IAR 会把中断从 Pending 推向 Active，设备 handler 负责清源，EOIR 负责结束 GIC 侧服务，二者不能互相替代。PPI29 是每核私有状态，Distributor 与 GICC 的初始化归属也不同。</p>
+<p>下一章让 Timer IRQ 提出调度请求，并比较完整 frame、精简 frame 与 RTEMS 的处理方式。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</p><p><a href="https://goko-son626.github.io/post/armv7a-06-gic-timers.html">https://goko-son626.github.io/post/armv7a-06-gic-timers.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-27</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-27</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-05-exception-frames.html" target="_blank">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-04-context-threads.html" target="_blank">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-03-boot-linker.html" target="_blank">ARMv7-A小系统实践（四）：从ELF、模式栈到第一行串口输出</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-07-preemption-rtems.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/armv7a-05-exception-frames.html"><span class="level-item">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '8b0bd779927a732c45f86a051956dd3a',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

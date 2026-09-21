@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="PUS 不是另一种链路协议，而是建立在 CCSDS 空间包之上的应用层使用规则。先把协议分层、包头字段和几种 ID 拆开，再读 PUS 服务类型 17，很多看似相似的名词就不会混在一起。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="PUS 不是另一种链路协议，而是建立在 CCSDS 空间包之上的应用层使用规则。先把协议分层、包头字段和几种 ID 拆开，再读 PUS 服务类型 17，很多看似相似的名词就不会混在一起。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-08-09T12:48:00.000Z"><meta property="article:modified_time" content="2026-09-20T10:00:02.060Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="PUS"><meta property="article:tag" content="CCSDS"><meta property="article:tag" content="PUS Service Type 17"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/eds-pus-03-ccsds-pus-service-type-17.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-08-09T12:48:00.000Z","dateModified":"2026-09-20T10:00:02.060Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"PUS 不是另一种链路协议，而是建立在 CCSDS 空间包之上的应用层使用规则。先把协议分层、包头字段和几种 ID 拆开，再读 PUS 服务类型 17，很多看似相似的名词就不会混在一起。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/eds-pus-03-ccsds-pus-service-type-17.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-08-09  <a class="commentCountImg" href="/post/eds-pus-03-ccsds-pus-service-type-17.html#comment-container"><span class="display-none-class">646fef5c3f0267c5928d7d8ba8f4a884</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="646fef5c3f0267c5928d7d8ba8f4a884">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>6.8 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</h1><div class="content"><ul>
+<li><em><strong>PUS 不是另一种链路协议，而是建立在 CCSDS 空间包之上的应用层使用规则。先把协议分层、包头字段和几种 ID 拆开，再读 PUS 服务类型 17，很多看似相似的名词就不会混在一起。</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<p>前两篇从 EDS XML 一直走到 EdsLib packed bytes。本文暂时不写 XML，而是回答：这些字节应该遵守什么协议？主要依据是 <a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/133x0b2e2.pdf">CCSDS 133.0-B-2 Space Packet Protocol</a> 和 <a target="_blank" rel="noopener" href="https://ecss.nl/standard/ecss-e-st-70-41c-space-engineering-telemetry-and-telecommand-packet-utilization-15-april-2016/">ECSS-E-ST-70-41C</a>。</p>
+<h2 id="本章要解决的问题"><a href="#本章要解决的问题" class="headerlink" title="本章要解决的问题"></a>本章要解决的问题</h2><p>上一篇已经能把 native object 转成 packed bytes，但“能转”并不能说明这些字节符合空间通信协议。本章从线包外层向内拆解，并完成三件事：</p>
+<ol>
+<li>按 bit 读懂固定 6 byte 的 CCSDS 主头；</li>
+<li>区分 PUS TC&#x2F;TM 次头中的公共字段与任务裁剪字段；</li>
+<li>根据 ECSS 41C 的系统要求和接口要求，完整理解服务类型 17 的四种消息及失败路径。</li>
+</ol>
+<p>这一章是 XML 建模前的协议设计。先把每个字段来自哪里、由谁决定列清楚，下一篇才能判断它应该放在公共类型、服务基类、具体消息还是业务代码中。</p>
+<h2 id="阅读标准时先分“系统要求”和“接口要求”"><a href="#阅读标准时先分“系统要求”和“接口要求”" class="headerlink" title="阅读标准时先分“系统要求”和“接口要求”"></a>阅读标准时先分“系统要求”和“接口要求”</h2><p>ECSS-E-ST-70-41C 中与服务类型 17 直接相关的内容分在两处：</p>
+<ul>
+<li>6.17 说明服务能力、有效请求、可测试进程列表、成功判据和失败阶段；</li>
+<li>8.17 说明消息的 Service Type、Message Subtype 和 application&#x2F;source data 结构。</li>
+</ul>
+<p>只看 8.17 会知道 TC[17,3] 带一个枚举，却不知道目标不在列表时必须拒绝并产生 failed start of execution notification。只看 6.17 又不知道线上消息子类型和字段顺序。实现必须同时满足两组要求。</p>
+<p>CCSDS 133.0-B-2 则负责更外层的 Space Packet：主头位宽、Packet Type、APID、序列控制和 Packet Data Length。PUS 使用空间包，但不重新定义这 6 byte 主头。</p>
+<h2 id="先分层：CCSDS、PUS-和传输介质不是一回事"><a href="#先分层：CCSDS、PUS-和传输介质不是一回事" class="headerlink" title="先分层：CCSDS、PUS 和传输介质不是一回事"></a>先分层：CCSDS、PUS 和传输介质不是一回事</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">链路/传输介质（帧、串口、总线、UDP 测试通道……）<br>  └─ CCSDS Space Packet<br>       ├─ 6-byte Primary Header<br>       └─ Packet Data Field<br>            ├─ PUS Secondary Header<br>            ├─ Application Data / Source Data<br>            └─ Packet Error Control（按任务裁剪）<br></code></pre></td></tr></table></figure>
+
+<p>CCSDS Space Packet Protocol 规定主头、标识和分段等通用机制；PUS 在空间包数据域中规定遥控请求、遥测报告、服务类型和执行语义；UDP 只是后续实验中搬运一个完整包的方式，不属于 PUS 服务类型 17 的协议定义。</p>
+<p>本文在说明标准时统一使用“PUS 服务类型 17（测试服务）”。源码里的 <code>PUS17</code>、<code>st17.xml</code> 和 <code>TcSt17Base</code> 是当前 EDS 模型的包名、文件名和类型名，只在引用实际代码时保留，不能把这些工程标识当成标准正式名称。</p>
+<h3 id="包、帧和数据报不是同义词"><a href="#包、帧和数据报不是同义词" class="headerlink" title="包、帧和数据报不是同义词"></a>包、帧和数据报不是同义词</h3><p>一个 CCSDS Space Packet 可以被封装到不同链路的数据单元中。开发测试用 UDP 时，常把“一整个空间包”放进一个 UDP payload；这只是便于保持消息边界。真实链路可能把空间包放入传输帧，也可能需要分段、复用和差错控制。</p>
+<p>因此抓取 UDP 时看到的结构是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">Ethernet/IP/UDP headers | CCSDS primary header | PUS content | PEC<br>                         ^ UDP payload starts here<br></code></pre></td></tr></table></figure>
+
+<p>IP 地址和 UDP 端口不属于 EDS 中的 PUS 消息字段。反过来，PUS PEC 也不由 UDP checksum 代替。每层只解释自己的范围。</p>
+<h3 id="为什么先从外层向内解析"><a href="#为什么先从外层向内解析" class="headerlink" title="为什么先从外层向内解析"></a>为什么先从外层向内解析</h3><p>接收方必须先知道数据至少够不够 6 byte 主头，再读取 Packet Data Length 判断整包边界；随后依据 Secondary Header Flag 和任务配置解释 PUS 次头；最后才按 Service&#x2F;Message Subtype 解释应用数据。直接从某个固定偏移读取进程 ID，会在次头裁剪或消息类型变化后立即失效。</p>
+<blockquote>
+<p>图片预留：绘制 CCSDS 主头、PUS 次头、业务数据和 PEC 的分层图，保存为 <code>eds-pus-03-ccsds-pus-service-type-17/packet-layers.png</code>。</p>
+</blockquote>
+<h2 id="CCSDS-主头固定-6-字节"><a href="#CCSDS-主头固定-6-字节" class="headerlink" title="CCSDS 主头固定 6 字节"></a>CCSDS 主头固定 6 字节</h2><table>
+<thead>
+<tr>
+<th>字段</th>
+<th align="right">位数</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Packet Version Number</td>
+<td align="right">3</td>
+<td>空间包协议版本</td>
+</tr>
+<tr>
+<td>Packet Type</td>
+<td align="right">1</td>
+<td><code>0</code> 为 TM&#x2F;报告，<code>1</code> 为 TC&#x2F;请求</td>
+</tr>
+<tr>
+<td>Secondary Header Flag</td>
+<td align="right">1</td>
+<td>数据域开头是否存在次头</td>
+</tr>
+<tr>
+<td>APID</td>
+<td align="right">11</td>
+<td>数据路径&#x2F;应用过程标识</td>
+</tr>
+<tr>
+<td>Sequence Flags</td>
+<td align="right">2</td>
+<td>分段状态</td>
+</tr>
+<tr>
+<td>Sequence Count&#x2F;Name</td>
+<td align="right">14</td>
+<td>序列计数或任务定义名称</td>
+</tr>
+<tr>
+<td>Packet Data Length</td>
+<td align="right">16</td>
+<td>数据域字节数减 1</td>
+</tr>
+</tbody></table>
+<p>Sequence Flags 的标准取值是：<code>00</code> continuation、<code>01</code> first、<code>10</code> last、<code>11</code> unsegmented。最小实验使用不分段包，所以通常为 <code>11</code>。</p>
+<h3 id="6-byte-是怎样拼出来的"><a href="#6-byte-是怎样拼出来的" class="headerlink" title="6 byte 是怎样拼出来的"></a>6 byte 是怎样拼出来的</h3><p>前 16 bit 由 Version、Packet Type、Secondary Header Flag 和 APID 组成；中间 16 bit 是 Sequence Flags 与 14 bit Sequence Count&#x2F;Name；最后 16 bit 是 Packet Data Length。网络表示通常按高位在前阅读：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">bit  0..2   Version<br>bit  3      Packet Type<br>bit  4      Secondary Header Flag<br>bit  5..15  APID<br>bit 16..17  Sequence Flags<br>bit 18..31  Sequence Count/Name<br>bit 32..47  Packet Data Length<br></code></pre></td></tr></table></figure>
+
+<p>这也是为什么不能把 C 位域结构直接当线包：C 位域布局和位序受实现影响，而标准规定的是明确的 bit 位置。EDS packed 编码用于跨编译器保持这些位置。</p>
+<h3 id="Packet-Version-Number-的“版本-1”容易误解"><a href="#Packet-Version-Number-的“版本-1”容易误解" class="headerlink" title="Packet Version Number 的“版本 1”容易误解"></a>Packet Version Number 的“版本 1”容易误解</h3><p>CCSDS 文本把当前结构称为 Version 1 Space Packet，但头中的三位 Packet Version Number 编码为二进制 <code>000</code>。文档版本名称与字段原始值不是同一个概念，程序应按标准字段编码，而不是看到“Version 1”就写整数 1。</p>
+<h2 id="Packet-Data-Length-为什么总是少-1"><a href="#Packet-Data-Length-为什么总是少-1" class="headerlink" title="Packet Data Length 为什么总是少 1"></a>Packet Data Length 为什么总是少 1</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">Packet Data Length = Packet Data Field 的字节数 - 1<br>                   = 整包字节数 - 7<br></code></pre></td></tr></table></figure>
+
+<p>因此 13 字节整包的字段值是 6，15 字节整包的字段值是 8；字段值为 0 表示数据域有 1 字节，而不是 0 字节。这是协议编码，不是 C 数组习惯。用 EDS 的 LengthEntry 自动计算时，也应拿手算结果核对一次。</p>
+<h3 id="从字段反推实收长度"><a href="#从字段反推实收长度" class="headerlink" title="从字段反推实收长度"></a>从字段反推实收长度</h3><p>接收端读取主头后，可按下面公式得到整包预期字节数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">Packet Data Field octets = Packet Data Length + 1<br>Total packet octets      = 6 + Packet Data Length + 1<br>                         = Packet Data Length + 7<br></code></pre></td></tr></table></figure>
+
+<p>若 UDP 数据报长度与此不一致，应先报告长度错误，不要继续把缺失或多余字节交给服务解析。对于流式传输，这个字段还可帮助切分包，但仍需要处理半包和缓存；UDP 已经保留数据报边界，却仍需检查协议长度。</p>
+<h3 id="最小数据域仍至少有-1-byte"><a href="#最小数据域仍至少有-1-byte" class="headerlink" title="最小数据域仍至少有 1 byte"></a>最小数据域仍至少有 1 byte</h3><p>CCSDS 规定 Packet Data Field 至少 1 octet，所以 Length 的零值不是“空包”。PUS 消息即使没有 application data，仍有 PUS 次头，通常还带任务选择的 PEC，因此不会只有 6 byte 主头。</p>
+<h2 id="APID-能说明什么，不能说明什么"><a href="#APID-能说明什么，不能说明什么" class="headerlink" title="APID 能说明什么，不能说明什么"></a>APID 能说明什么，不能说明什么</h2><p>APID 位于每个 CCSDS 空间包主头中，用于标识一条 managed data path，任务中常用来区分产生或消费包的应用。它不是：</p>
+<ul>
+<li>EdsLib 数据库中的类型 ID；</li>
+<li>PUS 服务号；</li>
+<li>TC[17,3] 请求正文里的 Application Process ID。</li>
+</ul>
+<p>APID 的具体分配属于任务设计。看到十进制 <code>321</code>，只能说当前任务选择了这个 APID，不能推导它是“服务 17 的标准 APID”。</p>
+<h3 id="APID-与路由的关系"><a href="#APID-与路由的关系" class="headerlink" title="APID 与路由的关系"></a>APID 与路由的关系</h3><p>CCSDS 将 APID 放在 Packet Identification Field 中，用于标识 managed data path。实际系统可以据此选择接收应用、队列或处理器，但映射表属于任务配置。PUS Service Type 进一步说明该应用数据要执行哪类服务。</p>
+<p>因此同一 APID 可以承载多个 PUS 服务消息；同一服务类型也可能出现在不同 APID 上。把 APID 固定等同于服务号，会失去这两个维度的独立性。</p>
+<h3 id="Idle-APID-与任务-APID"><a href="#Idle-APID-与任务-APID" class="headerlink" title="Idle APID 与任务 APID"></a>Idle APID 与任务 APID</h3><p>空间包协议保留特定 APID 用于 Idle Packets，普通应用不应随意占用。具体任务的 APID 分配应有清单，并同时记录 TC&#x2F;TM 方向、次头配置和序列策略。示例中的 321 只是普通演示值，不是推荐分配。</p>
+<h2 id="PUS-C-TC-次头增加了什么"><a href="#PUS-C-TC-次头增加了什么" class="headerlink" title="PUS-C TC 次头增加了什么"></a>PUS-C TC 次头增加了什么</h2><p>当前实验采用 PUS-C，也就是 PUS 版本字段值 2。TC 次头重点包含：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PUS Version</td>
+<td>标识 PUS 版本</td>
+</tr>
+<tr>
+<td>ACK Flags</td>
+<td>请求哪些 PUS 服务类型 1（请求验证服务）成功确认</td>
+</tr>
+<tr>
+<td>Service Type</td>
+<td>服务类型，例如 17</td>
+</tr>
+<tr>
+<td>Message Subtype</td>
+<td>消息子类型，例如 1 或 3</td>
+</tr>
+<tr>
+<td>Source ID</td>
+<td>请求来源标识，宽度由任务声明</td>
+</tr>
+</tbody></table>
+<p>ACK 是 4 bit：bit3 acceptance、bit2 start of execution、bit1 progress、bit0 completion。它们请求的是成功确认；某些标准强制的失败报告不能简单等同于“ACK 位没置位就什么都不发”。这会在交叉验证文章中再次出现。</p>
+<h3 id="ACK-位描述的是请求验证，不是-ST17-响应开关"><a href="#ACK-位描述的是请求验证，不是-ST17-响应开关" class="headerlink" title="ACK 位描述的是请求验证，不是 ST17 响应开关"></a>ACK 位描述的是请求验证，不是 ST17 响应开关</h3><p>TC[17,1] 的 TM[17,2] 是测试服务自己的功能报告；服务类型 1 的确认则描述该 TC 在接收、开始、进展和完成阶段的验证状态。两类 TM 可能同时存在，目的不同。</p>
+<p>例如清除 completion ACK，不表示服务类型 17 可以不返回标准要求的 TM[17,2]。同样，TC[17,3] 指向未登记进程时，标准要求 failed start of execution notification；不能因为 start ACK 位为 0 就静默丢弃请求。实现库的通用 ACK API 若只按成功确认位输出，服务失败路径就要另外满足强制报告要求。</p>
+<h3 id="Source-ID-为什么不能凭空省略"><a href="#Source-ID-为什么不能凭空省略" class="headerlink" title="Source ID 为什么不能凭空省略"></a>Source ID 为什么不能凭空省略</h3><p>PUS-C 允许若干任务声明项。当前剖面选择 16 bit Source ID，因此 TC 次头为 5 byte：第一个 byte 由 4 bit PUS Version 与 4 bit ACK 组成，之后是 Service Type、Message Subtype 和 2 byte Source ID。若另一实现配置为不同 Source ID 宽度，应用数据起始偏移也会改变。</p>
+<p>双方做交叉验证前必须明确这一点，不能只说“都用 PUS-C”。</p>
+<h2 id="PUS-C-TM-次头存在任务裁剪"><a href="#PUS-C-TM-次头存在任务裁剪" class="headerlink" title="PUS-C TM 次头存在任务裁剪"></a>PUS-C TM 次头存在任务裁剪</h2><p>TM 次头通常包含 PUS 版本、时间参考状态、Service&#x2F;Message Subtype、Destination ID，并可包含消息类型计数器和时间字段。实际线上格式必须显式声明：</p>
+<ul>
+<li>Destination ID 的位宽；</li>
+<li>是否存在 Message Type Counter；</li>
+<li>时间编码是 CUC、CDS 还是其他格式；</li>
+<li>CUC 粗&#x2F;细时间宽度；</li>
+<li>是否带时间前导字节；</li>
+<li>PEC 使用哪种任务允许的算法。</li>
+</ul>
+<p>所以“符合 PUS-C”不代表所有任务的 TM 都逐字节一样。两个实现做交叉测试前，必须先对齐这份任务剖面。</p>
+<h3 id="时间字段为什么经常成为第一个错位点"><a href="#时间字段为什么经常成为第一个错位点" class="headerlink" title="时间字段为什么经常成为第一个错位点"></a>时间字段为什么经常成为第一个错位点</h3><p>TM 常包含时间。CUC 可以选择不同粗时间和细时间宽度，还可能在线传输前导字段；CDS 又有另一种结构。若 C 端模型是 CUC 4+2 且无 preamble，Python 端默认却带 preamble，后面的 PEC 位置和整包长度都会变化。</p>
+<p>测试应固定一个可重复时间值并记录编码参数。先确认长度和字段边界，再比较完整 hex。直接拿不同任务剖面的 TM golden vector 做逐字节比较，只会得到“全部错位”的噪声。</p>
+<h3 id="Message-Type-Counter-是否存在必须写明"><a href="#Message-Type-Counter-是否存在必须写明" class="headerlink" title="Message Type Counter 是否存在必须写明"></a>Message Type Counter 是否存在必须写明</h3><p>某些实现或早期模型会在 TM 次头中加入 Message Type Counter，另一些任务裁剪为不存在。多或少 2 byte 并不一定表示某一方违反 PUS-C，但对同一条通信链路而言必须一致。文章和测试向量都应注明这一选择。</p>
+<h2 id="PUS-服务类型-17-到底提供什么"><a href="#PUS-服务类型-17-到底提供什么" class="headerlink" title="PUS 服务类型 17 到底提供什么"></a>PUS 服务类型 17 到底提供什么</h2><p>ECSS-E-ST-70-41C 第 6.17 节定义了 PUS 服务类型 17（Test service，测试服务）。一个实现至少提供一个测试子服务；标准化的两组消息是：</p>
+<table>
+<thead>
+<tr>
+<th>请求</th>
+<th>响应</th>
+<th>语义</th>
+<th>应用&#x2F;源数据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TC[17,1]</td>
+<td>TM[17,2]</td>
+<td>are-you-alive connection test</td>
+<td>均省略</td>
+</tr>
+<tr>
+<td>TC[17,3]</td>
+<td>TM[17,4]</td>
+<td>对指定应用过程做 on-board connection test</td>
+<td>都带同一个目标进程 ID</td>
+</tr>
+</tbody></table>
+<p>TC[17,1] 不带目标 APID，也不带 Application Process ID。它测试的是承载该测试子服务的服务端本身能否通过最基本的收发与处理链路响应。</p>
+<h3 id="“至少一个测试子服务”不等于四种消息全部无条件必选"><a href="#“至少一个测试子服务”不等于四种消息全部无条件必选" class="headerlink" title="“至少一个测试子服务”不等于四种消息全部无条件必选"></a>“至少一个测试子服务”不等于四种消息全部无条件必选</h3><p>标准要求每个测试服务至少包含一个测试子服务，并规定每个应用过程最多承载一个测试子服务提供者。are-you-alive 能力属于标准化测试子服务；on-board connection test 能力则需要在定义该子服务时声明。</p>
+<p>因此实现声明支持 17.3&#x2F;17.4 时，还必须声明可测试应用过程列表和每个过程的成功判据。只在 XML 中定义两个消息类型，尚未完成这项能力。</p>
+<h3 id="两组测试覆盖的连接范围不同"><a href="#两组测试覆盖的连接范围不同" class="headerlink" title="两组测试覆盖的连接范围不同"></a>两组测试覆盖的连接范围不同</h3><p>TC[17,1]&#x2F;TM[17,2] 检查地面到承载测试子服务的应用过程之间的最小端到端连接。TC[17,3]&#x2F;TM[17,4] 则由测试子服务所在应用过程去检查另一个星上应用过程。后者不是“带参数版本的 ping”，而是多了一层任务声明的进程映射和成功准则。</p>
+<h2 id="17-1-17-2-的严格语义"><a href="#17-1-17-2-的严格语义" class="headerlink" title="17.1&#x2F;17.2 的严格语义"></a>17.1&#x2F;17.2 的严格语义</h2><p>标准要求 TC[17,1] 只有一条“are you alive”指令且无参数；每个有效请求产生一个 TM[17,2] 报告。收到响应至少说明：</p>
+<ul>
+<li>请求上行链路可达；</li>
+<li>测试服务能接收和处理请求；</li>
+<li>报告下行链路可达；</li>
+<li>相关最小功能正在运行。</li>
+</ul>
+<p>它不能证明所有应用都健康，也不能替代更深入的功能或性能测试。</p>
+<h3 id="有效请求为何只生成一份报告"><a href="#有效请求为何只生成一份报告" class="headerlink" title="有效请求为何只生成一份报告"></a>有效请求为何只生成一份报告</h3><p>41C 要求每条有效 are-you-alive 指令产生单个 notification，并由每个有效请求产生单个包含该 notification 的 report。最小实现中一条 TC[17,1] 对应一条 TM[17,2]。若同时启用服务类型 1 确认，还可能看到额外验证 TM，但不能把它们误计为多个 17.2。</p>
+<h3 id="“alive”-的结论必须谨慎描述"><a href="#“alive”-的结论必须谨慎描述" class="headerlink" title="“alive” 的结论必须谨慎描述"></a>“alive” 的结论必须谨慎描述</h3><p>收到 17.2 说明承载测试子服务的应用过程仍执行最低限度功能，且请求上行和报告下行路径可用。它不证明所有内部线程、外设、载荷或其他应用过程正常，也不提供时延保证。测试结果的语义边界应写进报告。</p>
+<h2 id="17-3-17-4-为什么必须带目标进程-ID"><a href="#17-3-17-4-为什么必须带目标进程-ID" class="headerlink" title="17.3&#x2F;17.4 为什么必须带目标进程 ID"></a>17.3&#x2F;17.4 为什么必须带目标进程 ID</h2><p>TC[17,3] 请求测试某个已声明可测试的应用过程。标准规定该请求包含一个目标应用过程标识，TM[17,4] 成功报告返回同一标识。</p>
+<p>这个字段在标准中是任务声明的枚举，标准没有统一规定必须是 8 bit、16 bit 或等同 APID。若任务选择 16 位大端枚举，那么 EDS、服务实现、puslib 策略和测试向量都必须采用同一选择。</p>
+<h3 id="“枚举”包含两层含义"><a href="#“枚举”包含两层含义" class="headerlink" title="“枚举”包含两层含义"></a>“枚举”包含两层含义</h3><p>线上编码需要一个整数位宽和字节序，任务语义还需要“数值对应哪个应用过程”的枚举表。例如 <code>1=DemoProcess1</code> 只是示例任务选择。未列出的数值可能在线格式上仍可解码为整数，但在服务行为上必须按不可测试目标处理。</p>
+<p>另外，可测试列表通常比枚举全集更小或更动态。枚举定义“可能标识哪些进程”，运行时列表定义“当前测试子服务能测试哪些进程”。二者不能合并成一个判断。</p>
+<h3 id="为什么服务提供者自己不在列表里"><a href="#为什么服务提供者自己不在列表里" class="headerlink" title="为什么服务提供者自己不在列表里"></a>为什么服务提供者自己不在列表里</h3><p>标准明确指出，承载测试子服务的应用过程不包含在 on-board connection test 的可测试列表中。对它自身的最低限度连通性应使用 17.1&#x2F;17.2；17.3&#x2F;17.4 用于测试其他星上应用过程。实现登记表时应保留这个约束。</p>
+<h2 id="17-3-的失败不一定返回-TM-17-4"><a href="#17-3-的失败不一定返回-TM-17-4" class="headerlink" title="17.3 的失败不一定返回 TM[17,4]"></a>17.3 的失败不一定返回 TM[17,4]</h2><p>标准要求先声明“可测试应用过程列表”和每个过程的成功判据；承载该测试子服务的应用过程本身不放入这张列表。处理逻辑至少分三种：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">TC[17,3]<br>  ├─ 目标不在可测试列表<br>  │    └─ 拒绝请求，产生 TM[1,4] 开始执行失败报告<br>  ├─ 目标存在，但连接测试判据失败<br>  │    └─ 产生 TM[1,8] 完成执行失败报告<br>  └─ 测试成功<br>       └─ 产生 TM[17,4]，返回相同目标进程 ID<br></code></pre></td></tr></table></figure>
+
+<p>因此看到“17.3 没有返回 17.4”不能立即判定实现坏了；要先检查是否收到 PUS 服务类型 1 的失败验证报告。PUS 服务类型 17 负责测试业务，PUS 服务类型 1 负责请求执行验证，两者会在失败路径上组合。</p>
+<h3 id="为什么一个是开始失败，一个是完成失败"><a href="#为什么一个是开始失败，一个是完成失败" class="headerlink" title="为什么一个是开始失败，一个是完成失败"></a>为什么一个是开始失败，一个是完成失败</h3><p>目标不在可测试列表时，服务在开始实际测试前就能判定请求不能执行，所以属于 start of execution failure，对应 TM[1,4]。目标已登记、测试也真正开始，但成功判据未满足，则属于 completion failure，对应 TM[1,8]。</p>
+<p>这一区分不是错误码命名偏好，而是执行阶段语义。测试用例应同时检查报告 subtype，不能只检查“返回了某个 ST01 失败包”。具体 failure code 数值通常由任务声明，ECSS 并未给所有任务统一分配 170、171 这类示例值。</p>
+<h3 id="成功路径为什么还要返回同一进程-ID"><a href="#成功路径为什么还要返回同一进程-ID" class="headerlink" title="成功路径为什么还要返回同一进程 ID"></a>成功路径为什么还要返回同一进程 ID</h3><p>TM[17,4] 的 source data 含 Application Process ID，使接收方能把响应和被测目标对应起来。服务实现应从有效请求中取得 ID，并在成功报告中原样返回；测试不只检查“收到 17.4”，还应检查值一致。</p>
+<h2 id="四种容易混淆的-ID"><a href="#四种容易混淆的-ID" class="headerlink" title="四种容易混淆的 ID"></a>四种容易混淆的 ID</h2><table>
+<thead>
+<tr>
+<th>名称</th>
+<th>位于哪里</th>
+<th>由谁定义</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>EdsLib_Id_t</code></td>
+<td>本机数据库</td>
+<td>生成工具&#x2F;数据库</td>
+<td>找到一种 EDS 类型</td>
+</tr>
+<tr>
+<td>CCSDS APID</td>
+<td>主头</td>
+<td>任务分配</td>
+<td>标识 managed data path</td>
+</tr>
+<tr>
+<td>PUS Service&#x2F;Message Subtype</td>
+<td>PUS 次头</td>
+<td>ECSS 标准</td>
+<td>标识服务和消息语义</td>
+</tr>
+<tr>
+<td>Application Process ID</td>
+<td>17.3&#x2F;17.4 正文</td>
+<td>任务声明</td>
+<td>指定被测试应用过程</td>
+</tr>
+</tbody></table>
+<p>它们可能都以整数形式出现，但绝不能互相代替。尤其不要因为字段都叫“应用标识”，就把主头 APID 自动复制到 17.3 正文。</p>
+<h3 id="用“谁读取它”来快速区分"><a href="#用“谁读取它”来快速区分" class="headerlink" title="用“谁读取它”来快速区分"></a>用“谁读取它”来快速区分</h3><ul>
+<li><code>EdsLib_Id_t</code> 由本机 EdsLib 查询数据库时读取，不上网；</li>
+<li>APID 由空间包路由与管理逻辑读取，位于前 2 byte；</li>
+<li>Service&#x2F;Message Subtype 由 PUS 分发器读取，位于 PUS 次头；</li>
+<li>Application Process ID 由服务类型 17 的业务处理器读取，位于 17.3&#x2F;17.4 正文。</li>
+</ul>
+<p>若某个整数不知道属于哪类，先看它在 packet 中的偏移和读取模块，而不是看变量名是否带 <code>id</code>。</p>
+<h2 id="PEC-与-CRC-16-CCITT"><a href="#PEC-与-CRC-16-CCITT" class="headerlink" title="PEC 与 CRC-16-CCITT"></a>PEC 与 CRC-16-CCITT</h2><p>PEC（Packet Error Control）是包尾的错误控制字段。当前 EDS 剖面选择 CRC-16-CCITT：生成多项式为 <code>x^16 + x^12 + x^5 + 1</code>，初始寄存器全 1，计算范围覆盖除 PEC 自身外的整个包，包括主头。</p>
+<p>需要区分两件事：PUS&#x2F;任务剖面决定是否使用 PEC 以及选用什么算法；EDS XML 把这个决定写成 ErrorControlEntry，EdsLib 完整打包&#x2F;解包负责计算和检查。CRC 能发现许多随机错误，但不提供身份认证或防恶意篡改能力。</p>
+<h3 id="CRC-的名字不足以唯一确定算法"><a href="#CRC-的名字不足以唯一确定算法" class="headerlink" title="CRC 的名字不足以唯一确定算法"></a>CRC 的名字不足以唯一确定算法</h3><p>工程中“CRC-16-CCITT”有时被用来指不同初值、反射方式或最终异或组合。两端不仅要同意生成多项式，还应确认初始值、输入&#x2F;输出反射、最终异或和覆盖范围。当前 EDS <code>CRC16_CCITT</code> 路径使用的具体行为应以 EdsLib 源码、标准附录和已知向量共同核对。</p>
+<h3 id="PEC-在包中的位置和覆盖范围"><a href="#PEC-在包中的位置和覆盖范围" class="headerlink" title="PEC 在包中的位置和覆盖范围"></a>PEC 在包中的位置和覆盖范围</h3><p>当前模型把 2 byte PEC 放在具体消息末尾，计算输入覆盖 PEC 之前的整个包，包括 CCSDS 主头、PUS 次头和应用数据。接收端对任意受保护 bit 的改变都应重新计算并比较；截断 PEC 则首先造成长度不符。</p>
+<p>CRC 通过只说明受保护内容与校验值一致。攻击者若能同时修改正文和重新计算 CRC，仍可构造通过校验的包，因此安全认证要由更高层机制提供。</p>
+<h2 id="EDS-能表达协议结构，但不能代替服务行为"><a href="#EDS-能表达协议结构，但不能代替服务行为" class="headerlink" title="EDS 能表达协议结构，但不能代替服务行为"></a>EDS 能表达协议结构，但不能代替服务行为</h2><p>EDS XML 很适合表达：</p>
+<ul>
+<li>主头和次头字段；</li>
+<li>TC&#x2F;TM 方向；</li>
+<li>Service&#x2F;Message Subtype 固定值；</li>
+<li>17.3&#x2F;17.4 的进程标识；</li>
+<li>长度和 PEC；</li>
+<li>请求与报告的接口关系。</li>
+</ul>
+<p>它不能凭空完成：维护可测试进程列表、调用目标进程测试回调、判断成功条件、决定失败报告、选择传输通道。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">EDS 定义“包长什么样”；服务代码定义“收到包后做什么”。<br></code></pre></td></tr></table></figure>
+
+<h3 id="把标准要求分配到正确实现位置"><a href="#把标准要求分配到正确实现位置" class="headerlink" title="把标准要求分配到正确实现位置"></a>把标准要求分配到正确实现位置</h3><table>
+<thead>
+<tr>
+<th>标准内容</th>
+<th>推荐实现位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Service Type&#x3D;17、Subtype&#x3D;1&#x2F;2&#x2F;3&#x2F;4</td>
+<td>EDS ValueConstraint</td>
+</tr>
+<tr>
+<td>17.1&#x2F;17.2 无应用&#x2F;源数据</td>
+<td>具体 EDS 消息不增加 EntryList</td>
+</tr>
+<tr>
+<td>17.3&#x2F;17.4 的进程枚举</td>
+<td>ST17 EDS 类型与任务枚举表</td>
+</tr>
+<tr>
+<td>可测试进程列表</td>
+<td>服务运行时配置&#x2F;注册表</td>
+</tr>
+<tr>
+<td>每个进程的成功判据</td>
+<td>回调或服务策略</td>
+</tr>
+<tr>
+<td>未登记目标 → 开始执行失败</td>
+<td>服务状态机 + ST01 报告生成</td>
+</tr>
+<tr>
+<td>测试失败 → 完成执行失败</td>
+<td>服务状态机 + ST01 报告生成</td>
+</tr>
+<tr>
+<td>UDP 端口</td>
+<td>测试传输配置</td>
+</tr>
+</tbody></table>
+<p>这张表是下一篇建模的输入。凡是随运行状态变化的判断，都不应伪装成静态 XML 约束。</p>
+<h2 id="阅读一条十六进制-TC-的方法"><a href="#阅读一条十六进制-TC-的方法" class="headerlink" title="阅读一条十六进制 TC 的方法"></a>阅读一条十六进制 TC 的方法</h2><p>以当前任务的一条 TC[17,1] 为例：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">19 41  c0 01  00 06  20 11 01 00 2a  1b 4c<br>└主头第1字┘ └序列┘ └长度┘ └──PUS次头──┘ └PEC┘<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li><code>0x1941</code>：版本 0、TC、存在次头、APID <code>0x141</code>（321）；</li>
+<li><code>0xc001</code>：不分段、序列计数 1；</li>
+<li><code>0x0006</code>：整包 13 字节，因此 <code>13 - 7 = 6</code>；</li>
+<li><code>0x20</code>：PUS 版本 2，ACK flags 为 0；</li>
+<li><code>0x11 0x01</code>：Service Type 17、Message Subtype 1；</li>
+<li><code>0x002a</code>：Source ID 42；</li>
+<li><code>0x1b4c</code>：PEC。</li>
+</ul>
+<p>这类逐字段解释比只保存“期望 hex”更有价值：任务参数变化后，可以知道哪些字节应该变化，哪些协议字段必须保持不变。</p>
+<h3 id="用同样方法拆-TC-17-3"><a href="#用同样方法拆-TC-17-3" class="headerlink" title="用同样方法拆 TC[17,3]"></a>用同样方法拆 TC[17,3]</h3><p>在相同公共字段下，TC[17,3] 比 TC[17,1] 多 2 byte Application Process ID：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">19 41 c0 01 00 08 20 11 03 00 2a 00 01 9c 72<br>|---- primary ----| |--- TC secondary ---| |ID| |PEC|<br></code></pre></td></tr></table></figure>
+
+<p>变化不只有 subtype <code>01→03</code> 和新增 <code>00 01</code>：整包从 13 byte 变为 15 byte，所以 Packet Data Length 从 6 变为 8；PEC 也必须重新计算。若只在 17.1 向量中插入两个字节而不更新长度和 PEC，这不是合法 17.3 包。</p>
+<h3 id="十六进制日志应配套字段表"><a href="#十六进制日志应配套字段表" class="headerlink" title="十六进制日志应配套字段表"></a>十六进制日志应配套字段表</h3><p>建议日志同时打印 offset、原始 byte 和解释值。纯 hex 适合逐字节比较，字段表适合发现位宽和偏移错误。两者结合才能在“第 11 字节不同”时知道它是 Source ID、进程 ID 还是 PEC。</p>
+<h2 id="一份可复用的协议检查表"><a href="#一份可复用的协议检查表" class="headerlink" title="一份可复用的协议检查表"></a>一份可复用的协议检查表</h2><p>实现任意 PUS 消息时，至少确认：</p>
+<ol>
+<li>主头 Packet Type 与 TC&#x2F;TM 方向一致；</li>
+<li>Secondary Header Flag 已设置；</li>
+<li>APID 来自任务分配，不是服务号；</li>
+<li>Sequence Flags 与分段策略一致；</li>
+<li>Packet Data Length 使用“数据域字节数减一”；</li>
+<li>PUS 版本和任务剖面一致；</li>
+<li>Service&#x2F;Message Subtype 是标准要求的组合；</li>
+<li>可选字段、宽度和时间格式已明确；</li>
+<li>正文严格遵守该消息子类型的数据结构；</li>
+<li>PEC 算法和覆盖范围一致；</li>
+<li>正常与失败响应都符合服务语义。</li>
+</ol>
+<h2 id="从协议要求推导下一篇-XML"><a href="#从协议要求推导下一篇-XML" class="headerlink" title="从协议要求推导下一篇 XML"></a>从协议要求推导下一篇 XML</h2><p>完成本章后，XML 结构已经可以从需求自然推出：</p>
+<ol>
+<li>CCSDS 主头独立成公共类型，因为所有服务复用；</li>
+<li>PUS TC&#x2F;TM 次头独立成公共类型，并明确任务裁剪；</li>
+<li>ST17 建立 TC&#x2F;TM 抽象基类，将 Service Type 固定为 17；</li>
+<li>四个具体类型分别固定 subtype；</li>
+<li>17.1&#x2F;17.2 不增加服务数据；</li>
+<li>17.3&#x2F;17.4 引用同一个 Application Process ID 枚举；</li>
+<li>每个具体消息末尾声明 PEC；</li>
+<li>Interface 表达两组 request&#x2F;report 关系；</li>
+<li>可测试列表、回调和失败分支保留在运行时服务中。</li>
+</ol>
+<p>这个推导顺序比先写一个大 XML 再反复删字段更可靠，因为每个节点都能回到标准条款或任务选择。</p>
+<h2 id="本章最容易带走的三个误解"><a href="#本章最容易带走的三个误解" class="headerlink" title="本章最容易带走的三个误解"></a>本章最容易带走的三个误解</h2><p>第一，PUS 不等于完整星地链路。它建立在 CCSDS Space Packet 之上，又由更低层传输承载。第二，服务类型 17 不只是四个 subtype 编号，还包含有效性和失败阶段要求。第三，任务剖面不是随意偏离标准，而是在标准允许或要求声明的范围内把可选项具体化。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>读 PUS 报文时，应从外向内看：先用 CCSDS 主头判断方向、APID、序列与长度，再用 PUS 次头判断服务语义，最后按消息子类型解释正文和 PEC。PUS 服务类型 17 很小，但已经完整展示了“公共协议字段、任务裁剪字段、业务数据和运行时行为”四个层次。</p>
+<p>下一篇将把这些规则落进 EDS XML：公共 CCSDS&#x2F;PUS 类型怎样复用，17.1&#x2F;17.2 为什么没有正文，17.3&#x2F;17.4 的进程 ID 应该放在哪里，以及接口声明和运行时服务实现之间是什么关系。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/133x0b2e2.pdf">CCSDS 133.0-B-2 Space Packet Protocol</a></li>
+<li><a target="_blank" rel="noopener" href="https://ecss.nl/standard/ecss-e-st-70-41c-space-engineering-telemetry-and-telecommand-packet-utilization-15-april-2016/">ECSS-E-ST-70-41C</a></li>
+</ul>
+</div><div class="article-licensing box"><div class="licensing-title"><p>EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</p><p><a href="https://goko-son626.github.io/post/eds-pus-03-ccsds-pus-service-type-17.html">https://goko-son626.github.io/post/eds-pus-03-ccsds-pus-service-type-17.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-08-09</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-09-20</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html" target="_blank">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a><br></span><span>  2.<a class="is-size-6" href="/post/eds-pus-05-service-type-17-edslib-udp.html" target="_blank">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a><br></span><span>  3.<a class="is-size-6" href="/post/eds-pus-04-service-type-17-eds-model.html" target="_blank">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/eds-pus-04-service-type-17-eds-model.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/eds-pus-02-edslib-pack-unpack.html"><span class="level-item">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '646fef5c3f0267c5928d7d8ba8f4a884',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

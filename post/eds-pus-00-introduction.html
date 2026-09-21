@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>EDS与PUS实践（0）：先弄清EDS和PUS是什么 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="第一次同时看到 EDS、SEDS、EdsLib、CCSDS、PUS、TC、TM 这些词时，很容易把它们理解成同一套协议里的不同模块。实际上，它们分属“数据描述”“线包结构”“应用服务”和“实现工具”几个层次。先把边界理清，后面写 XML、调用 EdsLib 和验证服务类型 17 才不会越学越乱。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="第一次同时看到 EDS、SEDS、EdsLib、CCSDS、PUS、TC、TM 这些词时，很容易把它们理解成同一套协议里的不同模块。实际上，它们分属“数据描述”“线包结构”“应用服务”和“实现工具”几个层次。先把边界理清，后面写 XML、调用 EdsLib 和验证服务类型 17 才不会越学越乱。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-07-25T12:18:00.000Z"><meta property="article:modified_time" content="2026-09-20T10:07:31.894Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="EDS"><meta property="article:tag" content="SEDS"><meta property="article:tag" content="PUS"><meta property="article:tag" content="CCSDS"><meta property="article:tag" content="ECSS"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/eds-pus-00-introduction.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-07-25T12:18:00.000Z","dateModified":"2026-09-20T10:07:31.894Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"第一次同时看到 EDS、SEDS、EdsLib、CCSDS、PUS、TC、TM 这些词时，很容易把它们理解成同一套协议里的不同模块。实际上，它们分属“数据描述”“线包结构”“应用服务”和“实现工具”几个层次。先把边界理清，后面写 XML、调用 EdsLib 和验证服务类型 17 才不会越学越乱。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/eds-pus-00-introduction.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-07-25  <a class="commentCountImg" href="/post/eds-pus-00-introduction.html#comment-container"><span class="display-none-class">4951facb8ca9eecefa76def2e851fd32</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="4951facb8ca9eecefa76def2e851fd32">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>12.2 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">EDS与PUS实践（0）：先弄清EDS和PUS是什么</h1><div class="content"><ul>
+<li><em><strong>第一次同时看到 EDS、SEDS、EdsLib、CCSDS、PUS、TC、TM 这些词时，很容易把它们理解成同一套协议里的不同模块。实际上，它们分属“数据描述”“线包结构”“应用服务”和“实现工具”几个层次。先把边界理清，后面写 XML、调用 EdsLib 和验证服务类型 17 才不会越学越乱。</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<p>这篇作为整个系列的第 0 篇，不急着写 XML，也不急着运行代码，只先回答四个问题：</p>
+<ol>
+<li>EDS 和 PUS 各自是什么；</li>
+<li>它们分别解决什么问题，又不负责什么；</li>
+<li>二者怎样与 CCSDS 空间包、EdsLib 和业务程序配合；</li>
+<li>标准、源码和辅助资料应该去哪里找、按什么顺序看。</li>
+</ol>
+<p>如果只想先记住一句话，可以记成：</p>
+<blockquote>
+<p><strong>PUS 规定一类遥控请求和遥测报告“应该表达什么”；EDS 把消息的类型、字段、编码与接口“机器可读地描述出来”；EdsLib 再依据 EDS 模型完成对象初始化、查询和编解码。</strong></p>
+</blockquote>
+<p>三者有关系，但不是同一件事。</p>
+<h2 id="为什么要先写这一篇"><a href="#为什么要先写这一篇" class="headerlink" title="为什么要先写这一篇"></a>为什么要先写这一篇</h2><p>后面的实践会依次出现 XML、生成代码、运行时数据库、C 接口、CCSDS 空间包、PUS 服务类型 17、UDP 和 Python。若只沿着命令执行顺序学习，很容易得到一种错觉：好像把 XML 交给工具、再调用一个打包函数，PUS 服务就完成了。实际工程里，这些步骤分别回答不同问题：</p>
+<ul>
+<li>标准要求系统提供什么能力；</li>
+<li>任务选择了怎样的包格式和字段宽度；</li>
+<li>EDS 怎样把这种选择写成数据模型；</li>
+<li>EdsLib 怎样执行模型中的编码规则；</li>
+<li>应用代码怎样实现请求对应的动作；</li>
+<li>测试怎样证明两个独立实现理解了同一串字节。</li>
+</ul>
+<p>如果不先建立这张地图，后面每看到一个新名词都会临时猜它属于哪一层。例如 APID、Application Process ID 和 <code>EdsLib_Id_t</code> 都可能以整数出现，但它们一个属于空间包主头，一个属于服务类型 17 的业务数据，一个属于本机运行时数据库。数值长得像，不表示语义相同。</p>
+<p>因此第 0 篇的目标不是记忆所有缩写，而是形成三种判断能力：看到一个字段时知道去哪个标准找定义；看到一个函数时知道它在生成阶段还是运行阶段；看到一次“测试通过”时能说清它究竟证明了什么。</p>
+<h2 id="在这之前，需要具备什么基础"><a href="#在这之前，需要具备什么基础" class="headerlink" title="在这之前，需要具备什么基础"></a>在这之前，需要具备什么基础</h2><p>读完整个系列不要求先掌握 cFS，也不要求会写复杂 XML。真正需要的前置知识只有几项：</p>
+<ol>
+<li>能看懂基本的 C 结构体、指针、数组和函数返回值；</li>
+<li>知道一个字节是 8 bit，并理解大端与小端描述的是多字节值在线上的排列；</li>
+<li>知道构建过程通常包含“生成源码—编译—链接”，而不是所有文件都在目标设备上动态解释；</li>
+<li>知道网络或串口最终搬运的是字节，协议需要规定这些字节怎样解释。</li>
+</ol>
+<p>后面会用 CMake 驱动生成与编译，但不会把 CMake 本身当成 EDS 的一部分；会用 UDP 建立两个进程之间的传输边界，但不会把 UDP 当成 PUS 标准规定的链路；会借助 puslib 做独立解析，但不会把某个 Python 库的默认配置当成 ECSS 的唯一格式。</p>
+<p>先划清这些边界，可以避免为了理解 EDS 又同时钻进操作系统、网络栈和大型飞行软件框架，学习范围会小很多。</p>
+<h2 id="先看它们在整个通信链路中的位置"><a href="#先看它们在整个通信链路中的位置" class="headerlink" title="先看它们在整个通信链路中的位置"></a>先看它们在整个通信链路中的位置</h2><p>一条经过简化的星地数据链路可以画成这样：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">任务操作或应用功能<br>        │<br>        ▼<br>PUS 服务语义<br>“发什么请求、回什么报告、成功或失败意味着什么”<br>        │<br>        ▼<br>PUS TC/TM 包字段<br>“服务类型、消息子类型、源/目的标识、时间、应用数据……”<br>        │<br>        ▼<br>CCSDS Space Packet<br>“版本、TC/TM 标志、APID、序列计数、包长度……”<br>        │<br>        ▼<br>传输帧 / 链路 / UDP / 串口 / 总线<br>“这些字节实际怎样送到另一端”<br></code></pre></td></tr></table></figure>
+
+<p>EDS 不单独占据其中某一层。它更像一份贯穿数据层和接口层的<strong>机器可读说明书</strong>：哪些字段组成一个对象、每个字段占多少 bit、采用什么字节序、某个具体消息固定哪些值、组件提供哪些接口，都可以进入 EDS 模型。</p>
+<p>EdsLib 则是使用这份说明书的工具与运行库。它不会替业务程序决定“收到测试命令后到底测试什么”，但能把 C 对象按照描述打包成线包，也能把收到的字节恢复为对象并检查类型约束。</p>
+<h3 id="再加一条“生命周期”视角"><a href="#再加一条“生命周期”视角" class="headerlink" title="再加一条“生命周期”视角"></a>再加一条“生命周期”视角</h3><p>上面的分层图回答“每一层负责什么”，还需要另一张图回答“一条消息怎样走完一生”：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">需求：需要一个 are-you-alive 测试<br>  ↓<br>标准：选择 TC[17,1] 请求与 TM[17,2] 报告<br>  ↓<br>任务剖面：确定 APID、Source/Destination ID、时间和 PEC 等选项<br>  ↓<br>EDS：描述 TC/TM 公共头、固定服务号和具体消息<br>  ↓<br>生成：得到 C 类型、Type ID、DataTypeDB 等源码<br>  ↓<br>运行：填写 native object，EdsLib 打包为 packed bytes<br>  ↓<br>传输：UDP、总线或实际链路搬运完整包<br>  ↓<br>服务：解析请求，执行测试，构造响应<br>  ↓<br>验证：独立端解包响应，检查字段、CRC 和请求/响应关系<br></code></pre></td></tr></table></figure>
+
+<p>这条链上有四份容易被误认为“唯一真相”的东西：标准文本、任务剖面、EDS XML 和生成代码。更准确的关系是：标准给出可选范围和强制要求，任务剖面作出具体选择，EDS 把选择变成机器可读契约，生成代码则是契约在某一版工具链下的派生产物。真正应该人工维护的是任务定义和 XML，不是生成的 C 文件。</p>
+<h3 id="三条互相独立的正确性"><a href="#三条互相独立的正确性" class="headerlink" title="三条互相独立的正确性"></a>三条互相独立的正确性</h3><p>整个系列始终围绕三类正确性展开：</p>
+<table>
+<thead>
+<tr>
+<th>正确性</th>
+<th>核心问题</th>
+<th>典型证据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型正确性</td>
+<td>XML 是否准确表达标准和任务剖面</td>
+<td>resolved XML、尺寸、约束、生成数据库</td>
+</tr>
+<tr>
+<td>编解码正确性</td>
+<td>对象是否能稳定转换成规定线包</td>
+<td>已知向量、CRC、负向用例、跨架构一致性</td>
+</tr>
+<tr>
+<td>服务行为正确性</td>
+<td>收到请求后是否执行正确动作并产生正确报告</td>
+<td>状态机、正常&#x2F;失败路径、独立实现交叉测试</td>
+</tr>
+</tbody></table>
+<p>同一个测试不能自动覆盖三者。XML 能生成不等于服务行为正确；自己打包再自己解包不等于线格式与标准一致；UDP 收到相同字节也不等于已经执行测试服务。后面每篇都会明确自己处于哪一层。</p>
+<blockquote>
+<p>图片预留：绘制“应用功能 → PUS → CCSDS Space Packet → 链路”纵向分层图，并在右侧画一条跨越数据和接口层的 EDS 描述线，保存为 <code>eds-pus-00-introduction/eds-pus-layers.png</code>。</p>
+</blockquote>
+<h2 id="EDS：让数据和接口成为可处理的模型"><a href="#EDS：让数据和接口成为可处理的模型" class="headerlink" title="EDS：让数据和接口成为可处理的模型"></a>EDS：让数据和接口成为可处理的模型</h2><p>EDS 是 <strong>Electronic Data Sheet</strong>，可直译为电子数据表。这个名字容易让人联想到 Excel，但这里的重点并不是“表格”，而是使用结构化、机器可处理的方式描述设备、软件组件及其数据接口。</p>
+<p>在当前这条技术路径中，更准确的标准名称是 SEDS：</p>
+<blockquote>
+<p><strong>Spacecraft Onboard Interface Services—XML Specification for Electronic Data Sheets</strong></p>
+</blockquote>
+<p>它对应 <a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/876x0b1.pdf">CCSDS 876.0-B-1</a>。SEDS 可以理解为 CCSDS 为 EDS 定义的一套 XML 语言和模型。</p>
+<h3 id="一份-EDS-通常描述哪些内容"><a href="#一份-EDS-通常描述哪些内容" class="headerlink" title="一份 EDS 通常描述哪些内容"></a>一份 EDS 通常描述哪些内容</h3><p>按实际项目的使用范围，一份 EDS 可以包含以下几类信息：</p>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>例子</th>
+<th>解决的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基础数据类型</td>
+<td>无符号整数、浮点数、枚举、字符串</td>
+<td>一个值是什么类型</td>
+</tr>
+<tr>
+<td>线上编码</td>
+<td>位宽、字节序、符号、有效范围</td>
+<td>一个值怎样变成 bit 和 byte</td>
+</tr>
+<tr>
+<td>组合类型</td>
+<td>容器、成员、数组</td>
+<td>一条消息由哪些字段组成</td>
+</tr>
+<tr>
+<td>继承与约束</td>
+<td>服务类型固定为 17、消息子类型固定为 1</td>
+<td>怎样从公共包派生具体消息</td>
+</tr>
+<tr>
+<td>接口模型</td>
+<td>命令、参数、提供者、使用者</td>
+<td>谁提供什么操作，参数是什么</td>
+</tr>
+<tr>
+<td>元数据</td>
+<td>名称、说明、单位、枚举显示</td>
+<td>工具怎样查询和展示数据</td>
+</tr>
+</tbody></table>
+<p>并不是每个 EDS 文件都必须把这些内容全部写一遍。更合理的组织方式是分层复用：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">基础类型<br>  └─ CCSDS/PUS 公共包头<br>       └─ 某个 PUS 服务的公共消息<br>            └─ 某个具体 TC 或 TM<br></code></pre></td></tr></table></figure>
+
+<p>例如 <code>uint16</code> 只定义一次；公共 TC 包头只定义一次；服务类型 17 的四种消息再通过继承和约束复用这些定义。</p>
+<h3 id="EDS-不等于“XML-生成结构体”"><a href="#EDS-不等于“XML-生成结构体”" class="headerlink" title="EDS 不等于“XML 生成结构体”"></a>EDS 不等于“XML 生成结构体”</h3><p>把 XML 转成 C 结构体确实是 EDS 工具链的一项输出，但这只是表面结果。真正有价值的是，生成阶段还可以把以下信息保存到运行时数据库中：</p>
+<ul>
+<li>类型尺寸与 packed 尺寸；</li>
+<li>成员名称、偏移和嵌套关系；</li>
+<li>整数、浮点数、字符串等编码规则；</li>
+<li>基类、派生类型与固定值约束；</li>
+<li>类型名称与运行时 Type ID 的对应关系；</li>
+<li>组件接口与命令参数关系。</li>
+</ul>
+<p>因此，程序不必为每一种消息都重新手写一套移位、掩码和大小端转换代码。它可以把 native C 对象交给 EdsLib，再由运行时数据库指导编解码。</p>
+<h3 id="EDS-的边界在哪里"><a href="#EDS-的边界在哪里" class="headerlink" title="EDS 的边界在哪里"></a>EDS 的边界在哪里</h3><p>EDS 可以描述一条命令含有哪些字段，却不会自动实现命令的业务行为。</p>
+<p>例如 XML 能描述：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">TC[17,3]<br>  ├─ PUS 服务类型 = 17<br>  ├─ 消息子类型 = 3<br>  └─ Application Process ID = 任务声明的枚举数据项<br></code></pre></td></tr></table></figure>
+
+<p>但“根据 Application Process ID 找到被测进程”“怎样判断连接测试成功”“失败时产生哪种报告”，仍然要由服务实现代码完成。数据模型和业务逻辑是两层，不能因为 XML 能生成 C 代码，就认为服务也已经自动实现。</p>
+<h3 id="为什么不用手写结构体和移位代码"><a href="#为什么不用手写结构体和移位代码" class="headerlink" title="为什么不用手写结构体和移位代码"></a>为什么不用手写结构体和移位代码</h3><p>小型协议完全可以手写编码器。例如把一个 16 位整数拆成高低两个字节并不困难。问题出现在类型数量、继承关系和任务变更同时增长之后：</p>
+<ul>
+<li>相同的公共头会散落在多个结构体和编码函数中；</li>
+<li>字段由 8 bit 改为 16 bit 时，构造、解析、打印和测试都要同步修改；</li>
+<li>本机结构体可能因 ABI 对齐产生填充，不能直接作为线包；</li>
+<li>服务号、方向和版本等固定值靠人工重复填写，很容易产生合法但语义错误的包；</li>
+<li>通用调试工具不知道成员名称、类型和偏移，只能为每种消息写专用代码。</li>
+</ul>
+<p>EDS 的收益并不是消灭所有 C 代码，而是把重复的数据契约集中到一份模型中。应用仍然负责业务动作，但不必各自发明字段布局。生成器和运行库也能够围绕同一模型提供尺寸查询、类型识别、显示和编解码。</p>
+<h3 id="EDS-中“类型”比-C-语言类型多了什么"><a href="#EDS-中“类型”比-C-语言类型多了什么" class="headerlink" title="EDS 中“类型”比 C 语言类型多了什么"></a>EDS 中“类型”比 C 语言类型多了什么</h3><p>一个 EDS 整数类型除了说明它是整数，还可以描述位宽、符号、字节序、范围、单位和显示方式。一个容器除了列出成员，还可以表达基类、派生类型、约束、长度项和错误控制项。一个接口除了列出参数，还能把命令与输入输出类型建立关系。</p>
+<p>例如服务类型 17 的公共 TC 类型可以约束 <code>PacketType=TC</code>、<code>PusVersionId=2</code>、<code>ServiceType=17</code>。具体 <code>TC[17,1]</code> 再增加 <code>MessageSubtype=1</code>。这些值不是某次运行临时填入的业务数据，而是“这个类型之所以是这个类型”的组成部分。把它们写成约束后，初始化和派生类型识别都能使用这份信息。</p>
+<h3 id="数据模型不是服务状态机"><a href="#数据模型不是服务状态机" class="headerlink" title="数据模型不是服务状态机"></a>数据模型不是服务状态机</h3><p>EDS 擅长静态结构，PUS 服务行为往往包含时间顺序和条件分支。以 TC[17,3] 为例，数据模型可以保证包中存在一个 Application Process ID，却不知道该 ID 当前是否登记、进程是否响应、何种判据代表连接成功。后者需要运行时表、回调函数和服务状态机。</p>
+<p>这一边界也决定了测试方法：打包&#x2F;解包测试验证字段与编码；服务单元测试验证分支和报告；跨进程测试验证两个实现能否通过真实字节连接。把三者拆开，错误才容易定位。</p>
+<h2 id="EdsLib：EDS-的工具链与运行时实现"><a href="#EdsLib：EDS-的工具链与运行时实现" class="headerlink" title="EdsLib：EDS 的工具链与运行时实现"></a>EdsLib：EDS 的工具链与运行时实现</h2><p><a target="_blank" rel="noopener" href="https://github.com/nasa/EdsLib">NASA EdsLib</a> 是一套面向 CCSDS EDS 的开源实现。仓库中的几个主要部分可以先这样理解：</p>
+<table>
+<thead>
+<tr>
+<th>目录&#x2F;组件</th>
+<th>主要职责</th>
+<th>运行在哪里</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>tool/</code>、<code>sedstool</code></td>
+<td>读取 XML、建立 DOM、执行生成脚本</td>
+<td>构建主机</td>
+</tr>
+<tr>
+<td><code>edslib/eds/</code></td>
+<td>从已解析模型生成 C&#x2F;H 和数据库源码</td>
+<td>构建主机</td>
+</tr>
+<tr>
+<td><code>edslib/fsw/</code></td>
+<td>对象初始化、类型查询、打包、解包等 C 运行库</td>
+<td>主机或目标系统</td>
+</tr>
+<tr>
+<td><code>cfecfs/</code></td>
+<td>面向 cFE&#x2F;cFS 的额外适配与工具</td>
+<td>特定集成环境</td>
+</tr>
+</tbody></table>
+<p>这里最重要的边界是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">构建时：EDS XML + sedstool + Lua 生成脚本<br>                         │<br>                         ▼<br>                 生成的 C/H 和数据库源码<br>                         │<br>目标运行时：EdsLib Runtime + 已编译数据库 + 应用程序<br></code></pre></td></tr></table></figure>
+
+<p>目标系统通常不需要携带 XML、Lua 和 sedstool。XML 在构建主机上先生成 C&#x2F;H，之后再用本机或交叉编译器编译运行库、生成数据库和应用程序。</p>
+<p>另外，EdsLib <strong>可以独立使用</strong>。<code>cfecfs/</code> 说明它能够与 cFE&#x2F;cFS 集成，不代表 EdsLib 必须依赖 cFS。若当前目标只是验证自己定义的消息，直接使用 <code>edslib/fsw/</code> 的运行库就足够了。</p>
+<h3 id="构建时和运行时为什么必须分开理解"><a href="#构建时和运行时为什么必须分开理解" class="headerlink" title="构建时和运行时为什么必须分开理解"></a>构建时和运行时为什么必须分开理解</h3><p>sedstool 需要 XML 解析、Lua 处理和代码生成环境，它面对的是“模型”。目标程序面对的是已经编译好的类型与数据库，它面对的是“对象和字节”。这一区分对嵌入式系统尤其重要：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">x86_64 构建主机<br>  XML + sedstool → 生成 .c/.h<br>                       │<br>                       ▼<br>ARM 交叉编译器<br>  生成 .c/.h + EdsLib Runtime → 目标静态库/可执行程序<br></code></pre></td></tr></table></figure>
+
+<p>目标板并不需要理解 XML，也不必安装 Lua。它只需要能够编译和链接 EdsLib Runtime 以及生成数据库。反过来，主机上生成的目标数据库源码可以跨平台重新编译，但主机的 <code>.o</code> 文件不能直接拿到 ARM 上链接，因为目标 ABI 已经不同。</p>
+<p>packed 线格式则应该由 EDS 明确控制。只要两端采用同一任务剖面，一个小端主机和一个大端目标都应产生相同的线上字节。后续 Pack&#x2F;Unpack 实践正是在验证这层隔离。</p>
+<h3 id="运行时数据库不是普通业务数据库"><a href="#运行时数据库不是普通业务数据库" class="headerlink" title="运行时数据库不是普通业务数据库"></a>运行时数据库不是普通业务数据库</h3><p>这里的 DataTypeDB、DisplayDB 和 IntfDB 不是 SQLite，也不是保存运行日志的数据库。它们是由 EDS 生成并编译进程序的元数据表：</p>
+<ul>
+<li>DataTypeDB 保存类型布局、编码、尺寸、成员、继承和约束，编解码依赖它；</li>
+<li>DisplayDB 保存类型名、成员名和枚举显示信息，便于按名字查询和打印；</li>
+<li>IntfDB 保存组件、接口、命令与参数之间的关系，便于动态发现接口。</li>
+</ul>
+<p>固定类型、资源受限的程序可以只保留编解码必需部分；通用命令行工具则可能需要名称和接口数据库。是否链接某个数据库，是功能与资源之间的工程选择，不是“用了 EDS 就必须全部带上”。</p>
+<h2 id="PUS：统一遥控请求和遥测报告的应用服务"><a href="#PUS：统一遥控请求和遥测报告的应用服务" class="headerlink" title="PUS：统一遥控请求和遥测报告的应用服务"></a>PUS：统一遥控请求和遥测报告的应用服务</h2><p>PUS 是 <strong>Packet Utilization Standard</strong>。当前常用的标准版本是 <a target="_blank" rel="noopener" href="https://ecss.nl/standard/ecss-e-st-70-41c-space-engineering-telemetry-and-telecommand-packet-utilization-15-april-2016/">ECSS-E-ST-70-41C</a>，标准名称为 <em>Telemetry and telecommand packet utilization</em>。</p>
+<p>它关心的是航天器远程监视和控制中，遥控包与遥测包应该怎样被使用。标准定义了一组服务，并规定这些服务中的请求、报告、消息结构和行为要求。</p>
+<h3 id="TC、TM、服务类型和消息子类型"><a href="#TC、TM、服务类型和消息子类型" class="headerlink" title="TC、TM、服务类型和消息子类型"></a>TC、TM、服务类型和消息子类型</h3><ul>
+<li><strong>TC（Telecommand）</strong>：遥控。通常表示从服务使用者发给服务提供者的请求；</li>
+<li><strong>TM（Telemetry）</strong>：遥测。通常表示状态、结果、事件或数据报告；</li>
+<li><strong>Service Type</strong>：服务类型，说明消息属于哪类功能；</li>
+<li><strong>Message Subtype</strong>：消息子类型，说明它是该服务中的哪一种请求或报告。</li>
+</ul>
+<p>因此 <code>TC[17,1]</code> 的含义不是“编号为 17.1 的普通包”，而是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">TC       遥控包<br>17       服务类型 17：Test service<br>1        该服务中的消息子类型 1<br></code></pre></td></tr></table></figure>
+
+<p>类似地，<code>TM[17,2]</code> 是服务类型 17 的消息子类型 2 遥测报告。</p>
+<h3 id="PUS-包含哪些服务"><a href="#PUS-包含哪些服务" class="headerlink" title="PUS 包含哪些服务"></a>PUS 包含哪些服务</h3><p>ECSS-E-ST-70-41C 提供的是可按任务裁剪的服务集合，不要求每个应用过程实现全部服务。常见服务包括：</p>
+<table>
+<thead>
+<tr>
+<th align="right">服务类型</th>
+<th>名称</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td>Request verification</td>
+<td>报告一条 TC 的接收、开始、进展、完成或失败</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td>Housekeeping and diagnostic data reporting</td>
+<td>周期或按需报告参数集合</td>
+</tr>
+<tr>
+<td align="right">5</td>
+<td>Event reporting</td>
+<td>上报信息、异常、故障等事件</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td>Function management</td>
+<td>请求执行任务定义的功能</td>
+</tr>
+<tr>
+<td align="right">17</td>
+<td>Test</td>
+<td>存活测试和应用过程连接测试</td>
+</tr>
+<tr>
+<td align="right">20</td>
+<td>Parameter management</td>
+<td>读取或修改参数值</td>
+</tr>
+</tbody></table>
+<p>这张表只是建立直觉，不是标准内容的替代品。实际实现时还要查看所选服务的完整要求、允许的消息、参数类型和成功&#x2F;失败路径。</p>
+<h3 id="PUS-不是消息编号清单"><a href="#PUS-不是消息编号清单" class="headerlink" title="PUS 不是消息编号清单"></a>PUS 不是消息编号清单</h3><p>只记住“17.1 发请求、17.2 回响应”仍然不够。PUS 条款通常同时包含两类内容：</p>
+<ol>
+<li><strong>系统要求</strong>：服务提供哪些能力、何时拒绝、怎样判定成功、产生什么通知；</li>
+<li><strong>接口要求</strong>：对应 TC&#x2F;TM 的服务号、消息子类型和应用数据结构。</li>
+</ol>
+<p>服务类型 17 的系统要求位于 6.17，消息结构位于 8.17。只看第 8 章可以写出长得正确的包，却可能漏掉“不可测试进程要在开始执行阶段失败”“连接判据失败要在完成执行阶段失败”等行为。只看第 6 章又无法确定线上字段。后面建模时会把这两部分分别落到 XML 和服务代码。</p>
+<h3 id="一个服务和一个应用过程是什么关系"><a href="#一个服务和一个应用过程是什么关系" class="headerlink" title="一个服务和一个应用过程是什么关系"></a>一个服务和一个应用过程是什么关系</h3><p>PUS 以应用过程之间的请求和报告为背景。一个应用过程可以提供某种服务，另一个实体作为服务使用者发起请求。标准规定交互语义，但实际软件怎样映射进程、线程、任务或组件，由任务架构决定。</p>
+<p>这也是为什么 TC[17,3] 的 Application Process ID 不能在没有任务定义时随意解释成操作系统 PID。它是任务声明的标识，值域、宽度和到实际组件的映射都必须在任务层确定。</p>
+<h3 id="PUS-服务类型-17-为什么适合入门"><a href="#PUS-服务类型-17-为什么适合入门" class="headerlink" title="PUS 服务类型 17 为什么适合入门"></a>PUS 服务类型 17 为什么适合入门</h3><p>服务类型 17 的消息少、交互直观，又能覆盖 TC、TM、公共包头、应用数据和响应关系，因此适合用来走通第一条完整链路。</p>
+<p>它包含两组交互：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">存活测试：<br>服务使用者 ── TC[17,1] ──► 服务提供者<br>服务使用者 ◄─ TM[17,2] ─── 服务提供者<br><br>连接测试：<br>服务使用者 ── TC[17,3] ──► 服务提供者<br>服务使用者 ◄─ TM[17,4] ─── 服务提供者<br></code></pre></td></tr></table></figure>
+
+<p>第一组回答“这一端是否还活着”；第二组针对任务声明的 application process 做连接测试。具体什么条件算连接正常，属于任务定义的行为，不是 EDS 编解码器可以代替的。</p>
+<p>从学习角度看，这四种消息刚好形成递进：</p>
+<ul>
+<li>17.1&#x2F;17.2 没有服务专用数据，适合先检查公共主头、次头、长度和 PEC；</li>
+<li>17.3&#x2F;17.4 增加一个任务声明的枚举，适合观察应用数据怎样改变长度和 CRC；</li>
+<li>17.3 存在拒绝、执行失败和成功三条路径，能引出服务类型 1 的请求验证报告；</li>
+<li>请求与响应方向相反，能验证 TC&#x2F;TM 两类次头是否都建模正确。</li>
+</ul>
+<p>它足够小，可以把每个字节解释清楚；又不只是“编码一个结构体”，能够暴露模型、编解码和服务行为之间的边界。</p>
+<h2 id="CCSDS-空间包和-PUS-是什么关系"><a href="#CCSDS-空间包和-PUS-是什么关系" class="headerlink" title="CCSDS 空间包和 PUS 是什么关系"></a>CCSDS 空间包和 PUS 是什么关系</h2><p>PUS 不会凭空重新定义一套最底层包格式。PUS TC&#x2F;TM 使用 CCSDS Space Packet。空间包协议应查阅 <a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/133x0b2e2.pdf">CCSDS 133.0-B-2</a>。</p>
+<p>一个用于当前学习范围的简化视图是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs text">┌─────────────────────────────────────────────┐<br>│ CCSDS Space Packet Primary Header（固定 6 octets） │<br>│ 版本、TC/TM、辅助头标志、APID、序列、包长度       │<br>├─────────────────────────────────────────────┤<br>│ PUS Packet Secondary Header                 │<br>│ PUS 版本、ACK、服务类型、消息子类型、标识或时间等  │<br>├─────────────────────────────────────────────┤<br>│ Application Data                            │<br>│ 某个具体服务消息携带的数据                    │<br>├─────────────────────────────────────────────┤<br>│ Packet Error Control（按任务配置）            │<br>└─────────────────────────────────────────────┘<br></code></pre></td></tr></table></figure>
+
+<p>几个容易混淆的点：</p>
+<ol>
+<li><strong>CCSDS 主头和 PUS 次头不是二选一。</strong> PUS 包通常同时具有空间包主头和 PUS 包次头；</li>
+<li><strong>APID 不等于 PUS 服务类型。</strong> APID 用于识别应用过程或包流，服务类型表示请求&#x2F;报告的功能类别；</li>
+<li><strong>PUS 没有规定 UDP。</strong> UDP 只是开发验证时承载完整线包的一种方便方式；</li>
+<li><strong>空间包长度字段有自己的编码规则。</strong> 不能简单把它当作整个缓冲区的字节数；</li>
+<li><strong>具体字段宽度和可选项要结合标准与任务裁剪。</strong> 示例代码不能反过来定义标准。</li>
+</ol>
+<h3 id="为什么需要“任务剖面”这层"><a href="#为什么需要“任务剖面”这层" class="headerlink" title="为什么需要“任务剖面”这层"></a>为什么需要“任务剖面”这层</h3><p>标准往往允许任务选择字段宽度、时间格式、错误控制和可选项。真正互操作时，双方不仅要说“都支持 PUS-C”，还要对齐一份更具体的约定，例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">PUS version             2<br>TC Source ID            16 bit<br>TM Destination ID       16 bit<br>TM time                 CUC 4-byte coarse + 2-byte fine<br>CUC preamble            absent<br>Message Type Counter    absent<br>PEC                     CRC-16-CCITT<br>ST17 Process ID         16-bit mission enumeration<br></code></pre></td></tr></table></figure>
+
+<p>这份约定不是 ECSS 对所有任务的统一答案，而是某一条测试链路的输入。EDS XML、C 程序和 puslib Policy 必须同时服从它。若其中一端多出 2 字节 Message Type Counter，后续所有字段都会错位，即使双方都声称“实现了 PUS-C”。</p>
+<h3 id="从协议栈角度看封装"><a href="#从协议栈角度看封装" class="headerlink" title="从协议栈角度看封装"></a>从协议栈角度看封装</h3><p>应用首先构造一个 PUS 消息，PUS 消息作为 CCSDS Space Packet 的数据域，空间包再被下层传输承载。开发环境用 UDP 时，完整空间包通常原样作为 UDP payload；真实系统也可能再封装进传输帧、总线帧或专用链路。</p>
+<p>每一层都有自己的长度和校验语义。CCSDS Packet Data Length 不等于 UDP Length；PUS PEC 也不等于 UDP checksum。下层校验成功不能替代上层 PEC，上层的服务号也不能指导 IP 路由。清楚封装关系后，抓包和日志才不会把不同层的字段混为一谈。</p>
+<h2 id="EDS-和-PUS-到底怎样配合"><a href="#EDS-和-PUS-到底怎样配合" class="headerlink" title="EDS 和 PUS 到底怎样配合"></a>EDS 和 PUS 到底怎样配合</h2><p>可以把它们的分工压缩成一张表：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>主要由谁回答</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>需要实现哪些遥控请求和遥测报告</td>
+<td>PUS 标准 + 任务裁剪</td>
+</tr>
+<tr>
+<td>收到请求后应该做什么、何时报告成功或失败</td>
+<td>PUS 服务逻辑 + 应用代码</td>
+</tr>
+<tr>
+<td>包里有哪些字段、各字段怎样编码</td>
+<td>CCSDS&#x2F;PUS 标准 + EDS 模型</td>
+</tr>
+<tr>
+<td>XML 怎样生成 C 类型和运行时数据库</td>
+<td>sedstool &#x2F; EDS 生成插件</td>
+</tr>
+<tr>
+<td>C 对象怎样打包为字节或从字节恢复</td>
+<td>EdsLib Runtime</td>
+</tr>
+<tr>
+<td>字节怎样到达另一端</td>
+<td>UDP、总线、串口或实际通信栈</td>
+</tr>
+</tbody></table>
+<p>以 <code>TC[17,3]</code> 为例，一条完整路径可以是：</p>
+<ol>
+<li>ECSS PUS 说明它是服务类型 17 的连接测试请求，并规定需要表达的服务数据；</li>
+<li>EDS XML 将公共空间包头、PUS TC 次头和消息参数建模为具体类型；</li>
+<li>sedstool 生成 C 类型、Type ID 宏和 DataTypeDB 源码；</li>
+<li>C 程序填写任务需要的 Application Process ID；</li>
+<li>EdsLib 按数据库规则把对象打包成连续字节；</li>
+<li>测试程序通过 UDP 把这一个完整线包送给另一进程；</li>
+<li>服务实现解析请求，执行连接测试并产生 <code>TM[17,4]</code>；</li>
+<li>接收端再用 EdsLib 解包并检查字段、类型约束和响应对应关系。</li>
+</ol>
+<p>这条链路里没有任何一层能单独证明全部正确：</p>
+<ul>
+<li>XML 能生成，只能说明模型通过了工具的基本检查；</li>
+<li>EdsLib 能打包和解包，只能说明本模型的编解码路径可运行；</li>
+<li>自己打包再自己解包，可能让同一个错误互相抵消；</li>
+<li>UDP 收发成功，只能说明字节被送达；</li>
+<li>独立实现交叉解析成功，才能进一步降低共同实现错误的风险；</li>
+<li>真正的服务行为仍需检查请求、响应和失败路径。</li>
+</ul>
+<h3 id="把需求逐步翻译成实现"><a href="#把需求逐步翻译成实现" class="headerlink" title="把需求逐步翻译成实现"></a>把需求逐步翻译成实现</h3><p>实现一个服务时，可以沿着以下问题逐步翻译，而不是直接打开 XML 编辑器：</p>
+<ol>
+<li>标准要求哪些能力，哪些是最小必选，哪些要声明后才提供；</li>
+<li>每种请求和报告的方向、服务号、消息子类型及应用数据是什么；</li>
+<li>当前任务选了哪些可选字段和具体编码；</li>
+<li>哪些字段属于所有 CCSDS 包、所有 PUS TC&#x2F;TM、某一服务、某一消息；</li>
+<li>哪些内容可由 EDS 静态描述，哪些必须留给运行时服务代码；</li>
+<li>正常路径和每个失败阶段应该产生什么证据；</li>
+<li>有没有独立实现或已知向量可以避免“自己验证自己”。</li>
+</ol>
+<p>这七个问题分别产生服务需求表、任务剖面、EDS 类型、服务状态机和测试矩阵。最后的 XML 只是其中一个交付物。</p>
+<h3 id="用一次修改检验分层是否合理"><a href="#用一次修改检验分层是否合理" class="headerlink" title="用一次修改检验分层是否合理"></a>用一次修改检验分层是否合理</h3><p>假设 Application Process ID 从 16 bit 改为 8 bit。合理分层下，主要改动应该集中在任务类型声明、独立实现策略和对应测试向量；公共 CCSDS 主头、服务类型 17 的消息号、UDP 传输代码和业务回调接口不应全部重写。</p>
+<p>再假设 UDP 换成 RTOS 消息队列。合理分层下，EDS 模型、EdsLib Pack&#x2F;Unpack 和服务状态机不变，只替换传输适配层。如果换一种传输就必须修改 XML 中的 PUS 字段，说明层次已经耦合。</p>
+<h2 id="用一个最小案例把所有角色串起来"><a href="#用一个最小案例把所有角色串起来" class="headerlink" title="用一个最小案例把所有角色串起来"></a>用一个最小案例把所有角色串起来</h2><p>假设地面需要确认某个星上测试服务仍可响应。需求层先选择 PUS 的 are-you-alive 交互，而不是自己发明一个字符串 <code>PING</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">请求：TC[17,1]<br>成功功能报告：TM[17,2]<br>服务专用数据：两者都没有<br></code></pre></td></tr></table></figure>
+
+<p>任务随后决定这条链路采用 APID 321、TC Source ID 42、PUS-C、CRC-16-CCITT；TM 采用 Destination ID 42 和 CUC 4+2 时间。这些数值与可选项形成任务剖面，不是服务类型 17 对所有系统的固定答案。</p>
+<p>EDS 模型把这些选择分层表达：CCSDS XML 定义 6 byte 主头，PUS common 定义 TC&#x2F;TM 次头，ST17 抽象基类固定 Service Type&#x3D;17，TC[17,1] 与 TM[17,2] 再分别固定 subtype 1 和 2。因为二者没有业务数据，具体类型只需要公共头、约束和包尾 PEC。</p>
+<p>sedstool 从 XML 生成 native C 类型和 DataTypeDB。发送程序取得 TC[17,1] Type ID，调用 Initialize 填入固定约束，再写 APID、序列号和 Source ID。Complete Pack 依据数据库输出 13 byte：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">6 byte CCSDS primary header<br>+ 5 byte PUS TC secondary header<br>+ 0 byte application data<br>+ 2 byte PEC<br>= 13 byte<br></code></pre></td></tr></table></figure>
+
+<p>这 13 byte 可以作为 UDP payload 送到另一进程。若另一端只是用同一 DataTypeDB 解包，只证明传输后模型仍自洽；若另一端由不读取 XML 的 puslib 解析、执行服务并生成 TM[17,2]，C 端再用 EDS 解包 TM，证据才扩展为两个实现的双向一致。</p>
+<p>最后仍要准确描述结果：收到 17.2 说明承载测试子服务的应用过程执行了最低限度功能，且请求和报告通信路径可用；它不证明所有星上应用、硬件和实时性能正常。</p>
+<h3 id="再把案例改成-TC-17-3"><a href="#再把案例改成-TC-17-3" class="headerlink" title="再把案例改成 TC[17,3]"></a>再把案例改成 TC[17,3]</h3><p>若要测试另一个星上应用过程，消息改为 TC[17,3]，并增加任务声明的 Application Process ID。假设它是 16 bit 大端枚举且目标值为 1，线包比 17.1 多出 <code>00 01</code>，总长从 13 byte 变为 15 byte，Packet Data Length 与 PEC都随之变化。</p>
+<p>服务运行时查询“可测试进程列表”：</p>
+<ul>
+<li>目标未登记，在开始执行阶段产生 TM[1,4]；</li>
+<li>目标已登记但回调判定失败，在完成执行阶段产生 TM[1,8]；</li>
+<li>判据成功，产生 TM[17,4] 并返回同一 Process ID。</li>
+</ul>
+<p>这里能清楚看到三层各自的工作：EDS 保证进程 ID 在线包中的结构，EdsLib 保证编码与完整性，服务代码保证列表、回调和失败阶段。任何一层都不能替代另外两层。</p>
+<h2 id="遇到陌生名词时用四问定位"><a href="#遇到陌生名词时用四问定位" class="headerlink" title="遇到陌生名词时用四问定位"></a>遇到陌生名词时用四问定位</h2><p>后续继续阅读源码或标准时，可以先问：</p>
+<ol>
+<li>它是在构建主机出现，还是目标运行时出现？</li>
+<li>它描述本机对象、线上字段、接口关系，还是业务动作？</li>
+<li>它由 CCSDS&#x2F;ECSS 固定，还是由任务声明？</li>
+<li>它的正确性应由生成检查、编解码测试、传输测试还是服务测试证明？</li>
+</ol>
+<p>例如 TopicId 属于某些 cFE&#x2F;MissionLib 集成环境的任务路由概念，不是 PUS 标准字段；<code>EdsLib_Id_t</code> 是本机数据库索引，不是线上 APID；UDP port 是测试传输配置，不进入 PUS PEC。用四问定位，比背诵越来越多缩写更可靠。</p>
+<h2 id="建议保留的学习产物"><a href="#建议保留的学习产物" class="headerlink" title="建议保留的学习产物"></a>建议保留的学习产物</h2><p>仅看懂一次终端输出很容易遗忘。围绕一个服务，最好持续维护下面几份小而明确的产物：</p>
+<ul>
+<li>一张标准条款索引：系统要求、消息结构、公共包头和 CRC 分别在哪一节；</li>
+<li>一张任务剖面表：所有可选字段、位宽、时间与 PEC 选择；</li>
+<li>一张消息字段表：每种 TC&#x2F;TM 的层次、偏移、长度和固定值；</li>
+<li>一张模型映射表：标准字段对应哪个 XML 类型、成员或约束；</li>
+<li>一组已知向量：固定输入、完整 hex、逐字段解释和版本信息；</li>
+<li>一组负向用例：每次只破坏长度、固定值、正文或 PEC 中的一项；</li>
+<li>一张验证边界表：每个测试证明什么、没有证明什么。</li>
+</ul>
+<p>这些产物比复制构建命令更有长期价值。工具版本、目录和脚本可能变化，但只要数据契约和证据链仍清楚，就能迅速判断新实现是否保持兼容。</p>
+<h3 id="学习笔记中应避免的三种句式"><a href="#学习笔记中应避免的三种句式" class="headerlink" title="学习笔记中应避免的三种句式"></a>学习笔记中应避免的三种句式</h3><p>第一种是“标准规定 Process ID 为 16 bit”，因为 41C 只规定这里是任务声明的枚举；16 bit 是当前选择。第二种是“UDP 测试证明 ST17 服务正确”，因为 C→UDP→C 只覆盖传输和同数据库解包。第三种是“XML 实现了连接测试”，因为 XML 只描述消息，成功判据由服务代码执行。</p>
+<p>把句子改成“在当前任务剖面下选择……”“本测试验证到……层”“运行时服务负责……”以后，技术结论会准确很多，也便于其他读者复现。</p>
+<p>最后还应记录标准版本、源码提交或版本号、构建工具版本与测试日期。相同名称的库可能改变默认 Policy，标准也可能有不同 Issue；没有版本上下文的“正确结果”，几个月后很难判断还能否复用。技术笔记的目标不是保存一次成功截图，而是让后来者能从同样输入得到同样结论，并知道输入变化后应重新检查哪一层。</p>
+<h2 id="这些概念不要再混在一起"><a href="#这些概念不要再混在一起" class="headerlink" title="这些概念不要再混在一起"></a>这些概念不要再混在一起</h2><h3 id="EDS、SEDS、EdsLib"><a href="#EDS、SEDS、EdsLib" class="headerlink" title="EDS、SEDS、EdsLib"></a>EDS、SEDS、EdsLib</h3><ul>
+<li><strong>EDS</strong> 是电子数据表这一类思想和模型；</li>
+<li><strong>SEDS</strong> 是 CCSDS 876.0-B-1 定义的 XML 规范；</li>
+<li><strong>EdsLib</strong> 是处理这类 XML 并在运行时使用生成数据库的一套具体开源实现。</li>
+</ul>
+<p>类似于“C 语言”“ISO C 标准”“某个 C 编译器”之间有关联，但不能互相替代。</p>
+<h3 id="PUS、CCSDS-和-cFS"><a href="#PUS、CCSDS-和-cFS" class="headerlink" title="PUS、CCSDS 和 cFS"></a>PUS、CCSDS 和 cFS</h3><ul>
+<li><strong>PUS</strong> 是 ECSS 的遥测遥控包利用标准，定义服务及其消息语义；</li>
+<li><strong>CCSDS Space Packet Protocol</strong> 定义空间包协议，是 PUS 包所依托的基础；</li>
+<li><strong>cFS</strong> 是 NASA 的飞行软件框架，可以集成 EDS，也可以承载应用，但不是实现 PUS 或使用 EdsLib 的前提；</li>
+<li><strong>cFE</strong> 是 cFS 的核心飞行执行环境，软件总线等概念属于这套框架，不应误认为是 PUS 标准字段。</li>
+</ul>
+<h3 id="EdsLib、puslib-和-PUSopen"><a href="#EdsLib、puslib-和-PUSopen" class="headerlink" title="EdsLib、puslib 和 PUSopen"></a>EdsLib、puslib 和 PUSopen</h3><ul>
+<li><strong>EdsLib</strong> 侧重依据 EDS 模型处理对象和编解码；</li>
+<li><strong><a target="_blank" rel="noopener" href="https://github.com/pxntus/puslib">puslib</a></strong> 是 Python 编写的 PUS 实现，可用于学习、测试和构造独立解析端；</li>
+<li><strong><a target="_blank" rel="noopener" href="https://pusopen.com/api/introduction.html">PUSopen</a></strong> 是另一套 PUS&#x2F;CCSDS 软件实现及文档，其公开资料适合辅助理解协议分层和服务交互。</li>
+</ul>
+<p>后两者是实现或学习材料，不是 ECSS 标准本身。判断某个字段或行为是否合规时，最终仍要回到标准文本和当前采用的任务裁剪。</p>
+<h2 id="资料应该从哪里获取"><a href="#资料应该从哪里获取" class="headerlink" title="资料应该从哪里获取"></a>资料应该从哪里获取</h2><h3 id="第一层：标准原文"><a href="#第一层：标准原文" class="headerlink" title="第一层：标准原文"></a>第一层：标准原文</h3><p>这是确认名称、字段、约束和服务行为的最终依据。</p>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://ccsds.org/publications/">CCSDS Publications</a>：CCSDS 官方出版物入口；</li>
+<li><a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/876x0b1.pdf">CCSDS 876.0-B-1</a>：SEDS XML 规范；</li>
+<li><a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/133x0b2e2.pdf">CCSDS 133.0-B-2</a>：Space Packet Protocol；</li>
+<li><a target="_blank" rel="noopener" href="https://ecss.nl/standards/">ECSS Standards</a> 与 <a target="_blank" rel="noopener" href="https://ecss.nl/standards/ecss-tree/">ECSS Document Tree</a>：ECSS 标准入口和文档关系；</li>
+<li><a target="_blank" rel="noopener" href="https://ecss.nl/standard/ecss-e-st-70-41c-space-engineering-telemetry-and-telecommand-packet-utilization-15-april-2016/">ECSS-E-ST-70-41C</a>：PUS 标准页面及附件。</li>
+</ol>
+<p>阅读标准时要先确认封面上的编号、Issue&#x2F;Revision 和发布日期。网上的总结可能基于早期版本，不能只因为标题相似就混用。</p>
+<h3 id="第二层：实现源码和测试"><a href="#第二层：实现源码和测试" class="headerlink" title="第二层：实现源码和测试"></a>第二层：实现源码和测试</h3><p>标准告诉我们“必须怎样”，源码告诉我们“这个工具具体怎样做”。</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/nasa/EdsLib">NASA EdsLib</a>：观察 XML 处理、生成脚本、运行时接口与单元测试；</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/nasa/cFS-EDS-GroundStation">NASA cFS-EDS-GroundStation</a>：理解 EdsLib 与 cFS&#x2F;MissionLib 结合后的命令构造和遥测解析；</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/pxntus/puslib">pxntus&#x2F;puslib</a>：观察 Python 中的 PUS packet 和服务实现，并作为独立验证端。</li>
+</ul>
+<p>源码阅读最有价值的顺序通常不是从第一行看到最后一行，而是：README → 构建入口 → 公开头文件&#x2F;API → 最小测试 → 具体实现。</p>
+<h3 id="第三层：辅助教程和产品文档"><a href="#第三层：辅助教程和产品文档" class="headerlink" title="第三层：辅助教程和产品文档"></a>第三层：辅助教程和产品文档</h3><p><a target="_blank" rel="noopener" href="https://pusopen.com/api/index.html">PUSopen 文档</a> 对服务模型、协议分层和若干服务交互给出了较直观的说明，适合第一次建立整体图景。但它描述的是该产品所实现和选取的功能，不能把产品 API 或实现范围当成 ECSS 的全部要求。</p>
+<p>博客、视频和代码片段也适合降低入门成本，但最好遵循一个原则：</p>
+<blockquote>
+<p><strong>教程用来找方向，源码用来理解实现，标准用来裁决对错。</strong></p>
+</blockquote>
+<h3 id="怎样阅读几百页标准而不迷路"><a href="#怎样阅读几百页标准而不迷路" class="headerlink" title="怎样阅读几百页标准而不迷路"></a>怎样阅读几百页标准而不迷路</h3><p>不需要从第一页顺序读到最后一页。围绕一个具体消息，阅读路径可以是：</p>
+<ol>
+<li>在术语部分确认 request、report、application process 等概念；</li>
+<li>在第 6 章找到该服务的能力、有效性和失败要求；</li>
+<li>在第 8 章找到消息子类型和应用&#x2F;源数据结构；</li>
+<li>回到第 7 章确认公共 TC&#x2F;TM 包字段和任务声明项；</li>
+<li>查附录中的消息汇总和 CRC 定义做交叉核对；</li>
+<li>最后对照实现源码，判断库的默认策略是否等于当前任务剖面。</li>
+</ol>
+<p>记录时要把“标准明确规定”“标准允许任务声明”“当前示例作出的选择”三种句子分开。例如“Application Process ID 是枚举”来自 8.17；“它采用 16 bit 大端”是当前模型的任务选择；“值 1 映射到 DemoProcess1”则只是示例枚举表。混写后，读者会误以为示例值也是标准固定值。</p>
+<h3 id="怎样验证二手资料"><a href="#怎样验证二手资料" class="headerlink" title="怎样验证二手资料"></a>怎样验证二手资料</h3><p>看到一段教程或代码时，可以用四个问题快速筛查：</p>
+<ul>
+<li>它依据的是 PUS-A、PUS-C 还是未说明版本；</li>
+<li>它把任务可选字段写成固定字段了吗；</li>
+<li>它展示的是标准消息，还是某个框架内部头；</li>
+<li>它的测试是同实现往返，还是存在独立对照。</li>
+</ul>
+<p>如果四项都没有说明，这份资料仍可用于找关键词，但不应直接成为数据契约。</p>
+<h2 id="推荐的阅读与实践顺序"><a href="#推荐的阅读与实践顺序" class="headerlink" title="推荐的阅读与实践顺序"></a>推荐的阅读与实践顺序</h2><p>不建议一开始就顺序通读几百页标准，也不建议直接复制一个大型示例。更高效的方式是围绕一条最小闭环逐步扩展。</p>
+<h3 id="第一步：只建立分层概念"><a href="#第一步：只建立分层概念" class="headerlink" title="第一步：只建立分层概念"></a>第一步：只建立分层概念</h3><p>先能回答以下问题：</p>
+<ul>
+<li>TC 和 TM 有什么方向和语义差异；</li>
+<li>CCSDS 主头、PUS 次头、应用数据分别在哪里；</li>
+<li>Service Type 和 Message Subtype 怎样标识消息；</li>
+<li>EDS 模型、EdsLib 运行库、业务服务代码分别负责什么。</li>
+</ul>
+<p>这一步不要求记住所有字段值。</p>
+<h3 id="第二步：选一组最小消息"><a href="#第二步：选一组最小消息" class="headerlink" title="第二步：选一组最小消息"></a>第二步：选一组最小消息</h3><p>使用 <code>TC[17,1]</code> 与 <code>TM[17,2]</code> 建立第一个闭环，因为它们没有复杂的应用数据，却能覆盖请求、响应、TC、TM 和两种次头。</p>
+<h3 id="第三步：从线包反推-XML"><a href="#第三步：从线包反推-XML" class="headerlink" title="第三步：从线包反推 XML"></a>第三步：从线包反推 XML</h3><p>先在纸上列出：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">主头字段<br>PUS 次头字段<br>服务专用字段<br>PEC/CRC<br></code></pre></td></tr></table></figure>
+
+<p>再决定哪些是公共基类、哪些是派生类型约束、哪些是具体消息参数。这样写出来的 XML 会服务于线包，而不是为了“看起来像一个完整 XML”堆标签。</p>
+<h3 id="第四步：走通生成和运行时"><a href="#第四步：走通生成和运行时" class="headerlink" title="第四步：走通生成和运行时"></a>第四步：走通生成和运行时</h3><p>观察 XML 怎样经过 sedstool 变成：</p>
+<ul>
+<li>C 类型定义；</li>
+<li>Type ID 与索引；</li>
+<li>DataTypeDB；</li>
+<li>可选的 DisplayDB 和 IntfDB。</li>
+</ul>
+<p>随后用 EdsLib 初始化、填写、打包、解包和检查一个对象。</p>
+<h3 id="第五步：加入传输和独立实现"><a href="#第五步：加入传输和独立实现" class="headerlink" title="第五步：加入传输和独立实现"></a>第五步：加入传输和独立实现</h3><p>把 packed bytes 通过 UDP 交给另一进程，并让 Python puslib 作为独立端处理。这里的重点不是 UDP，而是让两个实现对同一份线包达成一致。</p>
+<h3 id="第六步：再扩展消息和服务"><a href="#第六步：再扩展消息和服务" class="headerlink" title="第六步：再扩展消息和服务"></a>第六步：再扩展消息和服务</h3><p>加入 <code>TC[17,3]</code>&#x2F;<code>TM[17,4]</code> 后，就能看到带应用参数的消息怎样建模。学会一个服务并不等于其他服务只需替换服务号；能复用的是工程方法，具体消息、状态机、时序和失败语义仍要逐项阅读相应标准章节。</p>
+<h2 id="怎样判断自己是否真正理解了"><a href="#怎样判断自己是否真正理解了" class="headerlink" title="怎样判断自己是否真正理解了"></a>怎样判断自己是否真正理解了</h2><p>学习完成后，不妨脱离文章回答下面的问题：</p>
+<ol>
+<li>EDS、SEDS 和 EdsLib 分别指思想、标准还是实现？</li>
+<li>为什么生成了 C 结构体仍然需要 DataTypeDB？</li>
+<li>为什么不能把 native struct 直接通过 socket 发送？</li>
+<li>APID、服务号、消息子类型和 <code>EdsLib_Id_t</code> 各属于哪一层？</li>
+<li>TC[17,1] 为什么没有应用数据但整包并不为空？</li>
+<li>TC[17,3] 为什么需要 Application Process ID，它的位宽由谁决定？</li>
+<li>XML 能否决定连接测试成功？为什么？</li>
+<li>一次 C→UDP→C 的往返证明了什么，又没有证明什么？</li>
+<li>为什么还要让 puslib 这样的独立实现参与？</li>
+<li>把 UDP 换成消息队列后，哪些层应该保持不变？</li>
+</ol>
+<p>若能用自己的话回答，并能从标准、XML、生成数据库和运行日志中各拿出一份证据，才算形成了可迁移的方法，而不只是记住几个命令。</p>
+<h2 id="本篇的结论与下一步"><a href="#本篇的结论与下一步" class="headerlink" title="本篇的结论与下一步"></a>本篇的结论与下一步</h2><p>本篇没有实现代码，但已经确定后面六篇的共同框架：先从标准与任务剖面得到数据契约，再用 EDS 表达契约，用 EdsLib 执行编解码，用服务代码实现行为，最后通过分层测试逐步增加证据强度。</p>
+<p>下一篇从这条链路的最左端开始，具体追踪 XML 经过 sedstool 后为何不只得到结构体，还会生成类型索引和三个用途不同的运行时数据库。理解生成物的职责后，第二篇的 API 调用才不会像一组没有来由的函数。</p>
+<h2 id="本系列接下来怎样展开"><a href="#本系列接下来怎样展开" class="headerlink" title="本系列接下来怎样展开"></a>本系列接下来怎样展开</h2><p>这篇只提供地图，后面六篇按“模型 → 运行时 → 协议 → 服务定义 → 通信验证 → 交叉验证”逐步收窄：</p>
+<ol>
+<li><a href="/post/eds-pus-01-xml-to-c-runtime-database.html">EDS与PUS实践（一）：从EDS XML到C代码与运行时数据库</a>：弄清生成阶段到底产生什么；</li>
+<li><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a>：掌握运行时最核心的对象与线包转换；</li>
+<li><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a>：建立空间包、PUS 次头和服务消息的分层；</li>
+<li><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a>：把标准要求落到可生成的 XML 模型；</li>
+<li><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a>：检查 C 对象、线包和进程间传输；</li>
+<li><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a>：使用独立实现降低自编自解的盲区。</li>
+</ol>
+<h2 id="最后留一张判断表"><a href="#最后留一张判断表" class="headerlink" title="最后留一张判断表"></a>最后留一张判断表</h2><p>后面遇到问题时，可以先判断它属于哪一层：</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>优先检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>XML 找不到类型或引用</td>
+<td>EDS 命名空间、类型引用、生成顺序</td>
+</tr>
+<tr>
+<td>C 结构能编译但 packed bytes 不对</td>
+<td>EDS encoding、位宽、字节序、约束</td>
+</tr>
+<tr>
+<td>服务号和消息子类型不对</td>
+<td>PUS 消息定义与派生类型约束</td>
+</tr>
+<tr>
+<td>APID、序列或长度不对</td>
+<td>CCSDS Space Packet 主头规则</td>
+</tr>
+<tr>
+<td>TC 能解析但没有正确 TM</td>
+<td>PUS 服务逻辑和任务行为</td>
+</tr>
+<tr>
+<td>C 与 Python 各自通过、互相不通</td>
+<td>两端采用的包头、长度、时间、CRC 或任务裁剪不一致</td>
+</tr>
+<tr>
+<td>UDP 收不到数据</td>
+<td>地址、端口、进程启动顺序和传输代码，而不是 EDS 本身</td>
+</tr>
+</tbody></table>
+<p>把问题放回正确层次，排查速度通常会快很多。下一篇从 EDS XML 的生成链路开始，具体看一份模型怎样变成 C 代码和可供 EdsLib 使用的运行时数据库。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>EDS与PUS实践（0）：先弄清EDS和PUS是什么</p><p><a href="https://goko-son626.github.io/post/eds-pus-00-introduction.html">https://goko-son626.github.io/post/eds-pus-00-introduction.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-07-25</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-09-20</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/eds-pus-01-xml-to-c-runtime-database.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">EDS与PUS实践（一）：从EDS XML到C代码与运行时数据库</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/rtl8852bd-bluetooth-fix.html"><span class="level-item">Arch Linux RTL8852BD 蓝牙驱动问题排查与修复记录</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '4951facb8ca9eecefa76def2e851fd32',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

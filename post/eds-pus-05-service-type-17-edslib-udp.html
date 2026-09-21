@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本地打包后立刻在同一个函数里解包，只能说明基本接口能调用。把发送端和接收端拆成两个进程，中间真的走一次 UDP，测试边界会清晰很多。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="本地打包后立刻在同一个函数里解包，只能说明基本接口能调用。把发送端和接收端拆成两个进程，中间真的走一次 UDP，测试边界会清晰很多。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-08-30T12:54:00.000Z"><meta property="article:modified_time" content="2026-09-20T10:04:12.748Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="EdsLib"><meta property="article:tag" content="PUS Service Type 17"><meta property="article:tag" content="UDP"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/eds-pus-05-service-type-17-edslib-udp.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-08-30T12:54:00.000Z","dateModified":"2026-09-20T10:04:12.748Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"本地打包后立刻在同一个函数里解包，只能说明基本接口能调用。把发送端和接收端拆成两个进程，中间真的走一次 UDP，测试边界会清晰很多。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/eds-pus-05-service-type-17-edslib-udp.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-08-30  <a class="commentCountImg" href="/post/eds-pus-05-service-type-17-edslib-udp.html#comment-container"><span class="display-none-class">fe73474993e946a7eef59f658db732c0</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="fe73474993e946a7eef59f658db732c0">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>41 分钟  <i class="fas fa-pencil-alt"> </i>6.1 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</h1><div class="content"><ul>
+<li><em><strong>本地打包后立刻在同一个函数里解包，只能说明基本接口能调用。把发送端和接收端拆成两个进程，中间真的走一次 UDP，测试边界会清晰很多。</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<p>上一篇完成了 PUS 服务类型 17 的 EDS 建模。本文只增加一个变量：让 packed bytes 离开打包进程，经 UDP 到达独立接收进程。这样可以观察真实发送长度、进程边界和接收端校验，但不会把“传输成功”夸大成“服务行为已经实现”。</p>
+<h2 id="本章在整个系列中的位置"><a href="#本章在整个系列中的位置" class="headerlink" title="本章在整个系列中的位置"></a>本章在整个系列中的位置</h2><p>前面的验证都可以在一个进程、一个函数里完成：初始化对象，Pack，立即 Unpack。这样适合检查 API，却不会暴露实际发送长度、接收长度、端口绑定、进程启动顺序和错误归属。本章把传输边界单独拉出来：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">进程 A：EDS native object → EdsLib → packed TC<br>                                      │<br>                                      │ UDP，只搬运 bytes<br>                                      ▼<br>进程 B：packed TC → EdsLib → decoded native object<br></code></pre></td></tr></table></figure>
+
+<p>两端仍使用同一份 EDS 数据库，因此它不是独立协议实现交叉验证。本章的价值是把“编解码”和“跨进程传输”接起来，并建立之后替换中间接收端的稳定接口。</p>
+<h2 id="开始前已经具备什么"><a href="#开始前已经具备什么" class="headerlink" title="开始前已经具备什么"></a>开始前已经具备什么</h2><p>进入本章前，以下内容应当已经单独通过：</p>
+<ul>
+<li>四种 ST17 类型可以生成；</li>
+<li>TC[17,1] 和 TC[17,3] 的 packed size 与手算一致；</li>
+<li>Complete Pack&#x2F;Unpack 能检查固定值、长度和 PEC；</li>
+<li><code>EdsLib_Initialize()</code> 已在进程启动时调用；</li>
+<li>固定输入的 packed hex 可以逐字段解释。</li>
+</ul>
+<p>如果单进程 Pack&#x2F;Unpack 尚未稳定，不应先加 UDP。否则收到 <code>unpack failed</code> 时无法判断是模型、编码、截断还是传输问题。</p>
+<h2 id="这一步到底想验证什么"><a href="#这一步到底想验证什么" class="headerlink" title="这一步到底想验证什么"></a>这一步到底想验证什么</h2><p>目标很克制，只验证下面这条链：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">EDS XML<br>  ↓ sedstool<br>生成数据库<br>  ↓<br>C/EdsLib 打包 TC[17,x]<br>  ↓ 一个 UDP 数据报<br>C/EdsLib 按预期类型解包<br></code></pre></td></tr></table></figure>
+
+<p>这里还没有实现“收到 TC 后自动产生 TM”的服务行为。发送什么类型，接收端就按同一类型解包，主要检查 XML、EdsLib 和 UDP 传输之间有没有断层。</p>
+<h3 id="将结论写成可证伪的断言"><a href="#将结论写成可证伪的断言" class="headerlink" title="将结论写成可证伪的断言"></a>将结论写成可证伪的断言</h3><p>本章要证明的不是“UDP 能发包”这种泛化结论，而是以下具体断言：</p>
+<ol>
+<li>发送端 <code>sendto()</code> 的返回值等于 EDS packed byte 数；</li>
+<li>接收端 <code>recvfrom()</code> 的返回值等于发送长度；</li>
+<li>接收端收到的 hex 与发送端逐字节相同；</li>
+<li>Complete Unpack 成功，说明固定值、长度和 PEC 仍有效；</li>
+<li>解包得到的 APID、Subtype、Source ID 和 Process ID 等于发送输入；</li>
+<li>超时、长度不符、解包失败能以不同错误退出。</li>
+</ol>
+<p>每条都可以通过日志和退出码观察。若最后只打印 <code>PASS</code>，测试的可解释性仍然不足。</p>
+<h3 id="为什么先只发送-TC"><a href="#为什么先只发送-TC" class="headerlink" title="为什么先只发送 TC"></a>为什么先只发送 TC</h3><p>这一阶段发送端是命令构造器，接收端是同类型解码器，所以发送 TC[17,1]&#x2F;TC[17,3] 最直接。接收端不会自动变成服务提供者，也不会把 TC 变成 TM。等下一篇加入 puslib 服务处理器后，链路才扩展为 TC 请求方向和 TM 报告方向。</p>
+<h2 id="为什么参考-cmdUtil-和-tlm-decode"><a href="#为什么参考-cmdUtil-和-tlm-decode" class="headerlink" title="为什么参考 cmdUtil 和 tlm_decode"></a>为什么参考 cmdUtil 和 tlm_decode</h2><p><a target="_blank" rel="noopener" href="https://github.com/nasa/EdsLib">NASA EdsLib</a> 的 <code>cfecfs/util</code> 中有命令发送和遥测解码工具。它们展示了比较完整的地面端思路：</p>
+<ul>
+<li>根据任务数据库定位类型；</li>
+<li>给字段赋值；</li>
+<li>EdsLib 打包；</li>
+<li>UDP 发送；</li>
+<li>接收 UDP；</li>
+<li>根据路由信息确定类型；</li>
+<li>EdsLib 解包和打印。</li>
+</ul>
+<p>这些工具还依赖 cFE 头、MissionLib、TopicId 和任务接口表，不能原样拿来验证一套独立的服务类型 17 EDS 数据库。最小实验只保留“EdsLib + UDP”主线，类型直接选 TC[17,1] 或 TC[17,3]。</p>
+<h3 id="可以复用的是结构，不是所有依赖"><a href="#可以复用的是结构，不是所有依赖" class="headerlink" title="可以复用的是结构，不是所有依赖"></a>可以复用的是结构，不是所有依赖</h3><p><code>cmdUtil</code> 的价值在于展示“定位消息类型—填写字段—Pack—sendto”的通用流程；<code>tlm_decode</code> 展示“recvfrom—路由类型—Unpack—遍历显示”。其中类型路由依赖 cFE MissionLib 的接口数据库和 TopicId 映射，当前独立 PUS 数据库没有这套任务信息。</p>
+<p>若为了让原工具编译而伪造 TopicId 或 cFE 头，测试会混入一套并不存在的接口语义。更诚实的最小修改是删除 cFS 专属路由，保留 EdsLib 与 UDP，并要求调用者明确给出预期消息类型。</p>
+<h3 id="这两个参考工具不使用-Python-puslib"><a href="#这两个参考工具不使用-Python-puslib" class="headerlink" title="这两个参考工具不使用 Python puslib"></a>这两个参考工具不使用 Python puslib</h3><p>它们是 C&#x2F;EdsLib&#x2F;cFE MissionLib 路线，与后续 Python puslib 是两套不同角色。前者说明 NASA EDS&#x2F;cFS 环境下怎样构造与解码任务消息；后者提供不读取当前 EDS XML 的独立 PUS 实现。不能因为名字里都有 PUS 或 ground tool 就认为内部机制相同。</p>
+<h2 id="发送端的核心"><a href="#发送端的核心" class="headerlink" title="发送端的核心"></a>发送端的核心</h2><p>发送端做的事情并不多：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c">initialize_edslib();<br>initialize_native_tc(type_id, &amp;tc);<br>fill_mission_fields(&amp;tc);<br><br>pack_complete(type_id, &amp;tc, packet, &amp;packet_size);<br>send_udp(<span class="hljs-string">&quot;127.0.0.1&quot;</span>, port, packet, packet_size);<br></code></pre></td></tr></table></figure>
+
+<p>一个 UDP 数据报承载一个完整 PUS 包。没有再套一层自定义长度或 JSON，这样接收端拿到的就是 EdsLib 生成的原始线包。</p>
+<p>发送端可以进一步拆成六个可检查的步骤：</p>
+<ol>
+<li>初始化 EdsLib 数据库；</li>
+<li>根据命令行选 TC[17,1] 或 TC[17,3] 的类型 ID；</li>
+<li>查询 packed size 并初始化 native object；</li>
+<li>填写 APID、序列号、Source ID，以及 17.3 的进程 ID；</li>
+<li><code>PackCompleteObject()</code> 生成长度和 PEC；</li>
+<li><code>sendto()</code> 只发送 <code>(packed_bits + 7) / 8</code> 个字节。</li>
+</ol>
+<p>最后一点很关键：缓冲区可以定义成 2 KiB，但不能把 2 KiB 全部发出去。否则接收端看到的不是“一个 PUS 包”，而是 PUS 包后跟大量未使用字节。</p>
+<h3 id="发送前的检查顺序"><a href="#发送前的检查顺序" class="headerlink" title="发送前的检查顺序"></a>发送前的检查顺序</h3><p>推荐按下面顺序失败即退出：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs text">Type ID 有效？<br>  ↓<br>GetTypeInfo 成功？packed size 不超过缓冲区？<br>  ↓<br>InitializeNativeObject 成功？<br>  ↓<br>所有任务字段赋值成功？<br>  ↓<br>PackCompleteObject 成功？actual_id 正确？<br>  ↓<br>打印 valid_bytes 范围内的 hex<br>  ↓<br>sendto 返回值是否等于 valid_bytes？<br></code></pre></td></tr></table></figure>
+
+<p>若 <code>sendto()</code> 返回负数，报告 <code>errno</code>；若返回长度不等于期望，也应判失败。虽然 UDP 本地发送通常全报文成功，测试代码不应假设系统调用永不出错。</p>
+<h3 id="发送地址属于配置，不属于消息"><a href="#发送地址属于配置，不属于消息" class="headerlink" title="发送地址属于配置，不属于消息"></a>发送地址属于配置，不属于消息</h3><p><code>127.0.0.1:1234</code> 只决定数据报交给哪个本机 socket。它不会进入 PUS packed bytes，也不会影响 APID、Service Type 或 PEC。修改端口后，预期 PUS hex 应保持不变；若 hex 变化，说明传输配置错误地渗入数据模型。</p>
+<h3 id="为什么一个数据报只放一个空间包"><a href="#为什么一个数据报只放一个空间包" class="headerlink" title="为什么一个数据报只放一个空间包"></a>为什么一个数据报只放一个空间包</h3><p>这种映射不是 PUS 强制要求，而是测试设计：UDP 本身保留数据报边界，一个数据报一个完整包可以避免额外分帧协议。若一次 UDP 放多个空间包，接收端还要根据 Packet Data Length 循环切分；若一个空间包拆成多个 UDP，又要增加重组状态。最小验证没有必要引入这些变量。</p>
+<h2 id="如何在不写死-C-成员时给字段赋值"><a href="#如何在不写死-C-成员时给字段赋值" class="headerlink" title="如何在不写死 C 成员时给字段赋值"></a>如何在不写死 C 成员时给字段赋值</h2><p>参考工具允许用户用字符串指定字段，例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">PriHdr.AppId=321<br>PriHdr.SequenceCount=1<br>SecHdr.SourceId=42<br>ApplicationProcessId=1<br></code></pre></td></tr></table></figure>
+
+<p>实现方式是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">字段路径<br>  ↓ EdsLib_DisplayDB_LocateSubEntity()<br>得到成员类型和 native 绝对偏移<br>  ↓ EdsLib_Scalar_FromString()<br>把文本转换并写入 native object<br></code></pre></td></tr></table></figure>
+
+<p>这种方式适合通用命令工具；固定业务程序直接访问生成成员更容易得到编译期检查。最小实验保留通用赋值思路，是为了尽量复用 EdsLib 原有工具的结构，而不是另造一套报文字段解析器。</p>
+<h3 id="动态赋值必须检查三次"><a href="#动态赋值必须检查三次" class="headerlink" title="动态赋值必须检查三次"></a>动态赋值必须检查三次</h3><p>第一，<code>LocateSubEntity()</code> 是否精确找到路径；第二，字符串能否转换为字段类型；第三，值是否在 EDS 范围内。只检查最后 Pack 状态可能让错误字段保持默认值，最终产生一个合法但不是用户想要的包。</p>
+<p>字段指针通常由 native 对象基址加成员绝对 byte offset 得到，不能把 packed bit offset 当 native pointer 偏移。DisplayDB 返回的是对 native object 的定位信息，随后仍由 DataTypeDB Pack 处理线上排列。</p>
+<h3 id="通用工具和固定业务代码的取舍"><a href="#通用工具和固定业务代码的取舍" class="headerlink" title="通用工具和固定业务代码的取舍"></a>通用工具和固定业务代码的取舍</h3><p>测试 CLI 需要动态字段路径，便于试不同类型；嵌入式热路径更适合生成结构成员和编译期 Type ID，减少字符串表和解析开销。两者可以共享同一个 <code>pack_message()</code> 核心，无需强迫整个系统只用一种访问方式。</p>
+<h2 id="接收端的核心"><a href="#接收端的核心" class="headerlink" title="接收端的核心"></a>接收端的核心</h2><p>接收端固定等待一包：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c">fd = socket(AF_INET, SOCK_DGRAM, <span class="hljs-number">0</span>);<br>bind(fd, local_port);<br>size = recvfrom(fd, packet, <span class="hljs-keyword">sizeof</span>(packet), <span class="hljs-number">0</span>, ...);<br><br>unpack_complete(expected_type, &amp;decoded, packet, size);<br>print_fields(&amp;decoded);<br></code></pre></td></tr></table></figure>
+
+<p>测试程序明确传入预期类型，这是一种刻意简化。没有 MissionLib 时，不应该假装已经拥有完整的自动路由能力。</p>
+<p>接收端同样需要严格区分“缓冲区容量”和“实收长度”：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">ssize_t</span> received = recvfrom(fd, packet, <span class="hljs-keyword">sizeof</span>(packet), <span class="hljs-number">0</span>, <span class="hljs-literal">NULL</span>, <span class="hljs-literal">NULL</span>);<br><br><span class="hljs-keyword">if</span> (received != expected_packed_bytes)<br>&#123;<br>    <span class="hljs-comment">/* 长度不符，不能用整个 packet 缓冲区继续解包 */</span><br>&#125;<br><br><span class="hljs-comment">/* 简化后的关键调用；实际数据库符号就是 PUS_DATABASE。 */</span><br>status = EdsLib_DataTypeDB_UnpackCompleteObject(<br>    &amp;PUS_DATABASE, &amp;actual_id, &amp;decoded, packet,<br>    <span class="hljs-keyword">sizeof</span>(decoded), (<span class="hljs-type">uint32_t</span>)received * <span class="hljs-number">8U</span>);<br></code></pre></td></tr></table></figure>
+
+<p>UDP 保留数据报边界：一次 <code>sendto()</code> 对应接收端的一次完整数据报，不需要像 TCP 那样自行处理粘包&#x2F;拆包。但如果接收缓冲区太小，数据报会被截断；如果没有超时，程序也可能永久等待。因此测试程序最好设置接收超时，并将超时与解包失败分开报告。</p>
+<h3 id="bind-完成才算接收端-ready"><a href="#bind-完成才算接收端-ready" class="headerlink" title="bind() 完成才算接收端 ready"></a><code>bind()</code> 完成才算接收端 ready</h3><p>仅启动进程不代表端口已经可用。测试脚本应等待接收端完成 socket 创建和 <code>bind()</code> 后再发送。可以由接收端在成功 bind 后输出 ready 标记，脚本读取到标记再启动发送端。</p>
+<p>固定 <code>sleep 1</code> 在本机通常能工作，却把调度速度当成协议条件；负载较高时仍可能先发后绑，UDP 数据报没有连接重试，会直接丢失。</p>
+<h3 id="长度验证应早于-Unpack"><a href="#长度验证应早于-Unpack" class="headerlink" title="长度验证应早于 Unpack"></a>长度验证应早于 Unpack</h3><p>接收端知道预期固定类型时，可以先取得 <code>expected_packed_bytes</code>。若 <code>received</code> 不等于预期，立即报告：</p>
+<ul>
+<li>小于预期：数据报可能被错误构造或截断；</li>
+<li>大于预期：可能选错类型，或发送端把整个缓冲区发出；</li>
+<li>等于预期但 Unpack 失败：再检查约束、长度字段和 PEC。</li>
+</ul>
+<p>这种顺序能把 socket 层长度问题与 EdsLib 验证问题分开。</p>
+<h3 id="接收缓冲区截断要显式检测"><a href="#接收缓冲区截断要显式检测" class="headerlink" title="接收缓冲区截断要显式检测"></a>接收缓冲区截断要显式检测</h3><p>普通 <code>recvfrom()</code> 返回的数据可能已被内核截断。更严格的 Linux&#x2F;POSIX 测试可使用足够大的缓冲区，或通过 <code>recvmsg()</code> 与 <code>MSG_TRUNC</code> 检查。最小程序至少保证缓冲区大于数据库给出的最大包长，并把实收长度打印出来。</p>
+<h2 id="为什么没有-MissionLib-仍然能做这一步"><a href="#为什么没有-MissionLib-仍然能做这一步" class="headerlink" title="为什么没有 MissionLib 仍然能做这一步"></a>为什么没有 MissionLib 仍然能做这一步</h2><p>原始 <code>cmdUtil</code>&#x2F;<code>tlm_decode</code> 可以通过 cFE&#x2F;MissionLib 的 TopicId、接口表和路由关系确定消息类型。独立的服务类型 17 实验没有这些任务数据库，所以改成由测试参数显式给出类型：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">17.1 → TC[17,1] 的 EdsLib type ID<br>17.3 → TC[17,3] 的 EdsLib type ID<br></code></pre></td></tr></table></figure>
+
+<p>删除的是“cFS 任务路由与自动类型发现”，保留的是：DisplayDB 设置字段、DataTypeDB 打包&#x2F;解包、UDP 收发和字段遍历显示。这个裁剪不会把 cFE 主头误当成 PUS 次头，也不会假装已有一套并不存在的 TopicId 映射。</p>
+<p>代价也很明确：接收端必须事先知道期望类型。若未来需要一个端口接收多种 PUS 消息，可以先读取固定的 CCSDS&#x2F;PUS 头，根据 Packet Type、Service 和 Message Subtype 查表选择 EDS 类型，再调用完整解包；那是下一层路由功能，不应偷偷塞进最小测试。</p>
+<h3 id="固定类型接收不是“功能不完整”的错误"><a href="#固定类型接收不是“功能不完整”的错误" class="headerlink" title="固定类型接收不是“功能不完整”的错误"></a>固定类型接收不是“功能不完整”的错误</h3><p>测试的目标决定最小接口。当前分别启动 <code>receiver 17.1</code> 或 <code>receiver 17.3</code>，能够精准验证对应类型。自动路由会引入公共头预解析、消息映射表和未知类型策略，增加的每项都需要独立测试。</p>
+<p>先固定类型建立可信基线，再添加路由，能判断新失败是否来自路由层。这正是小步验证的意义。</p>
+<h3 id="未来自动路由的合理边界"><a href="#未来自动路由的合理边界" class="headerlink" title="未来自动路由的合理边界"></a>未来自动路由的合理边界</h3><p>自动路由至少需要：</p>
+<ol>
+<li>检查收到的数据大于等于公共头最小长度；</li>
+<li>读取 Packet Type、Service Type 和 Message Subtype；</li>
+<li>结合 APID&#x2F;任务接口表选择 EDS Type ID；</li>
+<li>根据该类型查询期望 packed size；</li>
+<li>再调用 Complete Unpack；</li>
+<li>未知组合进入明确拒绝路径。</li>
+</ol>
+<p>这张映射表可以由任务数据或 IntfDB&#x2F;MissionLib 辅助生成，但不能凭服务号直接猜 C 类型。</p>
+<h2 id="一个-PUS-包在-UDP-中是什么样"><a href="#一个-PUS-包在-UDP-中是什么样" class="headerlink" title="一个 PUS 包在 UDP 中是什么样"></a>一个 PUS 包在 UDP 中是什么样</h2><p>UDP payload 直接是完整 packed PUS packet：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">UDP/IP header（由操作系统处理）<br>└─ UDP payload<br>   └─ CCSDS Primary Header<br>      + PUS Secondary Header<br>      + optional application data<br>      + PEC<br></code></pre></td></tr></table></figure>
+
+<p>代码发送的是遥控 TC[17,1] 或 TC[17,3]，不是“UDP 命令头 + PUS 包”。接收端收到的也正是这串 TC 字节。该 C→C 测试不会自动产生 TM；只有引入真正的 PUS 服务类型 17 处理器后，才会出现 TC 请求和 TM 响应两条方向相反的数据流。</p>
+<h3 id="抓包时应该比较哪一段"><a href="#抓包时应该比较哪一段" class="headerlink" title="抓包时应该比较哪一段"></a>抓包时应该比较哪一段</h3><p>Wireshark&#x2F;tcpdump 会显示以太网、IP 和 UDP 头，应用日志通常只打印 UDP payload。逐字节比较时应从 CCSDS 主头的第一个 byte 开始，不要把网络头加入 PUS golden vector。</p>
+<p>本机 loopback 可能看不到以太网头，但 IP&#x2F;UDP 头仍由内核构造。无论接口如何，PUS PEC 只覆盖 packed PUS packet，不覆盖 UDP&#x2F;IP 头。</p>
+<h3 id="UDP-checksum-与-PUS-PEC各自的价值"><a href="#UDP-checksum-与-PUS-PEC各自的价值" class="headerlink" title="UDP checksum 与 PUS PEC各自的价值"></a>UDP checksum 与 PUS PEC各自的价值</h3><p>UDP checksum 检查 UDP 伪首部、头和 payload 在传输中的错误，PUS PEC 检查空间包本身的数据完整性。包可能经过存储、转发或重新封装，PUS PEC仍随包存在；UDP checksum 在每段 UDP 传输上重新计算。两者作用域不同，不应二选一。</p>
+<h2 id="两条实际路径"><a href="#两条实际路径" class="headerlink" title="两条实际路径"></a>两条实际路径</h2><p>测试分别跑：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">./run_eds.sh 17.1<br>./run_eds.sh 17.3<br></code></pre></td></tr></table></figure>
+
+<p>17.1 检查无业务数据的 TC；17.3 额外检查 16 位 Application Process ID。接收端除了返回成功，还会输出：</p>
+<ul>
+<li>实际收到的字节数；</li>
+<li>十六进制包；</li>
+<li>APID、序列号；</li>
+<li>PUS 版本；</li>
+<li>Service&#x2F;Message Subtype；</li>
+<li>Source ID；</li>
+<li>17.3 的 Application Process ID；</li>
+<li>PEC。</li>
+</ul>
+<p>建议每次日志都把“类型、期望长度、实收长度、完整 hex、解包状态”放在一起。例如 TC[17,3] 至少要能回答：</p>
+<ul>
+<li>为什么整包比 TC[17,1] 多 2 字节；</li>
+<li>长度字段是否因此从 6 变成 8；</li>
+<li>进程 ID 的两个字节位于 PEC 前；</li>
+<li>修改进程 ID 后 PEC 是否同时变化；</li>
+<li>接收端显示的值是否与发送参数一致。</li>
+</ul>
+<h3 id="TC-17-1-的预期观察"><a href="#TC-17-1-的预期观察" class="headerlink" title="TC[17,1] 的预期观察"></a>TC[17,1] 的预期观察</h3><p>当前任务剖面下，TC[17,1] 是 13 byte。接收端应看到 Packet Type&#x3D;TC、Service&#x3D;17、Subtype&#x3D;1，无 Application Process ID。长度字段为 6，最后 2 byte 是 PEC。</p>
+<p>若接收端打印了 Process ID，说明类型或字段遍历逻辑混入 17.3；若整包 15 byte，可能发送端选错类型或增加了不应存在的业务字段。</p>
+<h3 id="TC-17-3-的预期观察"><a href="#TC-17-3-的预期观察" class="headerlink" title="TC[17,3] 的预期观察"></a>TC[17,3] 的预期观察</h3><p>在相同公共输入下，TC[17,3] 是 15 byte，长度字段为 8，PEC 前出现 2 byte 大端 Process ID。接收后不仅比较数值 1，还要确认 <code>00 01</code> 位于正确位置。这样能同时验证类型宽度和字节序。</p>
+<h3 id="两条路径为什么要分开跑"><a href="#两条路径为什么要分开跑" class="headerlink" title="两条路径为什么要分开跑"></a>两条路径为什么要分开跑</h3><p>17.1 提供最小公共头基线，17.3 只增加一个服务字段。两条结果相减可以直观看到新增字段对 packed size、length 和 PEC 的影响，比只测复杂消息更容易定位。</p>
+<p>这里可以放一张两个终端的截图：</p>
+<blockquote>
+<p>图片预留：并排截取 UDP 发送端与接收端的终端输出，保存为 <code>eds-pus-05-service-type-17-edslib-udp/udp-two-processes.png</code>。</p>
+</blockquote>
+<h2 id="为什么-UDP-不属于-PUS-服务类型-17"><a href="#为什么-UDP-不属于-PUS-服务类型-17" class="headerlink" title="为什么 UDP 不属于 PUS 服务类型 17"></a>为什么 UDP 不属于 PUS 服务类型 17</h2><p>PUS 服务类型 17 规定的是请求、报告和数据字段，UDP 只是测试环境里的搬运方式。以后完全可以换成：</p>
+<ul>
+<li>RTOS 消息队列；</li>
+<li>软件总线；</li>
+<li>串口或 CAN 上层适配；</li>
+<li>真实通信链路；</li>
+<li>单元测试中的内存缓冲区。</li>
+</ul>
+<p>只要交给下一层的还是同一串 PUS packed bytes，EDS 数据契约不需要因为传输介质改变而重写。</p>
+<p>这也提供了一条实用的分层接口：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">transport_send</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">uint8_t</span> *packet, <span class="hljs-type">size_t</span> size)</span>;<br><span class="hljs-type">int</span> <span class="hljs-title function_">transport_receive</span><span class="hljs-params">(<span class="hljs-type">uint8_t</span> *packet, <span class="hljs-type">size_t</span> capacity, <span class="hljs-type">size_t</span> *actual)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>EDS&#x2F;PUS 层只处理 packet 和 size；UDP、消息队列或驱动层实现这两个边界。以后换传输时，不应改动 Service&#x2F;Message Subtype、长度或 PEC 的定义。</p>
+<h3 id="transport-接口还应表达错误"><a href="#transport-接口还应表达错误" class="headerlink" title="transport 接口还应表达错误"></a>transport 接口还应表达错误</h3><p>真实封装可以返回明确错误码，区分超时、缓冲区不足、系统调用失败和对端关闭等情况。EDS 层收到的只有两种状态：获得一段完整候选 packet，或传输失败；不要让 socket <code>errno</code> 穿透到 PUS 服务逻辑中。</p>
+<h3 id="RTOS-中怎样替换-UDP"><a href="#RTOS-中怎样替换-UDP" class="headerlink" title="RTOS 中怎样替换 UDP"></a>RTOS 中怎样替换 UDP</h3><p>在 RTOS 下，<code>transport_send()</code> 可以写消息队列或驱动，<code>transport_receive()</code> 可以阻塞等待队列。只要它交付完整 packet 与真实长度，上层 <code>pack_message()/unpack_message()</code> 不变。若底层最大帧小于空间包，则在 transport 内部增加分片重组，不修改 PUS XML 来迎合某次分片。</p>
+<h2 id="推荐的启动和收尾顺序"><a href="#推荐的启动和收尾顺序" class="headerlink" title="推荐的启动和收尾顺序"></a>推荐的启动和收尾顺序</h2><p>双进程测试应避免竞争：</p>
+<ol>
+<li>先启动接收端并完成 <code>bind()</code>；</li>
+<li>再启动发送端；</li>
+<li>发送端打印 packed hex 与 <code>sendto()</code> 返回长度；</li>
+<li>接收端打印 <code>recvfrom()</code> 长度、解包状态和字段；</li>
+<li>两端都以非零退出码报告失败；</li>
+<li>脚本设置超时并回收后台进程。</li>
+</ol>
+<p>不要用固定 <code>sleep 1</code> 作为唯一同步手段。更稳定的做法是让接收端输出 ready 标记，或让脚本轮询端口&#x2F;进程状态；至少也要在超时时清理后台接收器，避免下次测试出现端口已占用。</p>
+<h3 id="一个可靠脚本承担什么职责"><a href="#一个可靠脚本承担什么职责" class="headerlink" title="一个可靠脚本承担什么职责"></a>一个可靠脚本承担什么职责</h3><p>脚本不是协议实现，它只负责组织进程：</p>
+<ul>
+<li>创建或确认构建产物；</li>
+<li>启动 receiver 并等待 ready；</li>
+<li>启动 sender 并保存双方日志；</li>
+<li>等待进程退出并汇总退出码；</li>
+<li>超时时终止本次启动的后台进程；</li>
+<li>不吞掉原始错误输出。</li>
+</ul>
+<p>脚本不应自己重写 CRC 或解析 PUS 字段，否则测试逻辑会散落到 shell、C 和 XML 三处。</p>
+<h3 id="端口冲突与遗留进程"><a href="#端口冲突与遗留进程" class="headerlink" title="端口冲突与遗留进程"></a>端口冲突与遗留进程</h3><p>若前一次超时留下 receiver，下一次 bind 可能报地址已使用，或者新 sender 的包被旧进程接收。脚本应记录自己启动的 PID，只清理该 PID，并在开始前检查端口状态。不要使用宽泛的 <code>pkill</code> 误伤其他测试。</p>
+<h2 id="这一步值得加入哪些负向测试"><a href="#这一步值得加入哪些负向测试" class="headerlink" title="这一步值得加入哪些负向测试"></a>这一步值得加入哪些负向测试</h2><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>预期观察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>发送前翻转 Service 位且不重算 PEC</td>
+<td>接收端 CRC&#x2F;完整对象验证失败</td>
+</tr>
+<tr>
+<td>发送前翻转正文并重新计算 PEC</td>
+<td>CRC 通过，但按错误类型&#x2F;字段语义检查</td>
+</tr>
+<tr>
+<td>截断 PEC 最后 1 字节</td>
+<td>实收长度不符，拒绝解包</td>
+</tr>
+<tr>
+<td>接收端故意选择 TC[17,1] 解 TC[17,3]</td>
+<td>packed size 或类型约束不符</td>
+</tr>
+<tr>
+<td>发送到错误端口</td>
+<td>接收超时，而不是“解包失败”</td>
+</tr>
+</tbody></table>
+<p>网络错误、协议错误、类型选择错误要分别报告。只有这样，测试失败才能指向真正的层次。</p>
+<h3 id="再补三组边界测试"><a href="#再补三组边界测试" class="headerlink" title="再补三组边界测试"></a>再补三组边界测试</h3><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>预期观察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sendto()</code> 只发送前 6 byte</td>
+<td>receiver 报长度不足，不进入业务字段打印</td>
+</tr>
+<tr>
+<td>发送合法 17.3，receiver 按 17.1 等待</td>
+<td>先报预期长度不一致</td>
+</tr>
+<tr>
+<td>发送端修改 APID 后重新 Pack</td>
+<td>receiver 成功，APID 与 PEC 同时变化</td>
+</tr>
+</tbody></table>
+<p>最后一项是正向变体：它证明任务字段可以变化且 CRC 被重新计算；前两项证明接收端没有用缓冲区默认值补齐坏包。</p>
+<h3 id="一次只注入一个故障"><a href="#一次只注入一个故障" class="headerlink" title="一次只注入一个故障"></a>一次只注入一个故障</h3><p>同时改 subtype、截断 PEC 并发错端口，只会得到超时，无法证明任何校验。故障注入应单变量，并记录改动前后的 hex，才能把预期失败与具体防线对应起来。</p>
+<h2 id="这条测试没有证明什么"><a href="#这条测试没有证明什么" class="headerlink" title="这条测试没有证明什么"></a>这条测试没有证明什么</h2><p>它没有证明：</p>
+<ul>
+<li>收到 TC[17,1] 后一定生成 TM[17,2]；</li>
+<li>17.3 的目标进程真的存在；</li>
+<li>失败确认行为符合 PUS 服务类型 1；</li>
+<li>UDP 可以代表真实星地链路；</li>
+<li>整套系统已经集成完成。</li>
+</ul>
+<p>它证明的是：XML 可以生成数据库，EdsLib 能产生符合该数据库的线包，字节经过独立进程和 UDP 后还能被完整校验、解包。</p>
+<p>这个边界看起来保守，但结论可重复、可定位：<strong>EDS 模型生成的 TC 线包可以跨进程传输，并由同一数据契约完成长度、约束和 PEC 验证。</strong></p>
+<h2 id="本章真正得到的工程接口"><a href="#本章真正得到的工程接口" class="headerlink" title="本章真正得到的工程接口"></a>本章真正得到的工程接口</h2><p>实现结果可以收敛成三个相互独立模块：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">message_builder：Type ID + native fields → packed bytes<br>transport_udp：packed bytes ↔ UDP datagram<br>message_decoder：packed bytes + expected Type ID → validated object<br></code></pre></td></tr></table></figure>
+
+<p>这三个模块都不执行 ST17 业务。正因为边界清楚，下一篇可以保持 builder 和 decoder 不动，只把中间的“同数据库 receiver”替换成 puslib 服务进程；之后移植 RTOS 时，又只替换 transport。</p>
+<h2 id="如何准确汇报这一阶段"><a href="#如何准确汇报这一阶段" class="headerlink" title="如何准确汇报这一阶段"></a>如何准确汇报这一阶段</h2><p>合适的表述是：“已验证 TC[17,1] 和 TC[17,3] 能由 EdsLib 按当前 EDS 数据库打包，经 UDP 跨进程传输后，由同一数据库完成长度、类型约束和 PEC 校验并恢复字段。”</p>
+<p>不合适的表述是：“PUS17 服务已经通过 UDP 验证。”后者会让人误以为 TC 已触发真实测试并生成 TM，也掩盖了两端共享同一数据库的共同错误风险。</p>
+<p>下一篇再把接收端换成不读取 EDS XML 的 puslib。届时 Python 端不仅解析 TC，还会实际执行 PUS 服务类型 17 行为并生成 TM，C&#x2F;EdsLib 再从另一个 UDP 端口收回并解包。这样验证范围才从“传输闭环”扩展到“独立实现交叉闭环”。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/nasa/EdsLib">NASA EdsLib</a></li>
+<li><a target="_blank" rel="noopener" href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/recvfrom.html">POSIX <code>sendto()</code> &#x2F; <code>recvfrom()</code></a></li>
+</ul>
+</div><div class="article-licensing box"><div class="licensing-title"><p>EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</p><p><a href="https://goko-son626.github.io/post/eds-pus-05-service-type-17-edslib-udp.html">https://goko-son626.github.io/post/eds-pus-05-service-type-17-edslib-udp.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-08-30</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-09-20</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html" target="_blank">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a><br></span><span>  2.<a class="is-size-6" href="/post/eds-pus-04-service-type-17-eds-model.html" target="_blank">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a><br></span><span>  3.<a class="is-size-6" href="/post/eds-pus-03-ccsds-pus-service-type-17.html" target="_blank">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/eds-pus-04-service-type-17-eds-model.html"><span class="level-item">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: 'fe73474993e946a7eef59f658db732c0',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

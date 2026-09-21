@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（二）：处理器模式、寄存器组与CPSR - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="解释Cortex-A9的模式、banked寄存器、CPSR与SPSR，并结合启动和IRQ入口推演寄存器可见性。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="解释Cortex-A9的模式、banked寄存器、CPSR与SPSR，并结合启动和IRQ入口推演寄存器可见性。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-13T07:10:00.000Z"><meta property="article:modified_time" content="2026-06-13T07:10:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="ARMv7-A"><meta property="article:tag" content="CPSR"><meta property="article:tag" content="汇编"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-01-registers-modes.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-13T07:10:00.000Z","dateModified":"2026-06-13T07:10:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"解释Cortex-A9的模式、banked寄存器、CPSR与SPSR，并结合启动和IRQ入口推演寄存器可见性。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-01-registers-modes.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-13  <a class="commentCountImg" href="/post/armv7a-01-registers-modes.html#comment-container"><span class="display-none-class">236facf5c8df034de581f1b3ff3a22bd</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="236facf5c8df034de581f1b3ff3a22bd">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>8.5 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（二）：处理器模式、寄存器组与CPSR</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章解释 ARMv7-A 程序最先遇到的一组概念：处理器模式、可见寄存器、banked 寄存器、CPSR 和 SPSR。目标不是背诵一张寄存器表，而是能够回答三个工程问题：为什么启动代码要多次切换模式设置 <code>sp</code>，为什么 IRQ 到来后同名的 <code>lr</code> 和 <code>sp</code> 会指向另一份物理寄存器，以及异常返回时为什么必须同时恢复程序地址和处理器状态。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>上一章确定了整个小系统的能力边界和资料分工，但还没有进入任何一条具体执行路径。现在从 CPU 的“当前身份”开始，因为启动、异常和调度最终都要落到寄存器可见性上。若这一层没有建立，看到 <code>cps #0x12</code>、<code>mrs r0, spsr</code> 或 <code>rfeia</code> 时只能记住指令表面，无法解释状态为什么能够恢复。</p>
+<p>本章会先建立模式与寄存器组的基础，再把规则放进启动代码和一次 IRQ 中推演，最后列出可以在调试器里验证的观察点。任务切换只在结尾用于对比，不会提前混入。</p>
+<span id="more"></span>
+
+<p><a href="/post/armv7a-00-roadmap.html">系列目录</a> · 上一篇：<a href="/post/armv7a-00-roadmap.html">平台、范围与路线</a></p>
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="动手前的基础：模式、bank-与程序状态"><a href="#动手前的基础：模式、bank-与程序状态" class="headerlink" title="动手前的基础：模式、bank 与程序状态"></a>动手前的基础：模式、bank 与程序状态</h2><blockquote>
+<p>适用平台：Zynq-7000 &#x2F; 双核 Cortex-A9 &#x2F; ARMv7-A<br>学习目的：读懂启动代码、异常入口和每核各模式栈，为上下文切换与故障定位建立底座<br>阅读方式：正文可以替代本节英文原文；只在“原图对照”处打开 PDF 看图<br>编写日期：2026-07-30</p>
+</blockquote>
+<h3 id="0-这一目标到底要学会什么"><a href="#0-这一目标到底要学会什么" class="headerlink" title="0. 这一目标到底要学会什么"></a>0. 这一目标到底要学会什么</h3><p>原定目标所说的“寄存器切换”，第一层确实是读者理解的：</p>
+<blockquote>
+<p>处理器模式改变后，同一个汇编寄存器名会映射到不同的物理寄存器 bank。</p>
+</blockquote>
+<p>但为了能做移植和 Debug，不能只记一张 bank 图，还要把下面四件事连起来：</p>
+<ol>
+<li>当前模式记录在 <code>CPSR.M[4:0]</code>。</li>
+<li>哪些模式拥有自己的 <code>SP/LR/SPSR</code>。</li>
+<li>异常发生时，硬件怎样保存旧状态并切换寄存器 bank。</li>
+<li>异常返回时，怎样恢复 <code>CPSR</code>，从而重新看到原模式的寄存器 bank。</li>
+</ol>
+<p>本目标不是 OS 任务切换。两者的区别是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">处理器模式切换<br>  硬件异常入口或特权指令改变 CPSR.M<br>  寄存器名切换到另一个硬件 bank<br><br>任务上下文切换<br>  OS 把任务 A 的寄存器写入内存<br>  再从内存恢复任务 B 的寄存器<br></code></pre></td></tr></table></figure>
+
+<p>二者会在 IRQ 尾部调度时汇合，但概念不能混用。</p>
+<hr>
+<h3 id="1-本文覆盖的原始资料和准确范围"><a href="#1-本文覆盖的原始资料和准确范围" class="headerlink" title="1. 本文覆盖的原始资料和准确范围"></a>1. 本文覆盖的原始资料和准确范围</h3><table>
+<thead>
+<tr>
+<th>原始资料</th>
+<th align="right">准确范围</th>
+<th align="right">页数</th>
+<th>本文用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Programmer’s Guide 第 4 章</td>
+<td align="right">PDF&#x2F;手册页 47–56</td>
+<td align="right">10 页</td>
+<td>建立模式、权限、寄存器和 CPSR 的直观框架</td>
+</tr>
+<tr>
+<td>ARM ARM B1.3</td>
+<td align="right">PDF&#x2F;手册页 B1-1139–B1-1154</td>
+<td align="right">16 页</td>
+<td>补齐架构定义、bank 关系和严格语义</td>
+</tr>
+<tr>
+<td>ARM ARM B1.8.3–B1.8.5</td>
+<td align="right">B1-1169–B1-1182 中的相关内容</td>
+<td align="right">14 页范围内选读</td>
+<td>说明模式切换怎样真正发生在异常入口</td>
+</tr>
+</tbody></table>
+<p>这不是逐句翻译，而是按上述原文逻辑整理的中文工程精读稿。B1.3 中与 Zynq 第一版移植关系很弱的 Jazelle、虚拟化路由边角和保留值，只说明用途，不要求背诵。</p>
+<h4 id="原图对照"><a href="#原图对照" class="headerlink" title="原图对照"></a>原图对照</h4><p>第一次读正文时，只建议看以下 5 张图：</p>
+<table>
+<thead>
+<tr>
+<th>原文图名</th>
+<th align="right">所在页</th>
+<th>看什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Programmer’s Guide <strong>Figure 4-3: Privilege levels</strong></td>
+<td align="right">49</td>
+<td>User 与 PL1 特权模式的关系</td>
+</tr>
+<tr>
+<td>Programmer’s Guide <strong>Figure 4-5: The ARM register set</strong></td>
+<td align="right">51</td>
+<td>最直观的 banked register 全图</td>
+</tr>
+<tr>
+<td>Programmer’s Guide <strong>Figure 4-6: CPSR bits</strong></td>
+<td align="right">53</td>
+<td>CPSR 位域位置</td>
+</tr>
+<tr>
+<td>ARM ARM <strong>Figure B1-1: Modes, privilege levels, and security states</strong></td>
+<td align="right">B1-1141</td>
+<td>模式、特权级和安全状态的规范关系</td>
+</tr>
+<tr>
+<td>ARM ARM <strong>Figure B1-2: ARM core registers, PSRs, and ELR_hyp, showing register banking</strong></td>
+<td align="right">B1-1144</td>
+<td>最完整的寄存器 bank 规范图</td>
+</tr>
+</tbody></table>
+<p>需要核对模式编码时看：</p>
+<ul>
+<li>Programmer’s Guide <strong>Table 4-2: ARM Mode Encodings and Privilege Levels</strong>，第 49 页。</li>
+<li>ARM ARM <strong>Table B1-1: ARM processor modes</strong>，B1-1139。</li>
+</ul>
+<hr>
+<h3 id="2-处理器模式：为什么需要它们"><a href="#2-处理器模式：为什么需要它们" class="headerlink" title="2. 处理器模式：为什么需要它们"></a>2. 处理器模式：为什么需要它们</h3><p>ARMv7-A 不是让所有代码都以相同权限、使用同一套异常栈运行。不同模式承担不同职责：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th align="right">编码</th>
+<th>典型来源和用途</th>
+<th>特权</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User (<code>usr</code>)</td>
+<td align="right"><code>0x10</code></td>
+<td>普通应用代码</td>
+<td>PL0</td>
+</tr>
+<tr>
+<td>FIQ (<code>fiq</code>)</td>
+<td align="right"><code>0x11</code></td>
+<td>快速中断</td>
+<td>PL1</td>
+</tr>
+<tr>
+<td>IRQ (<code>irq</code>)</td>
+<td align="right"><code>0x12</code></td>
+<td>普通外部中断</td>
+<td>PL1</td>
+</tr>
+<tr>
+<td>Supervisor (<code>svc</code>)</td>
+<td align="right"><code>0x13</code></td>
+<td>复位后、SVC 系统调用、内核主模式</td>
+<td>PL1</td>
+</tr>
+<tr>
+<td>Monitor (<code>mon</code>)</td>
+<td align="right"><code>0x16</code></td>
+<td>TrustZone 安全监控</td>
+<td>PL1 Monitor</td>
+</tr>
+<tr>
+<td>Abort (<code>abt</code>)</td>
+<td align="right"><code>0x17</code></td>
+<td>预取或数据访问异常</td>
+<td>PL1</td>
+</tr>
+<tr>
+<td>Hyp (<code>hyp</code>)</td>
+<td align="right"><code>0x1A</code></td>
+<td>虚拟化管理</td>
+<td>PL2</td>
+</tr>
+<tr>
+<td>Undefined (<code>und</code>)</td>
+<td align="right"><code>0x1B</code></td>
+<td>未定义指令异常</td>
+<td>PL1</td>
+</tr>
+<tr>
+<td>System (<code>sys</code>)</td>
+<td align="right"><code>0x1F</code></td>
+<td>特权软件使用 User 寄存器组</td>
+<td>PL1</td>
+</tr>
+</tbody></table>
+<p>对 Zynq-7020 第一版单核移植，优先掌握：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">SVC、IRQ、FIQ、Abort、Undefined、System/User<br></code></pre></td></tr></table></figure>
+
+<p><code>Monitor</code> 要知道它属于 TrustZone；<code>Hyp</code> 要能识别，但没有明确虚拟化需求时不作为第一版实现重点。</p>
+<h4 id="User-与-System-最容易混淆"><a href="#User-与-System-最容易混淆" class="headerlink" title="User 与 System 最容易混淆"></a>User 与 System 最容易混淆</h4><p>二者使用相同的 <code>R0-R14</code> 寄存器 bank，但权限不同：</p>
+<ul>
+<li>User 是非特权模式，不能随意修改控制寄存器或中断屏蔽。</li>
+<li>System 是 PL1 特权模式，通常供内核在“用户寄存器视图”下工作。</li>
+<li>两者都没有自己的 <code>SPSR</code>。</li>
+<li>System 不是异常目标模式，不会因为某种异常被硬件自动进入。</li>
+</ul>
+<p>所以：</p>
+<blockquote>
+<p>“共享寄存器”不等于“拥有相同权限”。</p>
+</blockquote>
+<hr>
+<h3 id="3-可见寄存器与实际物理寄存器"><a href="#3-可见寄存器与实际物理寄存器" class="headerlink" title="3. 可见寄存器与实际物理寄存器"></a>3. 可见寄存器与实际物理寄存器</h3><p>汇编程序在任意时刻最多看到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">R0-R12    通用寄存器<br>R13/SP    栈指针<br>R14/LR    链接寄存器<br>R15/PC    程序计数器<br>CPSR      当前程序状态<br></code></pre></td></tr></table></figure>
+
+<p>但芯片内部的物理寄存器数量更多，因为部分名字在不同模式下有不同 bank。</p>
+<h4 id="3-1-必须记住的-bank-规律"><a href="#3-1-必须记住的-bank-规律" class="headerlink" title="3.1 必须记住的 bank 规律"></a>3.1 必须记住的 bank 规律</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><code class="hljs text">R0-R7<br>  所有模式共享<br><br>R8-R12<br>  普通模式共享一组<br>  FIQ 独享另一组 R8_fiq-R12_fiq<br><br>R13/SP<br>  User/System 共享 SP_usr<br>  FIQ、IRQ、SVC、Abort、Undefined、Monitor 各有自己的 SP<br>  Hyp 有自己的 SP_hyp<br><br>R14/LR<br>  User/System 共享 LR_usr<br>  FIQ、IRQ、SVC、Abort、Undefined、Monitor 各有自己的 LR<br>  Hyp 使用 ELR_hyp 保存异常返回地址<br><br>R15/PC<br>  不分 bank<br><br>CPSR<br>  每个 CPU 核只有一个“当前 CPSR”<br><br>SPSR<br>  FIQ、IRQ、SVC、Abort、Undefined、Monitor、Hyp 等异常模式各有自己的保存状态<br>  User/System 没有 SPSR<br></code></pre></td></tr></table></figure>
+
+<p>可压缩成一句口诀：</p>
+<blockquote>
+<p>FIQ 多 bank <code>R8-R12</code>；异常模式各 bank <code>SP/LR/SPSR</code>；<code>R0-R7</code> 和 <code>PC</code> 不 bank；User&#x2F;System 共用一组且没有 SPSR。</p>
+</blockquote>
+<h4 id="3-2-“切换”不是复制"><a href="#3-2-“切换”不是复制" class="headerlink" title="3.2 “切换”不是复制"></a>3.2 “切换”不是复制</h4><p>假设：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">SP_svc = 0x0010_8000<br>SP_irq = 0x0010_4000<br></code></pre></td></tr></table></figure>
+
+<p>在 SVC 模式执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">mov r0, sp<br></code></pre></td></tr></table></figure>
+
+<p><code>r0</code> 得到 <code>0x00108000</code>。切换到 IRQ 模式后再执行同一条指令，<code>r0</code> 得到 <code>0x00104000</code>。</p>
+<p>硬件没有把 SVC 栈指针复制到 IRQ 栈指针。发生的是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR.M 改变<br>    ↓<br>名字 SP 的物理映射改变<br>    ↓<br>当前看到 SP_irq，而不再是 SP_svc<br></code></pre></td></tr></table></figure>
+
+<p>这也是为什么启动代码必须逐个模式设置栈。如果 <code>SP_irq</code> 没初始化，第一次 IRQ 一执行 <code>push</code> 就会把现场写到未知地址。</p>
+<h4 id="3-3-为什么-FIQ-多出五个-bank"><a href="#3-3-为什么-FIQ-多出五个-bank" class="headerlink" title="3.3 为什么 FIQ 多出五个 bank"></a>3.3 为什么 FIQ 多出五个 bank</h4><p>FIQ 额外拥有 <code>R8_fiq-R12_fiq</code>，目的是让小型快速处理程序少保存一些共享寄存器，降低入口开销。现代 OS 往往仍会建立规范现场，所以不要把它理解成“FIQ 永远不保存寄存器”，只能说架构给了更低延迟的可能。</p>
+<hr>
+<h3 id="4-CPSR：只按用途记，不要机械背-32-个格子"><a href="#4-CPSR：只按用途记，不要机械背-32-个格子" class="headerlink" title="4. CPSR：只按用途记，不要机械背 32 个格子"></a>4. CPSR：只按用途记，不要机械背 32 个格子</h3><p>CPSR 同时回答四类问题：</p>
+<ol>
+<li>上一条运算结果怎样：<code>N/Z/C/V/Q</code>。</li>
+<li>当前采用什么指令状态：主要是 <code>T</code>。</li>
+<li>哪些异步异常被屏蔽：<code>A/I/F</code>。</li>
+<li>当前处于什么处理器模式：<code>M[4:0]</code>。</li>
+</ol>
+<h4 id="4-1-CPSR-位域"><a href="#4-1-CPSR-位域" class="headerlink" title="4.1 CPSR 位域"></a>4.1 CPSR 位域</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">31  30  29  28  27  26:25 24  23:20 19:16 15:10 9  8 7 6 5  4:0<br> N   Z   C   V   Q   IT    J    -      GE    IT   E  A I F T   M<br></code></pre></td></tr></table></figure>
+
+<h5 id="第一优先级：移植和异常代码天天使用"><a href="#第一优先级：移植和异常代码天天使用" class="headerlink" title="第一优先级：移植和异常代码天天使用"></a>第一优先级：移植和异常代码天天使用</h5><table>
+<thead>
+<tr>
+<th align="right">位</th>
+<th>名称</th>
+<th>工程含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right"><code>9</code></td>
+<td><code>E</code></td>
+<td>数据访问端序</td>
+</tr>
+<tr>
+<td align="right"><code>8</code></td>
+<td><code>A</code></td>
+<td>异步 Abort 屏蔽，1 表示屏蔽</td>
+</tr>
+<tr>
+<td align="right"><code>7</code></td>
+<td><code>I</code></td>
+<td>IRQ 屏蔽，1 表示屏蔽</td>
+</tr>
+<tr>
+<td align="right"><code>6</code></td>
+<td><code>F</code></td>
+<td>FIQ 屏蔽，1 表示屏蔽</td>
+</tr>
+<tr>
+<td align="right"><code>5</code></td>
+<td><code>T</code></td>
+<td>1 为 Thumb 状态，0 为 ARM 状态</td>
+</tr>
+<tr>
+<td align="right"><code>4:0</code></td>
+<td><code>M</code></td>
+<td>当前处理器模式</td>
+</tr>
+</tbody></table>
+<p>先牢牢记：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">低 10 位：E A I F T MMMMM<br></code></pre></td></tr></table></figure>
+
+<h5 id="第二优先级：读普通汇编经常出现"><a href="#第二优先级：读普通汇编经常出现" class="headerlink" title="第二优先级：读普通汇编经常出现"></a>第二优先级：读普通汇编经常出现</h5><table>
+<thead>
+<tr>
+<th>位</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>N</code></td>
+<td>结果为负</td>
+</tr>
+<tr>
+<td><code>Z</code></td>
+<td>结果为零</td>
+</tr>
+<tr>
+<td><code>C</code></td>
+<td>加减的进位&#x2F;借位语义，也用于移位移出的位</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>有符号溢出</td>
+</tr>
+<tr>
+<td><code>Q</code></td>
+<td>饱和运算累计溢出</td>
+</tr>
+</tbody></table>
+<p><code>CMP r0, r1</code> 本质上更新标志而不保存减法结果，随后 <code>BEQ/BNE/BHI/...</code> 根据这些位判断。</p>
+<h5 id="第三优先级：知道存在即可"><a href="#第三优先级：知道存在即可" class="headerlink" title="第三优先级：知道存在即可"></a>第三优先级：知道存在即可</h5><ul>
+<li><code>IT</code>：Thumb <code>IT</code> 条件执行块状态，分成两段存放。</li>
+<li><code>GE[3:0]</code>：某些并行 SIMD 指令的比较结果。</li>
+<li><code>J</code>：Jazelle 状态，当前 Zynq OS 移植不需要作为记忆重点。</li>
+<li>保留位：按手册要求保留，不自行写入任意值。</li>
+</ul>
+<h4 id="4-2-修改-CPSR-时要避免的错误"><a href="#4-2-修改-CPSR-时要避免的错误" class="headerlink" title="4.2 修改 CPSR 时要避免的错误"></a>4.2 修改 CPSR 时要避免的错误</h4><p>不能为了切模式而随手构造整个 CPSR 常量，覆盖条件标志、指令状态或屏蔽位。常用方法是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs asm">mrs   r0, cpsr        @ 读取<br>bic   r0, r0, #0x1f  @ 只清 M 域<br>orr   r0, r0, #0x12  @ 选择 IRQ<br>msr   cpsr_c, r0      @ 只写控制域<br></code></pre></td></tr></table></figure>
+
+<p>或者在允许的特权环境使用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">cps #0x12             @ 主动进入 IRQ 模式<br>cpsid i               @ 设置 I，屏蔽 IRQ<br>cpsie i               @ 清除 I，允许 IRQ<br></code></pre></td></tr></table></figure>
+
+<p><code>cps #0x12</code> 只改变模式，不会自动生成一次 IRQ 异常现场。</p>
+<hr>
+<h3 id="5-SPSR：异常前-CPSR-的停车位"><a href="#5-SPSR：异常前-CPSR-的停车位" class="headerlink" title="5. SPSR：异常前 CPSR 的停车位"></a>5. SPSR：异常前 CPSR 的停车位</h3><p>进入普通 PL1 异常时，硬件做的关键动作之一是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">异常前 CPSR → 目标模式的 SPSR<br></code></pre></td></tr></table></figure>
+
+<p>例如 IRQ：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR_old → SPSR_irq<br></code></pre></td></tr></table></figure>
+
+<p>因此在 IRQ handler 中：</p>
+<ul>
+<li>当前 <code>CPSR</code> 描述“正在 IRQ 模式执行”的状态。</li>
+<li><code>SPSR_irq</code> 描述“被打断代码当时”的模式、T 位、屏蔽位和标志。</li>
+</ul>
+<p>二者不能互换。</p>
+<h4 id="5-1-为什么每种异常模式各有-SPSR"><a href="#5-1-为什么每种异常模式各有-SPSR" class="headerlink" title="5.1 为什么每种异常模式各有 SPSR"></a>5.1 为什么每种异常模式各有 SPSR</h4><p>IRQ、Abort、Undefined 等异常可能在不同时间保存不同的旧状态。如果只有一个共享 SPSR，它们之间会互相覆盖。独立 bank 让每个异常模式至少拥有自己的架构保存位置。</p>
+<p>这并不自动解决任意嵌套问题：同一种模式再次嵌套，仍可能覆盖自己的 <code>LR_mode/SPSR_mode</code>。所以 OS 入口通常尽快把它们压入内存异常帧。</p>
+<h4 id="5-2-异常返回的本质"><a href="#5-2-异常返回的本质" class="headerlink" title="5.2 异常返回的本质"></a>5.2 异常返回的本质</h4><p>异常返回必须同时完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">恢复返回 PC<br>恢复异常前 CPSR<br></code></pre></td></tr></table></figure>
+
+<p>一旦旧 <code>CPSR.M</code> 被恢复，当前寄存器映射也随之回到旧模式。例如从 IRQ 回到 SVC 后，名字 <code>sp</code> 再次表示 <code>SP_svc</code>。</p>
+<p>常见形式：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs asm">subs pc, lr, #4        @ 某些 IRQ 返回序列<br>rfeia sp!              @ 从内存同时恢复 PC 和 CPSR<br></code></pre></td></tr></table></figure>
+
+<p>具体 LR 修正量属于异常主题，不能把所有异常都机械写成 <code>lr - 4</code>。</p>
+<hr>
+<h3 id="6-一次-IRQ-中真正发生的寄存器切换"><a href="#6-一次-IRQ-中真正发生的寄存器切换" class="headerlink" title="6. 一次 IRQ 中真正发生的寄存器切换"></a>6. 一次 IRQ 中真正发生的寄存器切换</h3><p>假设 CPU0 正在 SVC 模式运行，IRQ 未屏蔽。一个外设 IRQ 到来后，架构入口可理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">1. CPSR_svc → SPSR_irq<br>2. 首选返回地址 → LR_irq<br>3. CPSR.M → IRQ<br>4. CPSR.I → 1，防止普通 IRQ 立即再次进入<br>5. 当前可见 SP 从 SP_svc 变成 SP_irq<br>6. PC → vector_base + 0x18<br></code></pre></td></tr></table></figure>
+
+<p>注意硬件没有自动保存 <code>R0-R12</code>。入口汇编必须在改写这些寄存器前，把所需现场放入 IRQ 栈或任务异常帧。</p>
+<p>返回时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">异常帧中的状态 → 通用寄存器<br>保存的 CPSR → CPSR<br>保存的返回地址 → PC<br></code></pre></td></tr></table></figure>
+
+<p>恢复 CPSR 后模式映射回到异常前的 bank，于是原任务继续。</p>
+<h4 id="cps-mode-与异常入口的对照"><a href="#cps-mode-与异常入口的对照" class="headerlink" title="cps #mode 与异常入口的对照"></a><code>cps #mode</code> 与异常入口的对照</h4><table>
+<thead>
+<tr>
+<th>行为</th>
+<th><code>cps #mode</code></th>
+<th>真正异常入口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>改变 <code>CPSR.M</code></td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>切换可见 bank</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>旧 CPSR 自动存入 SPSR</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>自动产生返回地址</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>自动跳到向量</td>
+<td>否</td>
+<td>是</td>
+</tr>
+</tbody></table>
+<p>这是本目标最重要的辨析题。</p>
+<hr>
+<h3 id="7-双核-Zynq：模式-bank-之外还有“每核一套”"><a href="#7-双核-Zynq：模式-bank-之外还有“每核一套”" class="headerlink" title="7. 双核 Zynq：模式 bank 之外还有“每核一套”"></a>7. 双核 Zynq：模式 bank 之外还有“每核一套”</h3><p>Zynq-7020 的两个 Cortex-A9 核，各自拥有完整架构状态：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0<br>  CPSR、PC、R0-R12<br>  SP/LR/SPSR 的各模式 bank<br><br>CPU1<br>  CPSR、PC、R0-R12<br>  SP/LR/SPSR 的各模式 bank<br></code></pre></td></tr></table></figure>
+
+<p>所以要同时理解两个维度：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">横向：CPU0 与 CPU1 各有自己的寄存器<br>纵向：每个 CPU 内部又有 SVC/IRQ/FIQ/... bank<br></code></pre></td></tr></table></figure>
+
+<p>第一版单核启动只初始化 CPU0；启动 CPU1 前，必须给 CPU1 单独准备各模式栈和 per-CPU 数据。CPU0 的 <code>SP_irq</code> 不能供 CPU1 共用。</p>
+<hr>
+<h3 id="8-启动代码应该怎样初始化各模式栈"><a href="#8-启动代码应该怎样初始化各模式栈" class="headerlink" title="8. 启动代码应该怎样初始化各模式栈"></a>8. 启动代码应该怎样初始化各模式栈</h3><p>典型思路：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs asm">cpsid if               @ 初始化期间先屏蔽 IRQ/FIQ<br><br>cps   #0x12             @ IRQ<br>ldr   sp, =cpu0_irq_stack_top<br><br>cps   #0x11             @ FIQ<br>ldr   sp, =cpu0_fiq_stack_top<br><br>cps   #0x17             @ Abort<br>ldr   sp, =cpu0_abt_stack_top<br><br>cps   #0x1b             @ Undefined<br>ldr   sp, =cpu0_und_stack_top<br><br>cps   #0x1f             @ System/User bank<br>ldr   sp, =cpu0_sys_stack_top<br><br>cps   #0x13             @ SVC<br>ldr   sp, =cpu0_svc_stack_top<br></code></pre></td></tr></table></figure>
+
+<p>这段代码的意义不是反复修改同一个 SP，而是逐一选择并初始化不同的物理 <code>SP_mode</code>。</p>
+<p>实际移植还要：</p>
+<ul>
+<li>根据 MPIDR 选择 CPU0&#x2F;CPU1 对应栈；</li>
+<li>保证栈顶满足 AAPCS 8 字节对齐；</li>
+<li>栈之间不能重叠；</li>
+<li>在向量和 IRQ 栈准备好之前不能开放 IRQ；</li>
+<li>记录链接脚本中栈区边界，便于越界诊断。</li>
+</ul>
+<hr>
+<h3 id="9-移植与-Debug：从症状反推哪一层错了"><a href="#9-移植与-Debug：从症状反推哪一层错了" class="headerlink" title="9. 移植与 Debug：从症状反推哪一层错了"></a>9. 移植与 Debug：从症状反推哪一层错了</h3><h4 id="症状-1：一开-IRQ-就-Data-Abort-或跑飞"><a href="#症状-1：一开-IRQ-就-Data-Abort-或跑飞" class="headerlink" title="症状 1：一开 IRQ 就 Data Abort 或跑飞"></a>症状 1：一开 IRQ 就 Data Abort 或跑飞</h4><p>优先检查：</p>
+<ol>
+<li><code>SP_irq</code> 是否初始化。</li>
+<li>当前 CPU 是否用了自己的 IRQ 栈。</li>
+<li>IRQ 栈地址是否可写、对齐且未与 <code>.bss</code>&#x2F;其他栈重叠。</li>
+<li>向量基址是否正确。</li>
+</ol>
+<h4 id="症状-2：异常返回后进入错误模式"><a href="#症状-2：异常返回后进入错误模式" class="headerlink" title="症状 2：异常返回后进入错误模式"></a>症状 2：异常返回后进入错误模式</h4><p>优先检查：</p>
+<ol>
+<li>异常帧里的 <code>SPSR</code> 是否被破坏。</li>
+<li><code>MSR SPSR...</code> 或 <code>RFE</code> 使用的值是否正确。</li>
+<li>返回现场的 PC&#x2F;CPSR 顺序是否与保存布局一致。</li>
+<li>是否把当前 CPSR 错当成异常前 CPSR。</li>
+</ol>
+<h4 id="症状-3：返回地址差-4-或-8-字节"><a href="#症状-3：返回地址差-4-或-8-字节" class="headerlink" title="症状 3：返回地址差 4 或 8 字节"></a>症状 3：返回地址差 4 或 8 字节</h4><p>这是异常类型和 LR 修正问题，不是 GIC 问题。记录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">异常类型<br>异常发生时 ARM/Thumb 状态<br>硬件写入的 LR_mode<br>软件实际使用的返回指令<br></code></pre></td></tr></table></figure>
+
+<p>再查 ARM ARM B1.8.3 的 <strong>Table B1-6: Exception return addresses</strong> 和 B1-1172 的 <strong>Table B1-7: Offsets applied to Link value for exceptions taken to PL1 modes</strong>。</p>
+<h4 id="症状-4：改了-sp，切回模式后值“消失”"><a href="#症状-4：改了-sp，切回模式后值“消失”" class="headerlink" title="症状 4：改了 sp，切回模式后值“消失”"></a>症状 4：改了 <code>sp</code>，切回模式后值“消失”</h4><p>通常不是写失败，而是读者写的是另一个 bank。调试器停下后先读取 CPSR.M，再判断当前显示的是哪一个 <code>SP_mode</code>。</p>
+<h4 id="最小现场打印"><a href="#最小现场打印" class="headerlink" title="最小现场打印"></a>最小现场打印</h4><p>异常诊断至少记录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU ID<br>当前 CPSR<br>异常前 SPSR<br>当前模式 SP/LR<br>修正后的返回 PC<br>异常类型<br></code></pre></td></tr></table></figure>
+
+<p>不要在尚未确认 IRQ 栈有效时直接调用复杂 <code>printf</code>。</p>
+<hr>
+<h3 id="10-本目标的掌握标准"><a href="#10-本目标的掌握标准" class="headerlink" title="10. 本目标的掌握标准"></a>10. 本目标的掌握标准</h3><p>不要求现在背下 CPSR 所有冷门位。达到下面标准即可进入后续实践：</p>
+<ul>
+<li>能默写主要模式编码：<code>usr=10, fiq=11, irq=12, svc=13, abt=17, und=1b, sys=1f</code>。</li>
+<li>能画出 <code>R0-R7</code>、<code>R8-R12_fiq</code>、各模式 <code>SP/LR/SPSR</code> 的 bank 关系。</li>
+<li>能解释模式切换是“映射变化”，不是寄存器值复制。</li>
+<li>能区分 <code>CPSR</code> 与 <code>SPSR_irq</code>。</li>
+<li>能说明 IRQ 硬件入口保存什么、没有保存什么。</li>
+<li>能说明为什么每个 CPU、每种异常模式都需要自己的栈。</li>
+<li>能区分 <code>cps #0x12</code> 与真正 IRQ 入口。</li>
+<li>看到 <code>RFE</code> 或带 <code>S</code> 的异常返回序列时，知道它在恢复 PC 和 CPSR。</li>
+</ul>
+<h4 id="30-秒复述版"><a href="#30-秒复述版" class="headerlink" title="30 秒复述版"></a>30 秒复述版</h4><blockquote>
+<p>ARMv7-A 当前模式由 CPSR.M 决定。模式改变时，同名 SP&#x2F;LR 可能映射到不同的 bank；FIQ 还额外 bank 了 R8-R12。异常进入会把旧 CPSR 保存到目标模式 SPSR，把返回地址放到该模式 LR，切模式并跳向量，但不会自动保存 R0-R12。入口汇编用该模式 SP 建现场，返回时同时恢复 PC 和 CPSR；旧模式恢复后，原来的寄存器 bank 自动重新可见。双核则每个核各自拥有完整的一套上述状态。</p>
+</blockquote>
+<hr>
+<h3 id="11-下一主题的接口"><a href="#11-下一主题的接口" class="headerlink" title="11. 下一主题的接口"></a>11. 下一主题的接口</h3><p>本目标解决的是“硬件为什么会切换当前可见寄存器”。下一主题 AAPCS32 解决：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">C 函数调用时<br>哪些寄存器可以被被调函数改写<br>哪些必须保持<br>参数和返回值放在哪里<br>栈在函数边界必须满足什么条件<br></code></pre></td></tr></table></figure>
+
+<p>之后才能合理回答：普通任务切换为什么常保存 <code>R4-R11/SP/LR</code>，而异常入口为什么需要保存更完整的现场。</p>
+<h2 id="把概念放回真实启动与异常路径"><a href="#把概念放回真实启动与异常路径" class="headerlink" title="把概念放回真实启动与异常路径"></a>把概念放回真实启动与异常路径</h2><h3 id="五、目前已经明确的核心概念"><a href="#五、目前已经明确的核心概念" class="headerlink" title="五、目前已经明确的核心概念"></a>五、目前已经明确的核心概念</h3><h4 id="1-“寄存器切换”的含义"><a href="#1-“寄存器切换”的含义" class="headerlink" title="1. “寄存器切换”的含义"></a>1. “寄存器切换”的含义</h4><p>当前目标中的“寄存器切换”，主要指：</p>
+<blockquote>
+<p>ARMv7-A 改变处理器模式后，相同的寄存器名会映射到不同的物理 banked register。</p>
+</blockquote>
+<p>例如，在汇编中始终写 <code>sp</code>，但是：</p>
+<ul>
+<li>IRQ 模式下对应 <code>SP_irq</code></li>
+<li>SVC 模式下对应 <code>SP_svc</code></li>
+<li>Abort 模式下对应 <code>SP_abt</code></li>
+<li>User&#x2F;System 模式下对应 <code>SP_usr</code></li>
+</ul>
+<p>这不是把一个 SP 的值自动复制到另一个 SP，而是当前模式改变了寄存器名到物理寄存器的映射。</p>
+<h4 id="2-模式切换与任务上下文切换不同"><a href="#2-模式切换与任务上下文切换不同" class="headerlink" title="2. 模式切换与任务上下文切换不同"></a>2. 模式切换与任务上下文切换不同</h4><ul>
+<li>处理器模式切换：<ul>
+<li>ARM 架构硬件&#x2F;特权指令机制</li>
+<li>例如 SVC → IRQ</li>
+<li>重点是 CPSR.M、SPSR、banked SP&#x2F;LR</li>
+</ul>
+</li>
+<li>操作系统任务上下文切换：<ul>
+<li>OS 软件机制</li>
+<li>把一个任务的寄存器保存到内存，再恢复另一个任务</li>
+<li>对应后续的“上下文与汇编指令”学习目标</li>
+</ul>
+</li>
+</ul>
+<p>两者都涉及寄存器，但不能混为一谈。</p>
+<h4 id="3-banked-register-规则"><a href="#3-banked-register-规则" class="headerlink" title="3. banked register 规则"></a>3. banked register 规则</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">R0-R7      所有模式共享<br>R8-R12     只有 FIQ 模式有独立 bank<br>R13/SP     各异常模式拥有独立 bank<br>R14/LR     各 PL1 异常模式拥有独立 bank<br>R15/PC     所有模式共享<br>CPSR       每个 CPU 核只有一个当前 CPSR<br>SPSR       每个异常模式各有一个<br>User/System 共享核心寄存器，并且没有 SPSR<br></code></pre></td></tr></table></figure>
+
+<h4 id="4-CPSR-的当前理解"><a href="#4-CPSR-的当前理解" class="headerlink" title="4. CPSR 的当前理解"></a>4. CPSR 的当前理解</h4><p>CPSR 保存当前处理器状态，重点字段包括：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs text">N/Z/C/V    运算条件标志<br>Q          累积饱和标志<br>IT         Thumb IT 块状态<br>J/T        当前指令集状态<br>GE         SIMD 并行比较结果<br>E          数据访问端序<br>A          异步中止屏蔽<br>I          IRQ 屏蔽<br>F          FIQ 屏蔽<br>M[4:0]     当前处理器模式<br></code></pre></td></tr></table></figure>
+
+<p>当前最需要优先记忆的是低 10 位：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">E A I F T M[4:0]<br></code></pre></td></tr></table></figure>
+
+<h4 id="5-SPSR-的当前理解"><a href="#5-SPSR-的当前理解" class="headerlink" title="5. SPSR 的当前理解"></a>5. SPSR 的当前理解</h4><p>异常进入时，处理器把异常前的 CPSR 自动保存到目标异常模式的 SPSR，例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">IRQ: CPSR -&gt; SPSR_irq<br>SVC: CPSR -&gt; SPSR_svc<br>ABT: CPSR -&gt; SPSR_abt<br>UND: CPSR -&gt; SPSR_und<br></code></pre></td></tr></table></figure>
+
+<p>SPSR 的两个主要用途：</p>
+<ul>
+<li>异常处理程序检查异常发生前的状态。</li>
+<li>异常返回时恢复原 CPSR，从而恢复原模式、屏蔽状态和指令集状态。</li>
+</ul>
+<h3 id="七、多核与模式-bank-的关系"><a href="#七、多核与模式-bank-的关系" class="headerlink" title="七、多核与模式 bank 的关系"></a>七、多核与模式 bank 的关系</h3><p>已经明确这是两个不同维度：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU0 有自己完整的一套架构寄存器<br>├── SP_irq<br>├── SP_fiq<br>├── SP_svc<br>├── SP_abt<br>├── SP_und<br>└── SP_usr/sys<br><br>CPU1 也有自己完整的一套架构寄存器<br>├── SP_irq<br>├── SP_fiq<br>├── SP_svc<br>├── SP_abt<br>├── SP_und<br>└── SP_usr/sys<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>“CPU0&#x2F;CPU1”表示每个核独立的处理器状态。</li>
+<li>“IRQ&#x2F;SVC&#x2F;FIQ 等”表示一个核内部的模式 bank。</li>
+<li>工程启动代码按“CPU ID × 处理器模式”分别初始化栈。</li>
+</ul>
+<h3 id="九、交流中得到的重要纠正"><a href="#九、交流中得到的重要纠正" class="headerlink" title="九、交流中得到的重要纠正"></a>九、交流中得到的重要纠正</h3><h4 id="纠正-1：cps-mode-不等于异常进入"><a href="#纠正-1：cps-mode-不等于异常进入" class="headerlink" title="纠正 1：cps #mode 不等于异常进入"></a>纠正 1：<code>cps #mode</code> 不等于异常进入</h4><p><code>cps #mode</code>：</p>
+<ul>
+<li>是特权软件主动修改模式。</li>
+<li>改变 CPSR.M。</li>
+<li>使当前可见的 banked register 随模式变化。</li>
+<li>不会自动保存旧 CPSR。</li>
+<li>不会自动生成异常返回地址。</li>
+</ul>
+<p>异常进入：</p>
+<ul>
+<li>由处理器硬件按照异常类型改变模式。</li>
+<li>自动把旧 CPSR 保存到目标模式 SPSR。</li>
+<li>自动把首选返回地址保存到目标模式 LR，Hyp 除外。</li>
+<li>跳到相应异常向量。</li>
+</ul>
+<h4 id="纠正-2：硬件不会自动保存所有通用寄存器"><a href="#纠正-2：硬件不会自动保存所有通用寄存器" class="headerlink" title="纠正 2：硬件不会自动保存所有通用寄存器"></a>纠正 2：硬件不会自动保存所有通用寄存器</h4><p>异常发生时，硬件主要保存 CPSR 和返回地址，并切换模式。<code>R0-R12</code> 等工作寄存器仍需异常入口汇编根据软件设计保存。</p>
+<h4 id="纠正-3：System-模式不是异常模式"><a href="#纠正-3：System-模式不是异常模式" class="headerlink" title="纠正 3：System 模式不是异常模式"></a>纠正 3：System 模式不是异常模式</h4><p>System 与 User 共享核心寄存器，但 System 是 PL1 特权模式。没有异常会默认进入 System，它通常由操作系统显式切换使用。</p>
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="模式、指令状态、安全状态是三个问题"><a href="#模式、指令状态、安全状态是三个问题" class="headerlink" title="模式、指令状态、安全状态是三个问题"></a>模式、指令状态、安全状态是三个问题</h2><p>处理器模式由 <code>CPSR.M[4:0]</code> 表示，它影响权限与 banked 寄存器的选择。ARM&#x2F;Thumb 指令状态主要由 <code>CPSR.T</code> 等状态位体现，决定指令如何解释。TrustZone 的 Secure&#x2F;Non-secure 是安全状态，不能从“正在 SVC 模式”推导出来。</p>
+<p>例如一个任务可以处于 SVC 模式、ARM 指令状态，并使用普通小端数据访问。切到 IRQ 模式是异常处理；从 ARM 函数调用 Thumb 函数是指令状态切换；进入安全监控路径又涉及另一套规则。</p>
+<p>当前工程统一使用 <code>-marm</code>，任务运行在 SVC 模式，没有实现用户态和安全监控固件。</p>
+<h2 id="Cortex-A9-需要认识哪些模式"><a href="#Cortex-A9-需要认识哪些模式" class="headerlink" title="Cortex-A9 需要认识哪些模式"></a>Cortex-A9 需要认识哪些模式</h2><table>
+<thead>
+<tr>
+<th>模式</th>
+<th align="right">M 编码</th>
+<th>寄存器特点</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User</td>
+<td align="right">0x10</td>
+<td>使用 usr 组 SP&#x2F;LR，无 SPSR</td>
+<td>非特权应用</td>
+</tr>
+<tr>
+<td>FIQ</td>
+<td align="right">0x11</td>
+<td>独立 r8-r14、SPSR_fiq</td>
+<td>快速中断</td>
+</tr>
+<tr>
+<td>IRQ</td>
+<td align="right">0x12</td>
+<td>独立 SP&#x2F;LR、SPSR_irq</td>
+<td>普通中断</td>
+</tr>
+<tr>
+<td>SVC</td>
+<td align="right">0x13</td>
+<td>独立 SP&#x2F;LR、SPSR_svc</td>
+<td>内核与 SVC 异常</td>
+</tr>
+<tr>
+<td>Monitor</td>
+<td align="right">0x16</td>
+<td>安全扩展相关 bank</td>
+<td>安全状态切换</td>
+</tr>
+<tr>
+<td>Abort</td>
+<td align="right">0x17</td>
+<td>独立 SP&#x2F;LR、SPSR_abt</td>
+<td>取指或数据访问异常</td>
+</tr>
+<tr>
+<td>Undefined</td>
+<td align="right">0x1b</td>
+<td>独立 SP&#x2F;LR、SPSR_und</td>
+<td>未定义指令</td>
+</tr>
+<tr>
+<td>System</td>
+<td align="right">0x1f</td>
+<td>与 User 共享寄存器组，无 SPSR</td>
+<td>特权下操作 usr 组寄存器</td>
+</tr>
+</tbody></table>
+<p>User 与 System 的寄存器组相同，权限不同。System 是特权模式，但不是某类异常的自动入口目标。</p>
+<p>ARMv7-A 架构手册还会列出 Hyp 模式。那属于实现虚拟化扩展的处理器范围，Cortex-A9 不实现该扩展。不能因为 ARM ARM 画出了 <code>ELR_hyp</code>，就给 Zynq-7020 安排一条 Hyp 启动路径。</p>
+<h2 id="同一个寄存器名，可能对应不同存储"><a href="#同一个寄存器名，可能对应不同存储" class="headerlink" title="同一个寄存器名，可能对应不同存储"></a>同一个寄存器名，可能对应不同存储</h2><p>对本工程涉及的经典模式，可按下面的规律记：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r7     普通模式间共享<br>r8-r12    FIQ 有自己的 bank，其他这里讨论的模式共享<br>r13/sp    User/System 共用；各异常模式有自己的 bank<br>r14/lr    User/System 共用；各异常模式有自己的 bank<br>r15/pc    不是每个模式各保存一份任务 PC<br>CPSR      当前 CPU 正在执行的状态<br>SPSR_xxx  对应异常模式保存的异常前状态<br></code></pre></td></tr></table></figure>
+
+<p>“共享”限定在同一个核上。CPU0 与 CPU1 各自拥有寄存器文件；CPU0 的 <code>r0</code> 不会因为 CPU1 写 <code>r0</code> 而变化。寄存器银行切换与多核是两个不同维度。</p>
+<p>假定 SVC 模式下 <code>sp_svc=0x00120000</code>、<code>sp_irq=0x00130000</code>、<code>r4=0x12345678</code>。执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">cps #0x12<br></code></pre></td></tr></table></figure>
+
+<p>之后通过名字 <code>sp</code> 看到的是 <code>0x00130000</code>，<code>r4</code> 仍是 <code>0x12345678</code>。<code>sp_svc</code> 没有消失，只是当前名字 <code>sp</code> 不再选中它。切回 SVC 又能看到原值。</p>
+<p>这一步没有把寄存器压进内存，也没有保存一个软件任务。硬件 bank 的数量是固定的，不可能为每一个线程分配一个 SVC bank。</p>
+<h2 id="启动代码怎样初始化这些-bank"><a href="#启动代码怎样初始化这些-bank" class="headerlink" title="启动代码怎样初始化这些 bank"></a>启动代码怎样初始化这些 bank</h2><p>基础版 <code>src/start.S</code> 先读 MPIDR，随后按模式和 CPU 选择栈。下面摘出两个模式：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs asm">cps #0x12<br>cmp r4, #0<br>ldreq sp, =__stack_irq_cpu0_top<br>ldrne sp, =__stack_irq_cpu1_top<br><br>cps #0x13<br>cmp r4, #0<br>ldreq sp, =__stack_svc_cpu0_top<br>ldrne sp, =__stack_svc_cpu1_top<br></code></pre></td></tr></table></figure>
+
+<p>第一段写当前 CPU 的 <code>sp_irq</code>，第二段写 <code>sp_svc</code>。链接脚本为两个核分别预留内存，两份栈既不能地址相同，也不能互相重叠。</p>
+<p>这里有两个条件需要同时满足：处理器已处于允许执行 CPS 的特权环境；对应 RAM 已经能访问，链接符号落在实际可用内存里。SP 初始化只意味着寄存器装入了一个数，能否安全压栈，要到第一次访存才真正验证。</p>
+<h2 id="CPSR-各字段怎样参与系统运行"><a href="#CPSR-各字段怎样参与系统运行" class="headerlink" title="CPSR 各字段怎样参与系统运行"></a>CPSR 各字段怎样参与系统运行</h2><table>
+<thead>
+<tr>
+<th>位</th>
+<th>名称</th>
+<th>在本系列中的意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>31</td>
+<td>N</td>
+<td>算术结果符号</td>
+</tr>
+<tr>
+<td>30</td>
+<td>Z</td>
+<td>结果为零</td>
+</tr>
+<tr>
+<td>29</td>
+<td>C</td>
+<td>加法进位；减法通常表示没有借位</td>
+</tr>
+<tr>
+<td>28</td>
+<td>V</td>
+<td>有符号溢出</td>
+</tr>
+<tr>
+<td>27</td>
+<td>Q</td>
+<td>饱和运算的粘滞标志</td>
+</tr>
+<tr>
+<td>26:25、15:10</td>
+<td>IT</td>
+<td>Thumb IT 块状态</td>
+</tr>
+<tr>
+<td>24</td>
+<td>J</td>
+<td>与特定指令执行状态有关，当前代码不用</td>
+</tr>
+<tr>
+<td>19:16</td>
+<td>GE</td>
+<td>部分并行算术指令的比较状态</td>
+</tr>
+<tr>
+<td>9</td>
+<td>E</td>
+<td>数据访问端序控制</td>
+</tr>
+<tr>
+<td>8</td>
+<td>A</td>
+<td>异步 Abort 屏蔽控制</td>
+</tr>
+<tr>
+<td>7</td>
+<td>I</td>
+<td>IRQ 屏蔽，1 表示屏蔽</td>
+</tr>
+<tr>
+<td>6</td>
+<td>F</td>
+<td>FIQ 屏蔽，1 表示屏蔽</td>
+</tr>
+<tr>
+<td>5</td>
+<td>T</td>
+<td>Thumb 状态指示</td>
+</tr>
+<tr>
+<td>4:0</td>
+<td>M</td>
+<td>处理器模式</td>
+</tr>
+</tbody></table>
+<p>保留位与未实现扩展不能随意写固定值。尤其不能把 A 当成“所有 Abort 的总开关”：同步地址转换故障不会因为 A&#x3D;1 就消失。</p>
+<p>前四位很容易在异常代码中被忽略。假设任务执行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs asm">cmp r0, #0<br>@ 此处到来 IRQ<br>beq zero_case<br></code></pre></td></tr></table></figure>
+
+<p>IRQ handler 中也会执行比较和算术。如果返回时只恢复 PC，不恢复原来的 N&#x2F;Z&#x2F;C&#x2F;V，<code>beq</code> 就可能使用 handler 留下的标志。这解释了为什么异步返回必须恢复 CPSR，而普通 C 函数调用一般不承诺保留条件标志。</p>
+<p>另一个容易读反的是 I：I&#x3D;1 表示屏蔽 IRQ。调试时看到 CPSR 低字节为 <code>0xd3</code>，可拆成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">0x13  SVC 模式<br>0x40  FIQ 屏蔽<br>0x80  IRQ 屏蔽<br>T=0   ARM 状态<br></code></pre></td></tr></table></figure>
+
+<p>因此 <code>0xd3</code> 常用于暂时不接受 IRQ 的 SVC 现场；<code>0x53</code> 则允许 IRQ，仍屏蔽 FIQ。这里只解释这些位，不意味着完整 CPSR 一定只有这一字节。</p>
+<h2 id="MRS、MSR、CPS-的职责"><a href="#MRS、MSR、CPS-的职责" class="headerlink" title="MRS、MSR、CPS 的职责"></a>MRS、MSR、CPS 的职责</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs asm">mrs r0, cpsr        @ 读取当前状态<br>mrs r1, spsr        @ 读取当前异常模式的保存状态<br>cpsid i             @ 屏蔽 IRQ<br>cpsie i             @ 允许 IRQ<br>cps #0x13           @ 切到 SVC<br></code></pre></td></tr></table></figure>
+
+<p><code>mrs r1, spsr</code> 的含义依赖当前模式。在 IRQ 模式读取的是 SPSR_irq；切到 SVC 后再读，得到的是 SPSR_svc。User&#x2F;System 没有自己的 SPSR，不要把它当成任意位置都可读取的“上一个状态”。</p>
+<p>MSR 还能选择写 CPSR 的哪些字段。例如工程普通 context 恢复使用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs asm">msr cpsr_c, r1<br></code></pre></td></tr></table></figure>
+
+<p>这里写控制字段，不是恢复整份算术标志。对一个遵守 ABI 的普通函数调用边界，这与“条件标志不保证跨调用保持”的约定相符。但它不能替代异步中断的完整状态恢复。</p>
+<p>也不能通过随意写 T 位，把正在执行的 ARM 指令流原地变成 Thumb。普通代码的 ARM&#x2F;Thumb 互操作应使用相应分支机制；异常返回则使用架构规定的状态恢复路径。</p>
+<h2 id="SPSR-是快照，但只有一份"><a href="#SPSR-是快照，但只有一份" class="headerlink" title="SPSR 是快照，但只有一份"></a>SPSR 是快照，但只有一份</h2><p>IRQ 发生时，硬件把异常前 CPSR 保存到 SPSR_irq，把返回相关地址放进 LR_irq，并进入 IRQ 模式。软件因此能取得异常前的执行状态。</p>
+<p>每个核只有一份 SPSR_irq 和 LR_irq。若允许下一次 IRQ 在它们尚未转移到内存前到来，新异常会覆盖旧信息。支持嵌套中断的实现，必须先解决这个所有权问题，再重新允许 IRQ。</p>
+<p>仅仅执行 <code>cps #0x12</code> 不会自动完成上述异常快照。手动切模式和硬件异常入口不能当成完全相同的操作。</p>
+<h2 id="一次-IRQ-的寄存器视图"><a href="#一次-IRQ-的寄存器视图" class="headerlink" title="一次 IRQ 的寄存器视图"></a>一次 IRQ 的寄存器视图</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs text">任务 A：SVC<br>  sp → A 的任务栈<br>  lr → A 的函数返回位置<br>  CPSR → A 的执行状态<br><br>硬件接收 IRQ<br>  CPSR_old → SPSR_irq<br>  返回信息 → LR_irq<br>  M → IRQ，使用 sp_irq/lr_irq<br>  PC → IRQ 向量<br><br>入口汇编<br>  把 PC/CPSR 转移到 A 的 SVC 栈<br>  切回 SVC，保存 A 的通用寄存器<br>  切到独立的软件中断栈调用 C<br><br>异常返回<br>  从选中任务现场恢复 PC/CPSR<br>  恢复对应模式及其寄存器视图<br></code></pre></td></tr></table></figure>
+
+<p>“切到独立的软件中断栈”不一定意味着当前模式再次变成 IRQ。本工程在 SVC 模式下，把 SVC 的 SP 临时设置到一块专用于中断处理的内存。栈区的名字和 CPU 当前模式必须分别观察。</p>
+<h2 id="模式切换和任务切换的分界"><a href="#模式切换和任务切换的分界" class="headerlink" title="模式切换和任务切换的分界"></a>模式切换和任务切换的分界</h2><table>
+<thead>
+<tr>
+<th>动作</th>
+<th>改变什么</th>
+<th>是否足以换线程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cps #IRQ</code></td>
+<td>模式与 bank 可见性</td>
+<td>否</td>
+</tr>
+<tr>
+<td>硬件 IRQ 入口</td>
+<td>保存有限返回信息，切模式与向量</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>_CPU_Context_switch</code></td>
+<td>软件保存旧状态，恢复新任务栈与继续点</td>
+<td>是，在其约束内</td>
+</tr>
+<tr>
+<td>IRQ 尾部选择另一 frame</td>
+<td>从新任务的 PC&#x2F;CPSR 返回</td>
+<td>是，在完整现场已保存的前提下</td>
+</tr>
+</tbody></table>
+<p>两个任务都运行在 SVC 时，也能进行软件切换；它们轮流使用同一个硬件 SVC bank，把暂时不用的状态保存在不同内存对象中。</p>
+<h2 id="复查时用三个小实验"><a href="#复查时用三个小实验" class="headerlink" title="复查时用三个小实验"></a>复查时用三个小实验</h2><p>第一，在 _start 的两个 CPS 附近单步，分别记录 <code>CPSR &amp; 0x1f</code> 和 SP。切模式会改变当前 SP 视图，但不会自动改变普通 r4 的值。</p>
+<p>第二，在 IRQ 入口第一条指令停住，读取 SPSR 与 LR；继续执行到 <code>cps #SVC</code> 后再看 CPSR。不要把此时的 SVC LR 当成刚才的 IRQ LR。</p>
+<p>第三，在 RFE 前检查内存里的 return_pc 与 cpsr，再单步返回。此时恢复的不只是地址，也包括中断屏蔽、模式与条件标志。</p>
+<p>原图可对照 Programmer’s Guide 第 4 章的 <strong>The ARM register set</strong>、<strong>CPSR bits</strong>，以及 <a target="_blank" rel="noopener" href="https://documentation-service.arm.com/static/5f8daeb7f86e16515cdb8c4e">ARM ARM</a> B1.3 的 <strong>ARM core registers, PSRs, and ELR_hyp, showing register banking</strong>。后者画的是更广的架构集合，阅读时要排除 A9 未实现的扩展。</p>
+<p>下一篇：<a href="/post/armv7a-02-aapcs-assembly.html">AAPCS32 与关键汇编</a>。</p>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>处理器模式切换改变的是 banked 寄存器的可见窗口，不是把一组寄存器复制到另一组。CPSR 描述当前执行状态，异常模式的 SPSR 保存异常前状态；IRQ 返回必须同时恢复地址与 CPSR。双核又在模式 bank 之外增加了每核独立性。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>处理器模式切换改变的是 banked 寄存器的可见窗口，不是把一组寄存器复制到另一组。CPSR 描述当前执行状态，异常模式的 SPSR 保存异常前状态；IRQ 返回必须同时恢复地址与 CPSR。双核又在模式 bank 之外增加了每核独立性。</p>
+<p>下一章进入 AAPCS32，说明不发生异常时，C 与汇编如何约定寄存器和栈。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（二）：处理器模式、寄存器组与CPSR</p><p><a href="https://goko-son626.github.io/post/armv7a-01-registers-modes.html">https://goko-son626.github.io/post/armv7a-01-registers-modes.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-13</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-13</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-06-gic-timers.html" target="_blank">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-05-exception-frames.html" target="_blank">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-04-context-threads.html" target="_blank">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-02-aapcs-assembly.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（三）：AAPCS32、栈与上下文汇编</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/armv7a-00-roadmap.html"><span class="level-item">ARMv7-A小系统实践（一）：从Cortex-A9与Zynq-7020开始</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '236facf5c8df034de581f1b3ff3a22bd',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

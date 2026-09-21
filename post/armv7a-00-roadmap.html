@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>ARMv7-A小系统实践（一）：从Cortex-A9与Zynq-7020开始 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="从架构、处理器与SoC的关系出发，确定ARMv7-A小系统的实现范围、源码阅读顺序和官方资料入口。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="从架构、处理器与SoC的关系出发，确定ARMv7-A小系统的实现范围、源码阅读顺序和官方资料入口。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-06-13T01:20:00.000Z"><meta property="article:modified_time" content="2026-06-13T01:20:00.000Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="ARMv7-A"><meta property="article:tag" content="Cortex-A9"><meta property="article:tag" content="Zynq-7020"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/armv7a-00-roadmap.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-06-13T01:20:00.000Z","dateModified":"2026-06-13T01:20:00.000Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"从架构、处理器与SoC的关系出发，确定ARMv7-A小系统的实现范围、源码阅读顺序和官方资料入口。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/armv7a-00-roadmap.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-06-13  <a class="commentCountImg" href="/post/armv7a-00-roadmap.html#comment-container"><span class="display-none-class">5d75cef3b5093d790c8e73935aebfb92</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="5d75cef3b5093d790c8e73935aebfb92">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>10.3 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">ARMv7-A小系统实践（一）：从Cortex-A9与Zynq-7020开始</h1><div class="content"><h2 id="本章记录什么"><a href="#本章记录什么" class="headerlink" title="本章记录什么"></a>本章记录什么</h2><p>这一章不急着写第一条汇编，而是先回答一个更容易被忽略的问题：要在 ARMv7-A、Cortex-A9 和 Zynq-7020 上做出一个能启动、能切换任务、能响应中断的小系统，究竟需要建立哪些知识和软件部件？如果一开始不把层次分清，后面很容易把 ARMv7-A 的架构规定、Cortex-A9 的实现细节和 Zynq-7020 的片上地址混成一张表，遇到故障时也不知道该查哪一本手册。</p>
+<p>本系列的目标不是照抄一份现成工程，也不是把 x86_64 汇编逐行翻译成 ARM 汇编。真正要迁移的是系统能力：处理器从复位入口进入 C 环境，任务拥有独立栈和可恢复现场，定时器能够触发 IRQ，GIC 能够完成中断状态闭环，MMU 与 Cache 按内存属性工作，第二个处理器核能够被安全释放。每一项能力都要给出可观察证据和明确边界。</p>
+<h2 id="在这一章之前做了什么"><a href="#在这一章之前做了什么" class="headerlink" title="在这一章之前做了什么"></a>在这一章之前做了什么</h2><p>动手前已经具备一个很小的 x86_64 参考系统和两套 ARM 侧参照：一套是按同样功能合同搭建的 Zynq-7020 教学实现，另一套是 RTEMS 6.2 的成熟 ARM 端口。前者适合看最小闭环，后者适合验证设计方向。官方架构手册、Cortex-A9 MPCore 技术参考手册和 Zynq-7000 技术参考手册负责裁决寄存器和硬件语义。</p>
+<p>接下来的文章会从处理器模式开始，逐步走到 ABI、启动、任务上下文、异常现场、GIC、抢占、MMU、Cache、SMP 和调试。读者只看博客也能顺着这条链完成推演；文中出现的源码路径只用于说明工程如何组织，不作为理解前提。</p>
+<span id="more"></span>
+
+<h2 id="本章的阅读顺序"><a href="#本章的阅读顺序" class="headerlink" title="本章的阅读顺序"></a>本章的阅读顺序</h2><p>先读基础概念，确认每个术语解决什么问题；再看设计推导，理解实现为什么采用这种保存集合、初始化顺序或状态机；随后逐段阅读代码和执行轨迹；最后用验证方法与错误案例检查理解。文中保留寄存器名、指令名和标准缩写，叙述部分统一使用简体中文。</p>
+<h2 id="先把平台、资料和实现边界讲清楚"><a href="#先把平台、资料和实现边界讲清楚" class="headerlink" title="先把平台、资料和实现边界讲清楚"></a>先把平台、资料和实现边界讲清楚</h2><h3 id="一、先给结论"><a href="#一、先给结论" class="headerlink" title="一、先给结论"></a>一、先给结论</h3><p>原定目标的安排是合理的。对于一个小型实时系统的 CPU&#x2F;BSP 移植，以下三条确实是主干：</p>
+<ol>
+<li><strong>启动</strong>：CPU 如何从复位或上级 bootloader 交接点进入 C 环境。</li>
+<li><strong>上下文与调度</strong>：如何创建任务现场、保存当前任务、恢复下一个任务。</li>
+<li><strong>中断与异常</strong>：如何进入异常、保存现场、通过中断控制器分发、返回或触发调度。</li>
+</ol>
+<p>学会这三条，可以说已经抓住了 RTOS ARM 移植的骨架，但不能说学完了全部 ARM 架构。一个可运行的最小移植还需要：</p>
+<ul>
+<li>编译选项和 ABI；</li>
+<li>链接脚本与内存布局；</li>
+<li>异常向量和各模式栈；</li>
+<li>串口，用于观察启动和故障；</li>
+<li>定时器，用于产生系统 tick；</li>
+<li>中断控制器 GIC；</li>
+<li>必要的板级时钟、引脚和装载约定。</li>
+</ul>
+<p>MMU、Cache、内存屏障、原子操作、FPU 和 SMP 也属于 Cortex-A9 系统的重要特性，但不应全部塞进第一版。最快的做法是先得到一个<strong>单核、可打印、可定时中断、可切换两个任务</strong>的系统，再逐项增加复杂度。</p>
+<p>交流中的“终端控制器”暂按“中断控制器”理解。如果原定目标原话确实是 UART&#x2F;终端控制器，则 UART 本来也包含在最小启动阶段，不会漏掉。</p>
+<hr>
+<h3 id="二、三类参照分别解决什么"><a href="#二、三类参照分别解决什么" class="headerlink" title="二、三类参照分别解决什么"></a>二、三类参照分别解决什么</h3><p>参考系统分为三类。第一类是小型 x86_64 系统，用来提取与架构无关的功能合同，例如任务初始化、上下文切换、中断分发和时钟 tick。第二类是 ARM 侧的最小教学实现，用来观察一条路径怎样以最少代码闭环。第三类是 RTEMS 6.2 这样的成熟实现，用来检查异常帧、GIC 和上下文设计是否遗漏工程条件。</p>
+<p>三类材料不能互相替代。x86_64 代码能够说明“系统想完成什么”，却不能决定 ARM 的异常返回指令；教学实现便于推演，却没有成熟内核的全部边界；RTEMS 的代码足够完整，却不适合作为第一份逐行照抄的模板。寄存器、页表、GIC 和 SoC 地址的最终语义仍由官方手册裁决。</p>
+<h3 id="三、阅读官方资料时先判断问题属于哪一层"><a href="#三、阅读官方资料时先判断问题属于哪一层" class="headerlink" title="三、阅读官方资料时先判断问题属于哪一层"></a>三、阅读官方资料时先判断问题属于哪一层</h3><ul>
+<li>处理器模式、CPSR&#x2F;SPSR、异常返回、页表格式：查 ARMv7-A 架构手册。</li>
+<li>Cache 层级、SCU、Private Timer、Global Timer：查 Cortex-A9 或 Cortex-A9 MPCore 技术参考手册。</li>
+<li>GIC 与定时器在 Zynq 中的实际地址、时钟和复位关系：查 Zynq-7000 技术参考手册。</li>
+<li>C 与汇编之间的寄存器和栈合同：查 AAPCS32。</li>
+</ul>
+<p>文章会把真正需要的规则直接讲清楚，手册链接和章节用于追溯依据。这样既不会让读者在英文手册中失去主线，也不会把文章中的简化描述误当成唯一规范。</p>
+<h3 id="四、最快且依赖正确的学习顺序"><a href="#四、最快且依赖正确的学习顺序" class="headerlink" title="四、最快且依赖正确的学习顺序"></a>四、最快且依赖正确的学习顺序</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs text">寄存器模式<br>    ↓<br>AAPCS32<br>    ↓<br>普通任务上下文与汇编<br>    ↓<br>异常现场与中断处理<br>    ↓<br>最小启动并进入 C / UART<br>    ↓<br>GIC + 定时器 tick<br>    ↓<br>两个任务的上下文切换<br>    ↓<br>中断返回路径上的抢占调度<br>    ↓<br>异常诊断<br>    ↓<br>MMU / Cache / SMP（按需求）<br></code></pre></td></tr></table></figure>
+
+<p>为什么启动实践放在四项理论之后：四项当前只做第一轮，耗时不应很长；先理解 ABI、现场和异常后，再写启动代码，能避免把每条汇编当成孤立口诀。</p>
+<p>为什么实际实现先启动、再 GIC、最后任务切换：所有后续调试都依赖可靠的 C 环境和串口；抢占调度又依赖中断和普通上下文两条路径都正确。</p>
+<hr>
+<h3 id="五、分阶段目标与验收标准"><a href="#五、分阶段目标与验收标准" class="headerlink" title="五、分阶段目标与验收标准"></a>五、分阶段目标与验收标准</h3><h4 id="阶段-A：完成原定的四项"><a href="#阶段-A：完成原定的四项" class="headerlink" title="阶段 A：完成原定的四项"></a>阶段 A：完成原定的四项</h4><p>当前进度：</p>
+<ul>
+<li><input checked disabled type="checkbox"> 寄存器模式与 banked registers：第一轮完成</li>
+<li><input checked disabled type="checkbox"> AAPCS32：第一轮完成，验收约 7&#x2F;10</li>
+<li><input disabled type="checkbox"> 上下文与汇编：当前阶段</li>
+<li><input disabled type="checkbox"> 中断和异常处理：下一阶段</li>
+</ul>
+<p>验收不是背诵手册，而是能解释：</p>
+<ul>
+<li>普通任务切换为什么只保存 ABI 要求长期保持的状态；</li>
+<li>异常为何必须保存更多状态；</li>
+<li>新任务为什么可以通过“伪造一个可恢复的现场”第一次运行；</li>
+<li>IRQ 从设备到 GIC、向量、入口、C handler、EOI、异常返回的完整链路。</li>
+</ul>
+<h4 id="阶段-B：移植前接口清单"><a href="#阶段-B：移植前接口清单" class="headerlink" title="阶段 B：移植前接口清单"></a>阶段 B：移植前接口清单</h4><p>输出一张表，把 x86_64 平台文件分为：</p>
+<ul>
+<li>架构无关，可直接保留；</li>
+<li>接口保留、实现重写；</li>
+<li>x86 专用，在 ARM 删除或替换；</li>
+<li>新增的 Zynq BSP 文件。</li>
+</ul>
+<p>验收：每个待移植函数都有调用者、输入、输出、保存规则和 ARM 实现归属。</p>
+<h4 id="阶段-C：单核最小启动"><a href="#阶段-C：单核最小启动" class="headerlink" title="阶段 C：单核最小启动"></a>阶段 C：单核最小启动</h4><p>第一版建议：</p>
+<ul>
+<li>ARM state 或 Thumb state 选择一种并全工程一致；</li>
+<li>单核 CPU0；</li>
+<li>由现有 FSBL&#x2F;U-Boot 完成 DDR 和底层时钟初始化；</li>
+<li>暂不主动开启 MMU、Cache、FPU、SMP；</li>
+<li>初始化 SVC&#x2F;IRQ 等必要栈；</li>
+<li>清零 <code>.bss</code>，设置 SP，进入 C；</li>
+<li>UART 输出一个固定启动标志。</li>
+</ul>
+<p>验收：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">每次复位都能稳定打印：<br>BOOT -&gt; STACK OK -&gt; BSS OK -&gt; C ENTRY<br></code></pre></td></tr></table></figure>
+
+<h4 id="阶段-D：异常向量、GIC-和定时器"><a href="#阶段-D：异常向量、GIC-和定时器" class="headerlink" title="阶段 D：异常向量、GIC 和定时器"></a>阶段 D：异常向量、GIC 和定时器</h4><p>完成：</p>
+<ul>
+<li>安装异常向量；</li>
+<li>初始化 GIC Distributor 和 CPU Interface；</li>
+<li>配置一个 Zynq 定时器；</li>
+<li>acknowledge 中断号；</li>
+<li>调用注册的 handler；</li>
+<li>清设备中断源并写 EOI；</li>
+<li>正确返回被中断代码。</li>
+</ul>
+<p>验收：</p>
+<ul>
+<li>定时器计数持续增加；</li>
+<li>主循环未被破坏；</li>
+<li>不发生重复进入、假死或只触发一次；</li>
+<li>能打印中断号和必要现场。</li>
+</ul>
+<h4 id="阶段-E：普通任务上下文"><a href="#阶段-E：普通任务上下文" class="headerlink" title="阶段 E：普通任务上下文"></a>阶段 E：普通任务上下文</h4><p>完成：</p>
+<ul>
+<li>ARM <code>Context_Control</code>；</li>
+<li><code>_CPU_Context_Initialize()</code>；</li>
+<li><code>_CPU_Context_switch(run, heir)</code>；</li>
+<li><code>_CPU_Context_restore()</code> 或等价入口；</li>
+<li>两个独立任务栈。</li>
+</ul>
+<p>先做主动让出式切换，不依赖定时器。</p>
+<p>验收：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">task A: 1<br>task B: 1<br>task A: 2<br>task B: 2<br>...<br></code></pre></td></tr></table></figure>
+
+<p>且每个任务的局部变量、SP 和 callee-saved 寄存器保持独立。</p>
+<h4 id="阶段-F：中断驱动的抢占调度"><a href="#阶段-F：中断驱动的抢占调度" class="headerlink" title="阶段 F：中断驱动的抢占调度"></a>阶段 F：中断驱动的抢占调度</h4><p>把系统 tick 与调度器连接：</p>
+<ul>
+<li>IRQ 保存异常现场；</li>
+<li>tick handler 决定是否需要调度；</li>
+<li>在安全位置选择 heir；</li>
+<li>保存被中断任务状态；</li>
+<li>恢复另一个任务；</li>
+<li>通过正确的异常返回恢复 PC&#x2F;CPSR。</li>
+</ul>
+<p>验收：两个不主动 <code>yield</code> 的忙循环任务都能持续获得 CPU。</p>
+<h4 id="阶段-G：异常诊断"><a href="#阶段-G：异常诊断" class="headerlink" title="阶段 G：异常诊断"></a>阶段 G：异常诊断</h4><p>至少支持 Undefined、SVC、Prefetch Abort、Data Abort、IRQ：</p>
+<ul>
+<li>异常类型；</li>
+<li>故障 PC；</li>
+<li>CPSR&#x2F;SPSR；</li>
+<li>通用寄存器；</li>
+<li>Abort 状态和地址寄存器；</li>
+<li>可读的停止或恢复策略。</li>
+</ul>
+<p>验收：主动执行未定义指令和非法访问时，可以稳定输出正确故障位置。</p>
+<h4 id="阶段-H：按需求扩展"><a href="#阶段-H：按需求扩展" class="headerlink" title="阶段 H：按需求扩展"></a>阶段 H：按需求扩展</h4><p>推荐顺序：</p>
+<ol>
+<li>Cache；</li>
+<li>MMU 和页表；</li>
+<li>用户态&#x2F;系统调用；</li>
+<li>VFP&#x2F;NEON 上下文；</li>
+<li>SMP、SGI 和核间调度。</li>
+</ol>
+<p>这些项目不是“会 ARM 移植”的第一道门槛，但是真正进入工程复杂系统时必须继续补齐。</p>
+<hr>
+<h3 id="六、学习方法：每轮只追求一个闭环"><a href="#六、学习方法：每轮只追求一个闭环" class="headerlink" title="六、学习方法：每轮只追求一个闭环"></a>六、学习方法：每轮只追求一个闭环</h3><p>每个主题采用四步：</p>
+<ol>
+<li><strong>画状态</strong>：寄存器或内存中原来是什么。</li>
+<li><strong>逐指令走一遍</strong>：每条汇编改变了什么。</li>
+<li><strong>说出合同</strong>：调用者、被调用者、硬件和 OS 各负责什么。</li>
+<li><strong>设计验收</strong>：怎样用串口、反汇编或 GDB 证明它正确。</li>
+</ol>
+<p>不要把“能在文档里找到答案”当作最终验收。移植真正需要的是：</p>
+<blockquote>
+<p>看到一段未知架构的上下文或中断代码，能根据 ABI 和硬件规则判断它为什么保存这些状态、哪里可能出错、应怎样验证。</p>
+</blockquote>
+<hr>
+<h3 id="七、当前立即执行的计划"><a href="#七、当前立即执行的计划" class="headerlink" title="七、当前立即执行的计划"></a>七、当前立即执行的计划</h3><p>现在只推进第三项“上下文与汇编”，暂不开始写移植代码：</p>
+<ol>
+<li>阅读上下文调度与汇编的基础推演。</li>
+<li>对照 <code>srh_x64_mini</code> 的 x86_64 保存集合，回忆 SysV ABI 中的 callee-saved 思想。</li>
+<li>对照 RTEMS ARM 的 <code>stm/ldm</code> 保存集合，使用 AAPCS32 解释它。</li>
+<li>手工走一遍任务 A → B → A 的 SP、LR&#x2F;PC 变化。</li>
+<li>回答文末自检题，再进入第四项中断和异常。</li>
+</ol>
+<h2 id="用一条执行主线看完整系列"><a href="#用一条执行主线看完整系列" class="headerlink" title="用一条执行主线看完整系列"></a>用一条执行主线看完整系列</h2><h2 id="第一部分：一条统一主线"><a href="#第一部分：一条统一主线" class="headerlink" title="第一部分：一条统一主线"></a>第一部分：一条统一主线</h2><h3 id="三、从任务-A-到任务-B，再被-Timer-抢占"><a href="#三、从任务-A-到任务-B，再被-Timer-抢占" class="headerlink" title="三、从任务 A 到任务 B，再被 Timer 抢占"></a>三、从任务 A 到任务 B，再被 Timer 抢占</h3><p>假设系统已经启动 CPU0，当前任务 A 正常运行，任务 B 处于 ready 状态。</p>
+<h4 id="3-1-任务-A-调普通-C-函数"><a href="#3-1-任务-A-调普通-C-函数" class="headerlink" title="3.1 任务 A 调普通 C 函数"></a>3.1 任务 A 调普通 C 函数</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">result = helper(arg0, arg1);<br></code></pre></td></tr></table></figure>
+
+<p>AAPCS32 规定：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">arg0 → r0<br>arg1 → r1<br>返回值 → r0<br>r0-r3、r12、lr 可被调用破坏<br>r4-r11、sp 由被调用者保持<br>公共调用边界 sp 必须 8 字节对齐<br></code></pre></td></tr></table></figure>
+
+<p>这里没有处理器模式切换，也没有 SPSR。</p>
+<h4 id="3-2-任务-A-主动让出-CPU"><a href="#3-2-任务-A-主动让出-CPU" class="headerlink" title="3.2 任务 A 主动让出 CPU"></a>3.2 任务 A 主动让出 CPU</h4><p>A 调用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c">context_switch(&amp;A_ctx, &amp;B_ctx);<br></code></pre></td></tr></table></figure>
+
+<p>正常函数边界上可以利用 AAPCS，保存主干是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">A 的 r4-r11<br>A 的 sp<br>A 的继续地址（调用 context_switch 时的 lr）<br></code></pre></td></tr></table></figure>
+
+<p>再从 <code>B_ctx</code> 恢复：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">B 的 r4-r11<br>B 的 sp<br>B 的继续地址 → pc<br></code></pre></td></tr></table></figure>
+
+<p>恢复 B 的 SP 后换成 B 的栈；恢复 B 的 PC 后从 B 以前暂停的位置继续。</p>
+<h4 id="3-3-新任务-B-第一次运行"><a href="#3-3-新任务-B-第一次运行" class="headerlink" title="3.3 新任务 B 第一次运行"></a>3.3 新任务 B 第一次运行</h4><p>新任务没有“以前暂停的位置”，初始化代码必须人为构造：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">对齐后的新任务栈顶<br>entry 地址<br>arg<br>thread_start_trampoline<br>任务函数返回后的 thread_exit<br></code></pre></td></tr></table></figure>
+
+<p>恢复 <code>B_ctx</code> 后先跳到 trampoline，由 trampoline 按 AAPCS 把 <code>arg</code> 放入 <code>r0</code>，调用 <code>entry(arg)</code>。</p>
+<h4 id="3-4-Timer-在任务-B-任意位置到期"><a href="#3-4-Timer-在任务-B-任意位置到期" class="headerlink" title="3.4 Timer 在任务 B 任意位置到期"></a>3.4 Timer 在任务 B 任意位置到期</h4><p>这次不是普通函数边界，不能只保存 callee-saved：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">Private Timer 到期<br>→ CPU0 PPI29 Pending<br>→ GIC 向 CPU0 断言 IRQ<br>→ CPU0 进入 VBAR+0x18<br></code></pre></td></tr></table></figure>
+
+<p>硬件完成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">CPSR → SPSR_irq<br>返回信息 → LR_irq<br>模式 → IRQ<br>I 位 → 1<br>当前可见 SP → SP_irq<br>PC → IRQ vector<br></code></pre></td></tr></table></figure>
+
+<p>软件入口继续保存 <code>r0-r12</code>、返回 PC 和 SPSR，建立完整异常帧。</p>
+<h4 id="3-5-IAR、handler、清源与-EOI"><a href="#3-5-IAR、handler、清源与-EOI" class="headerlink" title="3.5 IAR、handler、清源与 EOI"></a>3.5 IAR、handler、清源与 EOI</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs text">读取 GICC_IAR<br>→ 返回 ID29<br>→ ID29 Pending → Active<br><br>调用 Private Timer handler<br>→ PT_STATUS = 1<br>→ 只清 Private Timer 设备源<br>→ 更新 tick<br>→ 必要时 need_reschedule = 1<br><br>写 GICC_EOIR = iar<br>→ 只告诉 GIC 这次 Active interrupt 已处理完<br></code></pre></td></tr></table></figure>
+
+<h4 id="3-6-IRQ-尾部是否切回-A"><a href="#3-6-IRQ-尾部是否切回-A" class="headerlink" title="3.6 IRQ 尾部是否切回 A"></a>3.6 IRQ 尾部是否切回 A</h4><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">need_reschedule = 0<br>  → 恢复 B 的异常现场，B 继续<br><br>need_reschedule = 1<br>  → scheduler 选择 heir<br>  → 若选中 A，保存/衔接 B 的现场并恢复 A<br></code></pre></td></tr></table></figure>
+
+<p>最终用 <code>RFE</code> 或等价序列同时恢复：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">PC<br>CPSR<br></code></pre></td></tr></table></figure>
+
+<p>恢复 CPSR 后，模式、IRQ 屏蔽和寄存器 bank 一起恢复。</p>
+<hr>
+<h2 id="实现前必须写下的五份合同"><a href="#实现前必须写下的五份合同" class="headerlink" title="实现前必须写下的五份合同"></a>实现前必须写下的五份合同</h2><h2 id="第二部分：五份必须明确的软件合同"><a href="#第二部分：五份必须明确的软件合同" class="headerlink" title="第二部分：五份必须明确的软件合同"></a>第二部分：五份必须明确的软件合同</h2><h3 id="四、启动合同"><a href="#四、启动合同" class="headerlink" title="四、启动合同"></a>四、启动合同</h3><p>启动代码必须提供一个可靠 C 环境：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">确认 CPU 当前模式和指令状态<br>屏蔽尚未准备好的 IRQ/FIQ<br>为 SVC/IRQ/Abort/Undefined 等模式设置栈<br>设置 VBAR<br>准备 .data/.bss<br>保证 C 入口栈对齐<br>进入内核 C 入口<br></code></pre></td></tr></table></figure>
+
+<p>第一版可只启动 CPU0。CPU1 的栈、GIC CPU Interface、PPI 和 per-CPU 数据没有准备好之前，不应接收中断或运行任务。</p>
+<h3 id="五、C-汇编-ABI-合同"><a href="#五、C-汇编-ABI-合同" class="headerlink" title="五、C&#x2F;汇编 ABI 合同"></a>五、C&#x2F;汇编 ABI 合同</h3><p>每个汇编函数都应明确：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">输入参数在哪<br>返回值在哪<br>会破坏哪些寄存器<br>必须保持哪些寄存器<br>调用 C 前 SP 是否 8 字节对齐<br>ARM/Thumb 状态是否一致<br></code></pre></td></tr></table></figure>
+
+<p>看到一次 <code>BL</code>，就问：</p>
+<blockquote>
+<p>调用后还要使用的 r0-r3&#x2F;r12&#x2F;LR 旧值，是否已经保存？</p>
+</blockquote>
+<h3 id="六、任务上下文合同"><a href="#六、任务上下文合同" class="headerlink" title="六、任务上下文合同"></a>六、任务上下文合同</h3><p><code>Context_Control</code> 与任务栈不是同一个对象：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">Context_Control 保存少量恢复入口状态<br>其中的 sp 指向任务自己的栈区<br>任务栈保存调用链、局部变量和栈帧<br></code></pre></td></tr></table></figure>
+
+<p>最小 ARM 普通上下文通常围绕：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">r4-r11、sp、resume_pc<br></code></pre></td></tr></table></figure>
+
+<p>真实实现还可能增加 IRQ 状态策略、thread ID、VFP、SMP 执行标志等。</p>
+<h3 id="七、异常帧合同"><a href="#七、异常帧合同" class="headerlink" title="七、异常帧合同"></a>七、异常帧合同</h3><p>异常可发生在任意指令点，因此入口必须保护被中断代码可能正在使用的状态：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">r0-r12<br>返回 PC<br>异常前 CPSR<br>必要的 LR/栈/扩展状态<br></code></pre></td></tr></table></figure>
+
+<p>C 结构体布局、汇编保存顺序和恢复顺序必须完全一致，最好用 <code>offsetof</code> 静态断言和最终反汇编验证。</p>
+<h3 id="八、设备-GIC-合同"><a href="#八、设备-GIC-合同" class="headerlink" title="八、设备&#x2F;GIC 合同"></a>八、设备&#x2F;GIC 合同</h3><p>每个中断 handler 必须明确两个收尾动作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">怎样清设备源<br>怎样对有效 IAR 做匹配 EOI<br></code></pre></td></tr></table></figure>
+
+<p>还要明确：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">ID<br>SGI/PPI/SPI 类型<br>edge/level<br>priority<br>target CPU<br>共享初始化还是每核初始化<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="编码前先做一次能力审计"><a href="#编码前先做一次能力审计" class="headerlink" title="编码前先做一次能力审计"></a>编码前先做一次能力审计</h2><p>路线确定后，还需要逐项核对参考系统原来具有什么、ARM 侧已经替换什么，以及哪些能力不能仅凭启动输出就宣称完成。</p>
+<h3 id="二、原始-x64-基线的真实能力审计"><a href="#二、原始-x64-基线的真实能力审计" class="headerlink" title="二、原始 x64 基线的真实能力审计"></a>二、原始 x64 基线的真实能力审计</h3><p>审计对象是最初的 x86_64 小系统基线，ARM 侧后来增加的文件不计入原系统能力。</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>x86_64 基线状态</th>
+<th>证据与判断</th>
+<th>ARM 侧起点</th>
+<th>ARM 侧处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>启动交接</td>
+<td>已实现</td>
+<td>Multiboot2、32 位入口、GDT、Long Mode</td>
+<td>QEMU 直接加载 ELF</td>
+<td>用 Zynq&#x2F;QEMU 入口与 FSBL&#x2F;U-Boot&#x2F;JTAG 合同替换，不照搬 Multiboot</td>
+</tr>
+<tr>
+<td>启动页表&#x2F;MMU</td>
+<td>已实现</td>
+<td>临时页表进入 Long Mode；随后按 ELF&#x2F;内存图建立页表并加载 CR3</td>
+<td>完全缺失</td>
+<td>必做 ARM short-descriptor 页表与 CP15 MMU</td>
+</tr>
+<tr>
+<td>物理内存发现</td>
+<td>已实现</td>
+<td>解析 Multiboot memory map</td>
+<td>固定 16 MiB 链接假设</td>
+<td>用 Zynq 平台内存表替代；QEMU&#x2F;真板参数分离</td>
+</tr>
+<tr>
+<td>启动页分配</td>
+<td>已实现</td>
+<td><code>boot_mm_page_alloc()</code> 单向页分配，仅供启动映射</td>
+<td>缺失</td>
+<td>根据 ARM 静态表需求做最小启动内存区，不扩成完整伙伴&#x2F;Slab</td>
+</tr>
+<tr>
+<td>高半区&#x2F;直接映射</td>
+<td>已实现</td>
+<td>x64 利用 64 位虚拟空间建立 direct-map 和 16 MiB dynamic-map</td>
+<td>缺失</td>
+<td>ARM 32 位不能照搬地址，采用等价的受保护 identity map + 预留 heap 区</td>
+</tr>
+<tr>
+<td>MMIO Cache 属性</td>
+<td>已实现</td>
+<td>framebuffer&#x2F;LAPIC&#x2F;IOAPIC 页设置 PCD</td>
+<td>缺失</td>
+<td>UART、SLCR、GIC&#x2F;Timer、SCU、L2C-310 全部映射为 Device&#x2F;XN</td>
+</tr>
+<tr>
+<td>通用 Cache 驱动</td>
+<td><strong>未实现</strong></td>
+<td>只有配置宏&#x2F;CMake 残留路径，实际源码不存在</td>
+<td>缺失</td>
+<td>ARM 必做 L1 invalidate&#x2F;clean、I&#x2F;D Cache enable 和 barrier API</td>
+</tr>
+<tr>
+<td>L2 Cache</td>
+<td><strong>未实现</strong></td>
+<td>x64 不存在独立 L2 控制器驱动</td>
+<td>缺失</td>
+<td>增加 Zynq L2C-310 检测&#x2F;初始化；QEMU 不支持时明确 SKIP</td>
+</tr>
+<tr>
+<td>异常&#x2F;中断入口</td>
+<td>已实现</td>
+<td>IDT、统一汇编帧、ISR 数组分发</td>
+<td>已有 ARM IRQ 帧，但只硬编码 Timer</td>
+<td>改成可注册的 GIC handler 表，并增强 Abort 诊断</td>
+</tr>
+<tr>
+<td>Timer</td>
+<td>已实现</td>
+<td>PIT 校准 LAPIC Timer，ISR 只增加 tick</td>
+<td>Private Timer 已连续触发</td>
+<td>保留设备替换，Timer handler 增加 <code>need_reschedule</code></td>
+</tr>
+<tr>
+<td>普通上下文</td>
+<td>已实现</td>
+<td>两个任务主动 <code>_CPU_Context_switch()</code></td>
+<td>已实现并验证</td>
+<td>保留作同步切换验收</td>
+</tr>
+<tr>
+<td>抢占调度</td>
+<td><strong>未实现</strong></td>
+<td>Timer 不调度；任务主动让出 CPU</td>
+<td>未实现</td>
+<td>这是最后一轮必做且超过 x64 基线的闭环补全</td>
+</tr>
+<tr>
+<td>独立中断栈</td>
+<td><strong>未真正启用</strong></td>
+<td>IDT 的 IST&#x3D;0，声明的上下界未接入</td>
+<td>CPU0 独立 <code>sp_irq</code> 已验证</td>
+<td>保留并扩为每 CPU 独立 IRQ 栈</td>
+</tr>
+<tr>
+<td>SMP&#x2F;AP 启动</td>
+<td><strong>未实现</strong></td>
+<td><code>smp.h</code> 和 API 声明存在，源码无实现</td>
+<td>只启 CPU0</td>
+<td>做 CPU1 启动、per-CPU 栈、GICC 和 SGI 验证，不做全 SMP 调度</td>
+</tr>
+<tr>
+<td>核间中断</td>
+<td><strong>只有声明</strong></td>
+<td><code>lapic_send_ipi()</code> 仅在头文件声明</td>
+<td>缺失</td>
+<td>用 GIC SGI0 完成 CPU0↔CPU1 handshake</td>
+</tr>
+<tr>
+<td>Fault 诊断</td>
+<td>部分实现</td>
+<td>page fault&#x2F;未知向量能打印完整 x64 frame</td>
+<td>只打印 vector&#x2F;lr</td>
+<td>增加 DFSR&#x2F;DFAR&#x2F;IFSR&#x2F;IFAR、SPSR 和关键寄存器</td>
+</tr>
+<tr>
+<td>FPU&#x2F;VFP 上下文</td>
+<td><strong>未实现</strong></td>
+<td>x64 <code>is_fp</code> 被忽略，实际 switch 不保存 FP</td>
+<td>未实现</td>
+<td>不纳入等价必做，文档明确限制</td>
+</tr>
+<tr>
+<td>通用调度&#x2F;Heap&#x2F;VFS</td>
+<td><strong>源码不存在</strong></td>
+<td>CMake 引用大量缺失目录，不是可运行功能</td>
+<td>不存在</td>
+<td>不在两天内凭空重写一个完整 OS</td>
+</tr>
+</tbody></table>
+<h3 id="三、最终实现范围"><a href="#三、最终实现范围" class="headerlink" title="三、最终实现范围"></a>三、最终实现范围</h3><h4 id="A-保留并明确“复用-替换”边界"><a href="#A-保留并明确“复用-替换”边界" class="headerlink" title="A. 保留并明确“复用&#x2F;替换”边界"></a>A. 保留并明确“复用&#x2F;替换”边界</h4><p>保留的功能合同：</p>
+<ul>
+<li><code>_CPU_Context_Initialize()</code>、<code>_CPU_Context_switch()</code>、<code>_CPU_Context_restore()</code>；</li>
+<li>ISR 注册&#x2F;分发概念；</li>
+<li>Timer tick 与任务调度概念；</li>
+<li>两个任务及其独立栈的验收模型；</li>
+<li>启动阶段建立可运行内存环境后进入 kernel 的顺序。</li>
+</ul>
+<p>必须替换的平台实现：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">Multiboot/GDT/Long Mode  → Zynq入口、ARM模式栈、VBAR<br>x86四级页表/CR3         → ARMv7 short-descriptor、TTBR0/TTBCR/DACR/SCTLR<br>IDT/LAPIC/PIT            → ARM向量、GIC、Private Timer<br>x86 context/iretq        → ARM context、SPSR/LR、异常返回<br>PCD Cache属性            → ARM Normal/Device/Shareable/XN属性<br>LAPIC IPI声明            → GIC SGI0实际收发<br></code></pre></td></tr></table></figure>
+
+<h4 id="B-MMU-与内存属性（必做）"><a href="#B-MMU-与内存属性（必做）" class="headerlink" title="B. MMU 与内存属性（必做）"></a>B. MMU 与内存属性（必做）</h4><p>新增 16 KiB 对齐的一级转换表，并按 ARMv7-A short-descriptor 规则配置：</p>
+<ol>
+<li>DDR：Normal、Write-Back&#x2F;Write-Allocate、Shareable；</li>
+<li>代码&#x2F;只读区：只读、可执行；</li>
+<li>data&#x2F;bss&#x2F;heap&#x2F;stack：可读写、XN；</li>
+<li>UART、SLCR、SCU&#x2F;GIC&#x2F;Timer、L2C-310：Device、Shareable、XN；</li>
+<li>未映射区域保持 Fault descriptor；</li>
+<li>设置 <code>TTBCR、TTBR0、DACR</code>，失效 TLB 后使能 <code>SCTLR.M</code>；</li>
+<li>增加 VA→PA&#x2F;PAR 查询验收，证明正常地址可翻译、未映射地址返回 fault。</li>
+</ol>
+<p>x64 的 512 GiB 高半区不能机械复制到 32 位 ARM。最终保持现有物理地址的 identity map，<br>但实现同样的核心功能：代码&#x2F;数据权限、内存类型、MMIO 隔离和可控翻译表。</p>
+<h4 id="C-Cache-与一致性（必做-L1，条件验证-L2）"><a href="#C-Cache-与一致性（必做-L1，条件验证-L2）" class="headerlink" title="C. Cache 与一致性（必做 L1，条件验证 L2）"></a>C. Cache 与一致性（必做 L1，条件验证 L2）</h4><ol>
+<li>读取 <code>SCTLR/CLIDR/CCSIDR</code>；</li>
+<li>开启前按 set&#x2F;way 失效 L1 D-Cache；</li>
+<li>失效 I-Cache 和 branch predictor；</li>
+<li>用 <code>DSB/ISB</code> 串联维护操作；</li>
+<li>设置 <code>SCTLR.C/I/Z</code>，验证读回位；</li>
+<li>提供 range clean&#x2F;invalidate 和 instruction sync 最小 API；</li>
+<li>SMP 时设置 <code>ACTLR.SMP</code> 并先启用 SCU；</li>
+<li>检测并初始化 Zynq L2C-310。若 QEMU 模型不提供有效 L2 寄存器，输出明确 <code>SKIP</code>，<br>不伪造成功；真板流程和寄存器验证写入 README。</li>
+</ol>
+<h4 id="D-通用-IRQ-与异常诊断（必做）"><a href="#D-通用-IRQ-与异常诊断（必做）" class="headerlink" title="D. 通用 IRQ 与异常诊断（必做）"></a>D. 通用 IRQ 与异常诊断（必做）</h4><ol>
+<li>把 ID29 硬编码分支改成 <code>irq_register(id, handler, arg)</code>；</li>
+<li>handler 表覆盖 Zynq&#x2F;GIC 实际 ID 范围并拒绝非法 ID；</li>
+<li>Timer、SGI 分别注册为普通 handler；</li>
+<li>保持完整 IAR 写回 EOIR 和设备先清源；</li>
+<li>Abort handler 输出 DFSR&#x2F;DFAR&#x2F;IFSR&#x2F;IFAR、SPSR、LR 和 frame；</li>
+<li>spurious 1023、未注册中断、异常返回分别有明确路径。</li>
+</ol>
+<h4 id="E-独立-IRQ-栈上的-Timer-抢占（必做、最后一轮核心）"><a href="#E-独立-IRQ-栈上的-Timer-抢占（必做、最后一轮核心）" class="headerlink" title="E. 独立 IRQ 栈上的 Timer 抢占（必做、最后一轮核心）"></a>E. 独立 IRQ 栈上的 Timer 抢占（必做、最后一轮核心）</h4><p>不能在共享 <code>sp_irq</code> 上直接调用当前普通 Context switch。计划采用任务私有的完整异步<br>上下文：</p>
+<ol>
+<li>任务运行在 System 模式，使每个任务拥有自己的 <code>sp_usr/lr_usr</code>；</li>
+<li>IRQ 入口在独立 IRQ 栈构造完整 frame；</li>
+<li>保存 <code>r0-r12、sp_usr、lr_usr、PC、CPSR</code> 到当前任务私有结构；</li>
+<li>Timer handler 增加 tick 并设置 <code>need_reschedule</code>；</li>
+<li>只在最外层 IRQ 尾部选择 next task；</li>
+<li>把 next 的完整现场装回返回 frame；</li>
+<li>异常返回直接进入 next，而不是把 A 的 frame 长期留在共享 IRQ 栈；</li>
+<li>两个任务都只做忙循环、不主动调用 switch，仍能由 Timer 周期性交替；</li>
+<li>同时保留原来的普通 A→B→A 主动切换测试，证明同步&#x2F;异步两套合同都成立。</li>
+</ol>
+<p>第一版继续禁止 IRQ 嵌套。嵌套与抢占同时引入会让 frame 所有权、优先级和 IRQ 栈深度<br>三个变量混在一起，不利于形成可验证的最小闭环。</p>
+<h4 id="F-Cortex-A9-双核底座（建议纳入最终轮）"><a href="#F-Cortex-A9-双核底座（建议纳入最终轮）" class="headerlink" title="F. Cortex-A9 双核底座（建议纳入最终轮）"></a>F. Cortex-A9 双核底座（建议纳入最终轮）</h4><p>这部分超过 x86_64 基线已有能力，但符合 Zynq-7020 平台事实：</p>
+<ol>
+<li>QEMU 改为 <code>-smp 2</code>；</li>
+<li><code>_start</code> 读取 MPIDR，CPU0&#x2F;CPU1 走不同早期路径；</li>
+<li>为每核分配 SVC&#x2F;System&#x2F;IRQ 等模式栈，禁止两个核共用 <code>sp_irq</code>；</li>
+<li>CPU1 等待 CPU0 完成 <code>.bss</code>、页表和共享初始化；</li>
+<li>CPU0 通过 release flag + <code>SEV</code> 启动 CPU1；保留 Zynq <code>0xfffffff0</code> kick address 真板接口；</li>
+<li>两核分别设置 VBAR、MMU、L1 Cache、ACTLR.SMP 和 GICC；</li>
+<li>Distributor 只由 CPU0 初始化；</li>
+<li>注册 SGI0，完成 CPU0→CPU1→CPU0 的计数&#x2F;确认；</li>
+<li>CPU1 完成验收后进入 WFI idle，CPU0 运行抢占调度。</li>
+</ol>
+<p>这证明多核启动、per-CPU 栈、共享内存可见性和 IPI 通路；<strong>不等于</strong>两个核共享一个<br>完整调度器。真正 SMP 调度还需要 per-CPU scheduler、锁、原子操作、任务迁移和 TLB<br>shootdown，原 x64 mini 本身也没有这些实现。</p>
+<h3 id="四、实施顺序"><a href="#四、实施顺序" class="headerlink" title="四、实施顺序"></a>四、实施顺序</h3><p>按下面顺序推进，每一步都必须保持前一步仍能运行：</p>
+<ol>
+<li><strong>功能矩阵固化与通用 IRQ 注册</strong>：先消除 ID29 硬编码，增强异常输出。</li>
+<li><strong>MMU&#x2F;内存属性</strong>：只开 MMU，Cache 暂关；验证翻译表与 UART&#x2F;GIC 仍可访问。</li>
+<li><strong>L1 Cache&#x2F;SCU&#x2F;L2 hook</strong>：逐级开启并读回控制位，重新跑 IRQ 与上下文测试。</li>
+<li><strong>任务私有异步上下文</strong>：实现 IRQ frame ↔ task context 保存&#x2F;恢复。</li>
+<li><strong>Timer 抢占闭环</strong>：busy-loop A&#x2F;B 无主动 switch，按 tick 交替。</li>
+<li><strong>CPU1 与 SGI</strong>：per-CPU 栈、release、GICC、SGI ping-pong。</li>
+<li><strong>综合回归</strong>：启动、MMU、Cache、主动切换、抢占、IRQ 栈、三次 Timer、CPU1&#x2F;SGI。</li>
+<li><strong>文档交付</strong>：更新 <code>27/28/README/学习记录</code> 和最终功能等价矩阵。</li>
+</ol>
+<h3 id="五、预计新增或修改的代码"><a href="#五、预计新增或修改的代码" class="headerlink" title="五、预计新增或修改的代码"></a>五、预计新增或修改的代码</h3><p>预计新增：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">include/mmu.h          ARM页表、属性和翻译查询接口<br>include/cache.h        L1/L2维护与控制状态接口<br>include/scheduler.h    task完整异步现场、need_reschedule和轮转接口<br>include/smp.h          per-CPU状态、CPU1 release和SGI接口<br>src/mmu.c              页表构造、CP15设置和PAR验收<br>src/cache.c / cache.S  set/way维护、SCTLR/ACTLR/SCU/L2控制<br>src/scheduler.c        当前/下一个任务和IRQ尾部决策<br>src/smp.c              CPU1初始化、GIC SGI与握手<br></code></pre></td></tr></table></figure>
+
+<p>预计修改：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">start.S                MPIDR分流、per-CPU模式栈、MMU/Cache启动、完整IRQ现场<br>irq.c / irq.h          通用注册、Timer/SGI分发、返回next frame<br>context.c/.S/.h        保留普通context，并增加任务完整异步context合同<br>kernel.c               所有阶段验收和最终PASS/FAIL汇总<br>linker.ld              页表、per-CPU栈、heap/nocache区和权限边界<br>CMakeLists.txt          新模块、SMP=2和构建选项<br>run_qemu*.sh            单核回归/双核最终验收和GDB参数<br>README.md               实现、替换关系、真板差异和限制<br>27/28/01                Bug、逐步教程和学习记录<br></code></pre></td></tr></table></figure>
+
+<h3 id="六、最终验收清单"><a href="#六、最终验收清单" class="headerlink" title="六、最终验收清单"></a>六、最终验收清单</h3><p>只有以下证据同时出现，才写“QEMU 功能等价移植完成”：</p>
+<ul>
+<li><input checked disabled type="checkbox"> ELF 从 <code>_start</code> 进入 C，<code>.bss</code> 与 per-CPU 栈正确；</li>
+<li><input checked disabled type="checkbox"> <code>SCTLR.M=1</code>，TTBR0 指向 16 KiB 对齐页表；</li>
+<li><input checked disabled type="checkbox"> DDR、代码、数据、MMIO 属性检查通过；</li>
+<li><input checked disabled type="checkbox"> 一个合法 VA 翻译成功，一个未映射 VA 的 PAR fault 成功；</li>
+<li><input checked disabled type="checkbox"> <code>SCTLR.C/I=1</code>，L1 Cache 维护路径执行；</li>
+<li><input checked disabled type="checkbox"> UART、GIC、Timer 在 MMU+Cache 开启后仍连续工作；</li>
+<li><input checked disabled type="checkbox"> 主动 <code>boot→A→B→A→boot</code> 回归通过；</li>
+<li><input checked disabled type="checkbox"> 两个 busy-loop 任务在不主动让出 CPU 时被 Timer 抢占；</li>
+<li><input checked disabled type="checkbox"> 抢占后每个任务的寄存器&#x2F;栈局部状态连续；</li>
+<li><input checked disabled type="checkbox"> 任务 frame 位于任务私有栈，handler SP 与哨兵位于对应 CPU 独立 IRQ 软件栈；</li>
+<li><input checked disabled type="checkbox"> CPU0、CPU1 的 MPIDR、栈范围和启动握手正确；</li>
+<li><input checked disabled type="checkbox"> SGI0 CPU0→CPU1→CPU0 收发成功；</li>
+<li><input checked disabled type="checkbox"> GDB 1234 能断到 <code>_start</code>&#x2F;<code>kernel_main</code> 并识别两颗 CPU；</li>
+<li><input checked disabled type="checkbox"> <code>readelf</code> 保持代码段不可写、数据段不可执行；</li>
+<li><input checked disabled type="checkbox"> 文档逐项标注“x64复用、ARM替换、额外补强、尚未实现”。</li>
+</ul>
+<h2 id="从规则走到实际实现"><a href="#从规则走到实际实现" class="headerlink" title="从规则走到实际实现"></a>从规则走到实际实现</h2><p>下面回到本章对应的小系统实现。这里不再假定读者已经打开源码，而是把关键地址、数据结构、指令序列和返回路径直接放在文章中解释。</p>
+<h2 id="三个名字，三个层次"><a href="#三个名字，三个层次" class="headerlink" title="三个名字，三个层次"></a>三个名字，三个层次</h2><table>
+<thead>
+<tr>
+<th>层次</th>
+<th>对应对象</th>
+<th>决定什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指令集与系统架构</td>
+<td>ARMv7-A</td>
+<td>指令语义、处理器模式、异常模型、页表格式、系统寄存器</td>
+</tr>
+<tr>
+<td>处理器实现</td>
+<td>Cortex-A9 &#x2F; Cortex-A9 MPCore</td>
+<td>流水线、Cache、SCU、处理器私有外设以及实现选项</td>
+</tr>
+<tr>
+<td>SoC 集成</td>
+<td>Zynq-7020</td>
+<td>双核 A9、DDR 控制器、UART、时钟、复位、PS&#x2F;PL 互连、实际地址</td>
+</tr>
+<tr>
+<td>软件平台</td>
+<td>当前裸机小系统</td>
+<td>链接地址、栈布局、任务模型、中断分发与调度策略</td>
+</tr>
+</tbody></table>
+<p>讨论 <code>CPSR.I</code> 时，问题属于 ARM 架构；讨论 SCU 时，需要查 MPCore 手册；讨论 UART0 为什么位于 <code>0xE0000000</code>，则必须查 Zynq 的地址表。</p>
+<p>Cortex-A9 的基本编程模型和 MPCore 集成手册都要用。多核平台并不意味着单个 CPU 的技术手册失去作用：每个核仍然有自己的 CP15 寄存器、MMU、TLB 和 L1 Cache。MPCore 手册是在这些内容上补充共享与核间机制。</p>
+<p>Zynq-7020 的 PS 包含两个 Cortex-A9 核；PL 是可编程逻辑。串口、GIC、Private Timer 和这套小系统的核心实验都可以围绕 PS 完成，不要求先做一套 PL 显示电路。Zynq-7000 家族还有单核型号，不能把“7020 是双核”扩展为整个产品家族都双核。<a target="_blank" rel="noopener" href="https://docs.amd.com/r/en-US/ug585-zynq-7000-SoC-TRM/Introduction">型号关系见 UG585 的介绍</a>。</p>
+<h2 id="这套系统做到哪里"><a href="#这套系统做到哪里" class="headerlink" title="这套系统做到哪里"></a>这套系统做到哪里</h2><p>目标是把最重要的平台机制接起来：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">ELF 装载<br>  → 启动入口与每核模式栈<br>  → 进入 C、初始化 UART<br>  → 建立页表、开启 MMU/Cache<br>  → 普通任务现场保存与恢复<br>  → 异常向量、GIC、Timer<br>  → 独立中断栈与 IRQ 尾部调度<br>  → CPU1 启动、SGI 往返<br>  → 长期运行的任务演示<br></code></pre></td></tr></table></figure>
+
+<p>这里的系统是一个内核实验底座。它包含任务切换与中断调度所需的真实汇编路径，但没有完整的用户态进程、文件系统、动态内存分配、驱动框架和通用 SMP 调度器。阅读时保留这条边界，很多看似过于简单的设计就容易解释：固定的两任务轮转，是为了先验证现场恢复，不是在实现通用优先级调度策略。</p>
+<h2 id="实际使用的三份源码"><a href="#实际使用的三份源码" class="headerlink" title="实际使用的三份源码"></a>实际使用的三份源码</h2><p>目录编号容易造成误解，先明确本文的称呼。</p>
+<table>
+<thead>
+<tr>
+<th>本文简称</th>
+<th>实际目录</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基础版</td>
+<td>64 字节完整 IRQ 现场</td>
+<td>先用直接、易证明的方案建立正确闭环</td>
+</tr>
+<tr>
+<td>精简版</td>
+<td>32 字节 IRQ 现场</td>
+<td>真正换任务时再保存 r4-r11；三个任务混合调度</td>
+</tr>
+<tr>
+<td>RTEMS 参考树</td>
+<td>完整 RTEMS 6.2</td>
+<td>用于对照成熟实现的异常和上下文路径</td>
+</tr>
+</tbody></table>
+<p>基础版目录名保留了最初的移植来源，但不能据此认为其中仍是 x86 汇编。当前 <code>src/start.S</code>、<code>src/context_switch.S</code> 都是 Cortex-A9 的 ARM 状态代码。</p>
+<p>前两者用于验证较少的约束，RTEMS 要处理更完整的线程状态、嵌套、中断调度限制、浮点、多核竞争等问题。对比时应比较某条具体路径，不能仅根据文件长短评价系统效率。</p>
+<p>文中的代码片段会标明来自哪一版。标注“示意”的代码用于解释原理，不当成可直接替换整个源文件的补丁。文章日期用于系列阅读排序，源码细节按整理时的实际文件核对。</p>
+<h2 id="从-x86-迁移，保留的是什么"><a href="#从-x86-迁移，保留的是什么" class="headerlink" title="从 x86 迁移，保留的是什么"></a>从 x86 迁移，保留的是什么</h2><p>CPU 架构变了，底层指令和硬件控制器不可能原封不动保留。真正能保留的是接口意图和验证方法。</p>
+<table>
+<thead>
+<tr>
+<th>平台职责</th>
+<th>x86 常见实现</th>
+<th>ARMv7-A &#x2F; Zynq 实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>启动交接</td>
+<td>Bootloader、Multiboot</td>
+<td>QEMU ELF 装载，真板另有 BootROM&#x2F;FSBL 交接</td>
+</tr>
+<tr>
+<td>处理器状态</td>
+<td>控制寄存器、描述符表等</td>
+<td>CPSR、模式栈、CP15</td>
+</tr>
+<tr>
+<td>异常入口</td>
+<td>IDT 与入口桩</td>
+<td>VBAR、异常向量、IRQ 汇编</td>
+</tr>
+<tr>
+<td>中断控制器</td>
+<td>PIC &#x2F; APIC</td>
+<td>GIC Distributor 与 CPU Interface</td>
+</tr>
+<tr>
+<td>周期事件</td>
+<td>平台 Timer</td>
+<td>A9 Private Timer</td>
+</tr>
+<tr>
+<td>普通任务切换</td>
+<td>保存 ABI 要求的状态</td>
+<td>保存 r4-r11、SP、LR 与约定的控制状态</td>
+</tr>
+<tr>
+<td>地址转换</td>
+<td>x86 页表</td>
+<td>ARMv7 short-descriptor 页表</td>
+</tr>
+</tbody></table>
+<p><code>_CPU_Context_switch(old, next)</code> 这个名字可以保留。它表达旧任务将来能恢复，下一任务从自己的继续点执行。寄存器集合、偏移、栈布局和恢复指令必须重新设计。</p>
+<h2 id="资料应该怎样分工"><a href="#资料应该怎样分工" class="headerlink" title="资料应该怎样分工"></a>资料应该怎样分工</h2><p>架构事实以官方手册为依据；实现细节以当前源码为依据。二者有冲突时，要先确认芯片实现范围、编译选项和文档版本。</p>
+<table>
+<thead>
+<tr>
+<th>资料</th>
+<th>主要查什么</th>
+<th>官方入口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ARMv7-A&#x2F;R Architecture Reference Manual，DDI 0406</td>
+<td>模式、CPSR、异常、指令、VMSA</td>
+<td><a target="_blank" rel="noopener" href="https://documentation-service.arm.com/static/5f8daeb7f86e16515cdb8c4e">ARM ARM</a></td>
+</tr>
+<tr>
+<td>Cortex-A Series Programmer’s Guide，DEN0013</td>
+<td>从软件角度串起架构知识</td>
+<td><a target="_blank" rel="noopener" href="https://developer.arm.com/documentation/den0013/latest/">Arm 文档</a></td>
+</tr>
+<tr>
+<td>AAPCS32</td>
+<td>参数、返回值、寄存器责任、栈对齐</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/ARM-software/abi-aa/blob/2025Q4/aapcs32/aapcs32.rst">Arm 官方 ABI 仓库</a></td>
+</tr>
+<tr>
+<td>Cortex-A9 TRM，DDI 0388</td>
+<td>单核实现、CP15、Cache&#x2F;MMU 细节</td>
+<td><a target="_blank" rel="noopener" href="https://developer.arm.com/documentation/ddi0388/latest/">Cortex-A9 TRM</a></td>
+</tr>
+<tr>
+<td>Cortex-A9 MPCore TRM，DDI 0407</td>
+<td>SCU、GIC、Global&#x2F;Private Timer</td>
+<td><a target="_blank" rel="noopener" href="https://developer.arm.com/documentation/ddi0407/latest/">MPCore TRM</a></td>
+</tr>
+<tr>
+<td>GIC Architecture Specification，IHI 0048</td>
+<td>Pending&#x2F;Active、IAR、EOIR</td>
+<td><a target="_blank" rel="noopener" href="https://developer.arm.com/documentation/ihi0048/latest/">GIC 规范</a></td>
+</tr>
+<tr>
+<td>UG585</td>
+<td>SoC 地址、时钟、IRQ ID、启动交接</td>
+<td><a target="_blank" rel="noopener" href="https://docs.amd.com/r/en-US/ug585-zynq-7000-SoC-TRM/Introduction">Zynq-7000 TRM</a></td>
+</tr>
+<tr>
+<td>RTEMS 6.2</td>
+<td>工程实现的边界条件</td>
+<td><a target="_blank" rel="noopener" href="https://docs.rtems.org/">文档</a>、<a target="_blank" rel="noopener" href="https://gitlab.rtems.org/rtems/rtos/rtems">源码</a></td>
+</tr>
+<tr>
+<td>QEMU</td>
+<td>仿真板支持的设备与运行方式</td>
+<td><a target="_blank" rel="noopener" href="https://www.qemu.org/docs/master/system/arm/xlnx-zynq.html">xilinx-zynq-a9</a></td>
+</tr>
+</tbody></table>
+<p>本地 UG585 封面是 v1.12.2，日期为 2018-07-01；官方在线文档已有其他版本。因此引用时优先写章节、寄存器名和图名，不把某个 PDF 页码当成跨版本不变的定位方式。</p>
+<p>另一个版本问题是 GIC：本地通用规范是 GICv2 文档，Zynq-7000 的集成描述对应 GICv1。IAR&#x2F;EOIR 等共同语义可以对照，虚拟化接口、分离 deactivate 等新增机制不能自动套到这块芯片上。<a target="_blank" rel="noopener" href="https://docs.amd.com/r/en-US/ug585-zynq-7000-SoC-TRM/Documentation-Resources">UG585 的 IP 版本表</a>能确认这种差别。</p>
+<h2 id="源码从哪里开始读"><a href="#源码从哪里开始读" class="headerlink" title="源码从哪里开始读"></a>源码从哪里开始读</h2><p>不建议第一次就按文件名逐个读完。围绕执行顺序会更清楚：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">CMakeLists.txt + linker.ld<br>          ↓<br>src/start.S → src/kernel.c → src/uart.c<br>          ↓<br>context.c + context_switch.S<br>          ↓<br>start.S 的 irq_entry + irq.c + scheduler.c<br>          ↓<br>mmu.c + cache.c + smp.c<br></code></pre></td></tr></table></figure>
+
+<p><code>kernel.c</code> 是实验顺序的索引。<code>irq.c</code> 知道具体中断号和设备寄存器，<code>scheduler.c</code> 决定下一任务，<code>start.S</code> 执行现场恢复。这个分工在后面的优化中仍然成立。</p>
+<h2 id="系列目录"><a href="#系列目录" class="headerlink" title="系列目录"></a>系列目录</h2><table>
+<thead>
+<tr>
+<th>篇次</th>
+<th>内容</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>01</td>
+<td>本篇：平台与资料</td>
+<td>ARMv7-A、A9、Zynq 分别管什么</td>
+</tr>
+<tr>
+<td>02</td>
+<td><a href="/post/armv7a-01-registers-modes.html">模式、寄存器与 CPSR</a></td>
+<td>切模式以后，哪个寄存器变了</td>
+</tr>
+<tr>
+<td>03</td>
+<td><a href="/post/armv7a-02-aapcs-assembly.html">AAPCS 与关键汇编</a></td>
+<td>C 与汇编怎样约定现场责任</td>
+</tr>
+<tr>
+<td>04</td>
+<td><a href="/post/armv7a-03-boot-linker.html">启动、链接与 UART</a></td>
+<td>第一条 C 语句执行前要准备什么</td>
+</tr>
+<tr>
+<td>05</td>
+<td><a href="/post/armv7a-04-context-threads.html">线程与协同上下文</a></td>
+<td>更换 SP 和继续点怎样形成任务</td>
+</tr>
+<tr>
+<td>06</td>
+<td><a href="/post/armv7a-05-exception-frames.html">异常入口与独立中断栈</a></td>
+<td>被打断的现场属于谁</td>
+</tr>
+<tr>
+<td>07</td>
+<td><a href="/post/armv7a-06-gic-timers.html">GIC 与 Timer</a></td>
+<td>设备事件怎样变成一次完整 IRQ</td>
+</tr>
+<tr>
+<td>08</td>
+<td><a href="/post/armv7a-07-preemption-rtems.html">抢占、精简现场与 RTEMS</a></td>
+<td>哪些寄存器可以延迟保存</td>
+</tr>
+<tr>
+<td>09</td>
+<td><a href="/post/armv7a-08-mmu.html">MMU 与页表</a></td>
+<td>地址相同为什么仍要开 MMU</td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="/post/armv7a-09-cache.html">Cache 与内存顺序</a></td>
+<td>数据已写入为什么还可能不可见</td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="/post/armv7a-10-smp.html">CPU1、SCU 与 SGI</a></td>
+<td>第二个核怎样安全加入系统</td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="/post/armv7a-11-debug-review.html">调试与实现复盘</a></td>
+<td>怎样用证据判断做到了哪一步</td>
+</tr>
+</tbody></table>
+<p>前半部分先建立能手工推演的 CPU 模型，后半部分再处理异步事件和多核可见性。遇到某个寄存器不熟时，可以回到对应篇章，而不必从头翻一遍手册。</p>
+<h2 id="从参考系统迁移时，什么保留、什么替换"><a href="#从参考系统迁移时，什么保留、什么替换" class="headerlink" title="从参考系统迁移时，什么保留、什么替换"></a>从参考系统迁移时，什么保留、什么替换</h2><p>平台移植不是把指令逐行改写。能跨架构保留的是任务、调度、时钟、分发等软件语义；必须替换的是启动入口、页表格式、异常入口、中断控制器和体系结构相关同步。下面把这条边界单独展开，避免后续文章把“重新实现平台层”误解成“没有迁移”。</p>
+<h2 id="第三部分：x64-小系统移植时保留什么、重写什么"><a href="#第三部分：x64-小系统移植时保留什么、重写什么" class="headerlink" title="第三部分：x64 小系统移植时保留什么、重写什么"></a>第三部分：x64 小系统移植时保留什么、重写什么</h2><h3 id="九、保留的是内核语义"><a href="#九、保留的是内核语义" class="headerlink" title="九、保留的是内核语义"></a>九、保留的是内核语义</h3><p>从 <code>基础版教学实现</code> 提取：</p>
+<ul>
+<li>内核 C 入口。</li>
+<li><code>Context_Control</code> 对上层的接口语义。</li>
+<li><code>_CPU_Context_Initialize()</code> 的输入和预期结果。</li>
+<li><code>_CPU_Context_switch(run, heir)</code> 的行为。</li>
+<li>ISR 注册、分发和 tick 进入调度器的接口。</li>
+<li>任务创建、就绪队列和调度策略。</li>
+</ul>
+<h3 id="十、必须替换的是架构实现"><a href="#十、必须替换的是架构实现" class="headerlink" title="十、必须替换的是架构实现"></a>十、必须替换的是架构实现</h3><table>
+<thead>
+<tr>
+<th>x86_64 内容</th>
+<th>ARM&#x2F;Zynq 替代</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Multiboot&#x2F;GRUB 入口</td>
+<td>Zynq 启动入口和 bootloader 交接</td>
+</tr>
+<tr>
+<td>x86 保存寄存器&#x2F;RFLAGS</td>
+<td>ARM <code>r4-r11/sp/pc</code> 与明确的 IRQ 状态策略</td>
+</tr>
+<tr>
+<td>IDT</td>
+<td>ARM 异常向量和 VBAR</td>
+</tr>
+<tr>
+<td>PIC&#x2F;APIC</td>
+<td>Zynq GICv1</td>
+</tr>
+<tr>
+<td>x86 timer</td>
+<td>Private Timer、Global Timer 或 TTC</td>
+</tr>
+<tr>
+<td><code>iretq</code></td>
+<td>ARM <code>RFE</code> 或等价异常返回</td>
+</tr>
+<tr>
+<td>x86 interrupt frame</td>
+<td>ARM 异常帧</td>
+</tr>
+</tbody></table>
+<p>不能逐指令翻译，只能按接口语义重写。</p>
+<h3 id="十一、RTEMS-怎样使用"><a href="#十一、RTEMS-怎样使用" class="headerlink" title="十一、RTEMS 怎样使用"></a>十一、RTEMS 怎样使用</h3><p><code>RTEMS 6.2</code> 是答案参考，不是复制来源。建议顺序：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">先根据 x64 小系统写出 ARM 接口和伪代码<br>→ 自己确定最小数据结构<br>→ 对照 RTEMS 检查遗漏<br>→ 解释 RTEMS 多出的每个字段和指令<br>→ 只引入当前系统真正需要的部分<br></code></pre></td></tr></table></figure>
+
+<p>重点参考：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">rtems-6.2/cpukit/score/cpu/arm/cpu_asm.S<br>rtems-6.2/cpukit/score/cpu/arm/arm_exc_interrupt.S<br>rtems-6.2/bsps/shared/dev/irq/arm-gicv2.c<br>rtems-6.2/bsps/arm/shared/clock/clock-a9mpcore.c<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="第四部分：移植-Debug-的固定顺序"><a href="#第四部分：移植-Debug-的固定顺序" class="headerlink" title="第四部分：移植 Debug 的固定顺序"></a>第四部分：移植 Debug 的固定顺序</h2><h3 id="十二、完全进不了-C"><a href="#十二、完全进不了-C" class="headerlink" title="十二、完全进不了 C"></a>十二、完全进不了 C</h3><p>按顺序查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">镜像加载地址和入口<br>当前 ARM/Thumb 状态<br>SVC SP<br>.data/.bss<br>链接地址与运行地址<br>C 入口 ABI 对齐<br>UART 是否真的可用<br></code></pre></td></tr></table></figure>
+
+<h3 id="十三、一开-IRQ-就崩"><a href="#十三、一开-IRQ-就崩" class="headerlink" title="十三、一开 IRQ 就崩"></a>十三、一开 IRQ 就崩</h3><p>按顺序查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">VBAR<br>IRQ vector +0x18<br>SP_irq<br>入口保存布局<br>C 调用前 8 字节对齐<br>SPSR/返回 PC<br></code></pre></td></tr></table></figure>
+
+<h3 id="十四、一次后再也不进"><a href="#十四、一次后再也不进" class="headerlink" title="十四、一次后再也不进"></a>十四、一次后再也不进</h3><p>重点查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">设备源是否清除<br>有效 IAR 是否匹配 EOI<br>auto-reload/auto-increment<br>CPSR.I 是否恢复<br></code></pre></td></tr></table></figure>
+
+<h3 id="十五、不断重进形成风暴"><a href="#十五、不断重进形成风暴" class="headerlink" title="十五、不断重进形成风暴"></a>十五、不断重进形成风暴</h3><p>重点查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">W1C 是否错误写 0<br>level 源是否仍有效<br>EOI 前设备是否真正撤销请求<br>load 是否过小<br>是否清错每核 Timer 实例<br></code></pre></td></tr></table></figure>
+
+<h3 id="十六、任务-A→B-成功，B→A-失败"><a href="#十六、任务-A→B-成功，B→A-失败" class="headerlink" title="十六、任务 A→B 成功，B→A 失败"></a>十六、任务 A→B 成功，B→A 失败</h3><p>重点查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">A_ctx 保存的 resume PC<br>A_ctx.sp<br>Context_Control 汇编偏移<br>callee-saved 保存集合<br>任务栈越界或重叠<br></code></pre></td></tr></table></figure>
+
+<h3 id="十七、加日志或优化后才崩"><a href="#十七、加日志或优化后才崩" class="headerlink" title="十七、加日志或优化后才崩"></a>十七、加日志或优化后才崩</h3><p>重点查：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">LR 是否跨 BL 保存<br>caller-saved 活跃值<br>r4-r11 是否被汇编破坏<br>SP 8 字节对齐<br>inline asm clobber<br>IRQ 栈空间<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="重点回看"><a href="#重点回看" class="headerlink" title="重点回看"></a>重点回看</h2><p>这一章建立了系列的坐标系：ARMv7-A 定义架构规则，Cortex-A9&#x2F;MPCore 给出具体处理器与多核实现，Zynq-7020 决定 SoC 地址和启动环境，小系统负责把它们组织成可验证的软件路径。后续每次实现都应先写清合同、再做最小闭环、最后记录证据与限制。</p>
+<h2 id="本章总结"><a href="#本章总结" class="headerlink" title="本章总结"></a>本章总结</h2><p>这一章建立了系列的坐标系：ARMv7-A 定义架构规则，Cortex-A9&#x2F;MPCore 给出具体处理器与多核实现，Zynq-7020 决定 SoC 地址和启动环境，小系统负责把它们组织成可验证的软件路径。后续每次实现都应先写清合同、再做最小闭环、最后记录证据与限制。</p>
+<p>下一章从处理器模式与 banked 寄存器开始，因为启动栈、异常入口和上下文切换都建立在这组规则上。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>ARMv7-A小系统实践（一）：从Cortex-A9与Zynq-7020开始</p><p><a href="https://goko-son626.github.io/post/armv7a-00-roadmap.html">https://goko-son626.github.io/post/armv7a-00-roadmap.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-06-13</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-06-13</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/armv7a-11-debug-review.html" target="_blank">ARMv7-A小系统实践（十二）：用QEMU和GDB把整条实现链验清楚</a><br></span><span>  2.<a class="is-size-6" href="/post/armv7a-10-smp.html" target="_blank">ARMv7-A小系统实践（十一）：启动CPU1，走通SCU与SGI核间通信</a><br></span><span>  3.<a class="is-size-6" href="/post/armv7a-09-cache.html" target="_blank">ARMv7-A小系统实践（十）：L1、L2、屏障与Cache一致性</a><br></span><span>  4.<a class="is-size-6" href="/post/armv7a-08-mmu.html" target="_blank">ARMv7-A小系统实践（九）：用短描述符页表建立MMU与内存保护</a><br></span><span>  5.<a class="is-size-6" href="/post/armv7a-07-preemption-rtems.html" target="_blank">ARMv7-A小系统实践（八）：从完整IRQ现场到按需切换，再看RTEMS</a><br></span><span>  6.<a class="is-size-6" href="/post/armv7a-06-gic-timers.html" target="_blank">ARMv7-A小系统实践（七）：GIC、定时器与一次完整的IRQ</a><br></span><span>  7.<a class="is-size-6" href="/post/armv7a-05-exception-frames.html" target="_blank">ARMv7-A小系统实践（六）：异常入口、返回地址与独立中断栈</a><br></span><span>  8.<a class="is-size-6" href="/post/armv7a-04-context-threads.html" target="_blank">ARMv7-A小系统实践（五）：两个线程怎样真正切换起来</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/armv7a-01-registers-modes.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">ARMv7-A小系统实践（二）：处理器模式、寄存器组与CPSR</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/linux-CLOCK-driver-framework.html"><span class="level-item">linux clock driver framework</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '5d75cef3b5093d790c8e73935aebfb92',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>

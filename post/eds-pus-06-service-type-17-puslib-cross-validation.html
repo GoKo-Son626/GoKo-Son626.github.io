@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="如果 TC 和 TM 都由同一份 XML、同一套 EdsLib 代码生成和解析，测试有可能只是“自己同意自己”。引入不读取 EDS XML 的 puslib，才算多了一条相对独立的检查路径。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="如果 TC 和 TM 都由同一份 XML、同一套 EdsLib 代码生成和解析，测试有可能只是“自己同意自己”。引入不读取 EDS XML 的 puslib，才算多了一条相对独立的检查路径。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-09-06T13:18:00.000Z"><meta property="article:modified_time" content="2026-09-20T10:09:40.548Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="PUS Service Type 17"><meta property="article:tag" content="puslib"><meta property="article:tag" content="Python"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/eds-pus-06-service-type-17-puslib-cross-validation.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-09-06T13:18:00.000Z","dateModified":"2026-09-20T10:09:40.548Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"如果 TC 和 TM 都由同一份 XML、同一套 EdsLib 代码生成和解析，测试有可能只是“自己同意自己”。引入不读取 EDS XML 的 puslib，才算多了一条相对独立的检查路径。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/eds-pus-06-service-type-17-puslib-cross-validation.html"><link rel="icon" href="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/favicon.png"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top"><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/friend">Friend</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-09-06  <a class="commentCountImg" href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html#comment-container"><span class="display-none-class">b583a44a098e11a5040269adf34ce8ac</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="b583a44a098e11a5040269adf34ce8ac">99+</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>8.3 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><h1 class="title is-3 is-size-4-mobile">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</h1><div class="content"><ul>
+<li><em><strong>如果 TC 和 TM 都由同一份 XML、同一套 EdsLib 代码生成和解析，测试有可能只是“自己同意自己”。引入不读取 EDS XML 的 puslib，才算多了一条相对独立的检查路径。</strong></em></li>
+</ul>
+<span id="more"></span>
+
+<p>上一篇的 C→UDP→C 路径验证了进程间传输，但打包和解包仍由同一份 EDS 数据库完成。本文把中间端替换为独立的 Python PUS 实现：C&#x2F;EdsLib 只负责请求和最终响应的线格式，puslib 负责解析请求、执行 PUS 服务类型 17 语义并生成响应。</p>
+<h2 id="本章为什么是系列的最后一步"><a href="#本章为什么是系列的最后一步" class="headerlink" title="本章为什么是系列的最后一步"></a>本章为什么是系列的最后一步</h2><p>前五篇已经逐步建立证据：XML 能生成、EdsLib 能 Pack&#x2F;Unpack、线包符合手算结构、UDP 能跨进程保持字节。但 C 发送端与 C 接收端都使用同一份 DataTypeDB。如果 XML 把某个字段宽度写错，两端可能仍然彼此同意。</p>
+<p>本章要打破这项共同依赖。Python 端不读取 EDS XML，也不链接 EdsLib，而是使用 puslib 自己的 packet 与 service 实现。它必须能解析 C&#x2F;EdsLib 产生的 TC，并独立产生能被 C&#x2F;EdsLib 接受的 TM。</p>
+<p>本章的逻辑顺序是：先明确独立边界，再对齐任务剖面，然后接入 ST17 服务对象，补足上游库缺少的 17.3&#x2F;17.4 行为，最后分别验证正常与失败路径。UDP 仍然只是连接两端的薄适配层。</p>
+<h2 id="开始前必须明确的验证边界"><a href="#开始前必须明确的验证边界" class="headerlink" title="开始前必须明确的验证边界"></a>开始前必须明确的验证边界</h2><p>“使用两个语言”不自动等于独立。真正的独立性来自：</p>
+<ul>
+<li>C 端按照 EDS DataTypeDB 编解码；</li>
+<li>Python 端按照 puslib 类与 Policy 编解码；</li>
+<li>Python 端不调用 EdsLib，也不读取生成数据库；</li>
+<li>两端只共享一份书面任务剖面和线上 bytes；</li>
+<li>固定向量与标准条款用于裁决分歧。</li>
+</ul>
+<p>本地对 puslib 的 ST17.3&#x2F;17.4 做过局部扩展，所以它仍不是第三方认证工具。交叉一致性提高可信度，但最终语义仍要回到 ECSS 41C。</p>
+<h2 id="交叉验证的结构"><a href="#交叉验证的结构" class="headerlink" title="交叉验证的结构"></a>交叉验证的结构</h2><p><a target="_blank" rel="noopener" href="https://github.com/pxntus/puslib">puslib</a> 是 Python 实现的 ECSS PUS 库。它不读取当前的 EDS XML，而是按照自己的包类和服务实现解析字节。</p>
+<p>最终链路是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">C / EdsLib<br>  打包 TC[17,1] 或 TC[17,3]<br>             ↓ UDP 1234<br>Python / puslib<br>  独立解析 TC、执行 PUS 服务类型 17、生成 TM<br>             ↓ UDP 2234<br>C / EdsLib<br>  解包 TM[17,2] 或 TM[17,4]<br></code></pre></td></tr></table></figure>
+
+<p>两端只有线包字节是共同输入，这正是交叉验证想要的边界。</p>
+<p>把责任再展开一点：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>实现</th>
+<th align="right">是否读取 EDS XML</th>
+<th>主要验证点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>构造 TC native object</td>
+<td>C&#x2F;EdsLib</td>
+<td align="right">通过生成数据库间接使用</td>
+<td>固定约束和任务字段</td>
+</tr>
+<tr>
+<td>TC 序列化</td>
+<td>C&#x2F;EdsLib</td>
+<td align="right">是</td>
+<td>packed 布局、长度、PEC</td>
+</tr>
+<tr>
+<td>TC 反序列化</td>
+<td>Python&#x2F;puslib</td>
+<td align="right">否</td>
+<td>独立实现能否接受 TC</td>
+</tr>
+<tr>
+<td>执行 PUS 服务类型 17</td>
+<td>Python&#x2F;puslib</td>
+<td align="right">否</td>
+<td>17.1&#x2F;17.3 行为与失败语义</td>
+</tr>
+<tr>
+<td>TM 序列化</td>
+<td>Python&#x2F;puslib</td>
+<td align="right">否</td>
+<td>独立产生响应字节</td>
+</tr>
+<tr>
+<td>TM 解包</td>
+<td>C&#x2F;EdsLib</td>
+<td align="right">是</td>
+<td>EDS 能否接受响应及校验 PEC</td>
+</tr>
+</tbody></table>
+<p>如果最后成功，至少说明两套实现对当前任务剖面的关键字段达成一致，而不只是同一个编解码器往返。</p>
+<h3 id="两个方向验证不同问题"><a href="#两个方向验证不同问题" class="headerlink" title="两个方向验证不同问题"></a>两个方向验证不同问题</h3><p>C→Python 的 TC 方向验证：C&#x2F;EdsLib 能否生成 puslib 接受的 CCSDS&#x2F;PUS 主头、Source ID、application data 和 PEC。Python→C 的 TM 方向验证：puslib 的 PUS-C TM 次头、Destination ID、时间、source data 和 PEC 能否满足 EDS 模型。</p>
+<p>只做 TC 单向解析，只能证明请求格式；只让 Python 自己创建并解析 TM，又无法证明 EDS 模型。必须让一端生成、另一端消费，才形成交叉。</p>
+<h3 id="服务行为是链路中间的一层"><a href="#服务行为是链路中间的一层" class="headerlink" title="服务行为是链路中间的一层"></a>服务行为是链路中间的一层</h3><p>Python 收到 TC 后不是立即把字节改个 subtype 返还。它先反序列化为 <code>PusTcPacket</code>，放入 PUS 服务类型 17 的输入队列，服务根据 subtype 和注册表处理，再向抽象输出流写 <code>PusTmPacket</code>。UDP 适配器最后才从输出流取包并发送。</p>
+<p>这样 packet codec、service logic 和 socket 各自可单元测试。若跨进程失败，可以先运行不带 UDP 的服务测试，判断问题是在状态机还是线格式。</p>
+<h3 id="两个-UDP-端口为何分开"><a href="#两个-UDP-端口为何分开" class="headerlink" title="两个 UDP 端口为何分开"></a>两个 UDP 端口为何分开</h3><p>示例使用 1234 承载 TC、2234 承载 TM，方向清晰，也避免同一 socket 上同时承担请求和响应状态。端口号只是测试配置，不进入 PUS 包。真实系统可以使用不同传输机制，只要仍保持请求与报告的包边界。</p>
+<h2 id="Python-适配器只做连接"><a href="#Python-适配器只做连接" class="headerlink" title="Python 适配器只做连接"></a>Python 适配器只做连接</h2><p>Python 文件看起来比一个 <code>recvfrom()</code> 长，是因为 puslib 还需要任务策略。核心流程其实只有：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs python">tc_bytes, _ = tc_socket.recvfrom(<span class="hljs-number">65535</span>)<br>tc_packet = PusTcPacket.deserialize(<br>    tc_bytes, has_source_field=<span class="hljs-literal">True</span>)<br><br>test_service.enqueue(tc_packet)<br>test_service.process()<br><br>tm_packet = tm_output.get()<br>tm_socket.sendto(<span class="hljs-built_in">bytes</span>(tm_packet), tm_address)<br></code></pre></td></tr></table></figure>
+
+<p>适配器没有重新手写 CCSDS&#x2F;PUS 字段解析。TC 反序列化、PEC 检查、服务处理和 TM 序列化都交给 puslib。</p>
+<p>实际适配器还做了几项边界检查：</p>
+<ul>
+<li>只接受 PUS 服务类型 17 且 Message Subtype 为 1 或 3；</li>
+<li>为测试注册 APID 和目标进程 ID；</li>
+<li>每次只取一条预期 PUS 服务类型 17 功能报告；</li>
+<li>17.1 必须得到 17.2，17.3 成功必须得到 17.4；</li>
+<li>17.4 的 source data 必须等于 17.3 的 application data；</li>
+<li>最后才把序列化后的 TM 发回 C 接收端。</li>
+</ul>
+<p>网络代码只是 <code>bind/recvfrom/sendto</code>。真正的协议逻辑仍在 <code>PusTcPacket</code>、<code>PusService17</code>、<code>PusService1</code> 和 <code>PusTmPacket</code> 中，因此适配器不会成为第二套手写 PUS 实现。</p>
+<h3 id="按实际代码拆解适配器"><a href="#按实际代码拆解适配器" class="headerlink" title="按实际代码拆解适配器"></a>按实际代码拆解适配器</h3><p>第一步调用 <code>set_policy(DemoPolicy())</code>，在创建或解析 TM 之前安装任务策略。第二步绑定 TC 端口并设置超时，避免测试永久阻塞。第三步调用：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">tc_packet = PusTcPacket.deserialize(<br>    tc_bytes, has_source_field=<span class="hljs-literal">True</span>)<br></code></pre></td></tr></table></figure>
+
+<p><code>has_source_field=True</code> 对应当前 TC 次头包含 16 bit Source ID 的剖面。这里由 puslib 完成空间包&#x2F;PUS 字段解析和 PEC 检查，适配器没有用切片手工取 service byte。</p>
+<p>还要注意，当前 puslib 解析器检查“主头声明的包长不能超过输入缓冲区”，但不会自动要求输入缓冲区恰好等于 <code>Packet Data Length + 7</code>；尾随额外字节可能不参与当前包 CRC。严格的 UDP 适配器还应在反序列化前显式比较数据报长度与主头声明总长。现有正常路径发送精确长度，不触发该差异，但它属于后续负向测试应补的边界。</p>
+<p>第四步限制输入只接受 Service 17 且 subtype 为 1 或 3。这是测试程序的范围检查，防止误把其他服务送进 ST17 实例。第五步创建 <code>PusIdent</code>、服务类型 1、服务类型 17 和 <code>QueuedOutput</code>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python">tm_output = QueuedOutput()<br>ident = PusIdent(APID)<br>request_verification = PusService1(ident, tm_output)<br>test_service = PusService17(ident, request_verification, tm_output)<br></code></pre></td></tr></table></figure>
+
+<p>第六步注册进程 ID 与成功判据，把 TC 入队并调用 <code>process()</code>。第七步从输出队列取得报告，检查 subtype 和 Process ID，再用 <code>bytes(tm_packet)</code> 让 puslib 序列化，最后通过 TM 端口发送。</p>
+<h3 id="为什么只取队列中的一条报告仍然成立"><a href="#为什么只取队列中的一条报告仍然成立" class="headerlink" title="为什么只取队列中的一条报告仍然成立"></a>为什么只取队列中的一条报告仍然成立</h3><p>当前 TC 将 ACK flags 设为 NONE，所以服务类型 1 的成功 acceptance&#x2F;start&#x2F;completion 报告不会进入队列；正常路径唯一输出就是 TM[17,2] 或 TM[17,4]。适配器因而可以取第一条并要求其为 ST17 报告。</p>
+<p>若以后打开 ACK 位，队列中会同时出现 ST01 成功报告，适配器必须按 Service&#x2F;Message Subtype 分类，不能继续假设第一条就是功能报告。这项假设应写进测试配置。</p>
+<h3 id="Python-代码为什么比-recvfrom-sendto-长"><a href="#Python-代码为什么比-recvfrom-sendto-长" class="headerlink" title="Python 代码为什么比 recvfrom()+sendto() 长"></a>Python 代码为什么比 <code>recvfrom()+sendto()</code> 长</h3><p>多出的代码主要是策略对齐、服务对象装配和断言，而不是重新实现协议。删掉这些检查虽然更短，却会让默认时间格式、Destination ID 或错误输出悄悄改变，交叉验证也失去解释性。</p>
+<h2 id="为什么还要有-Policy"><a href="#为什么还要有-Policy" class="headerlink" title="为什么还要有 Policy"></a>为什么还要有 Policy</h2><p>PUS 有一些任务可选项，两个实现必须对这些选项达成一致。例如当前约定：</p>
+<ul>
+<li>PUS 版本为 2，即 PUS-C；</li>
+<li>TM 有 16 位 Destination ID；</li>
+<li>时间使用 CUC 4+2；</li>
+<li>CUC 不带前导字节；</li>
+<li>TM 时间字段和 EDS XML 的定义一致。</li>
+</ul>
+<p>puslib 默认策略不一定和这套线格式相同，因此通过一个很小的 <code>DemoPolicy</code> 覆盖 TM 和 CUC Time 的创建参数。这不是绕过标准，而是在显式声明任务裁剪。</p>
+<p>当前合并模型的关键约定是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">PUS version           = 2<br>TM message type count = 不存在<br>Destination ID        = 16 bit，示例值 42<br>Time                   = CUC，4-byte coarse + 2-byte fine<br>CUC preamble           = 不在线传输<br></code></pre></td></tr></table></figure>
+
+<p>Policy 只应该承载这类任务级选择，不应该把 PUS 服务类型 17 的目标进程宽度强塞进公共 puslib Policy。Application Process ID 的位宽属于该任务的 PUS 服务类型 17 数据定义，因此本地扩展把它作为原始 <code>bytes</code> 保存；这样不会影响其他服务或另一任务对进程 ID 的选择。</p>
+<h3 id="DemoPolicy-CucTime-做了什么"><a href="#DemoPolicy-CucTime-做了什么" class="headerlink" title="DemoPolicy.CucTime() 做了什么"></a><code>DemoPolicy.CucTime()</code> 做了什么</h3><p>它为测试固定 seconds、fraction、4 byte coarse、2 byte fine，并关闭线上 preamble。固定时间让 TM golden vector 可重复；真实系统应从时钟取得值，但仍要保持编码宽度和 preamble 约定。</p>
+<h3 id="DemoPolicy-PusTmPacket-做了什么"><a href="#DemoPolicy-PusTmPacket-做了什么" class="headerlink" title="DemoPolicy.PusTmPacket() 做了什么"></a><code>DemoPolicy.PusTmPacket()</code> 做了什么</h3><p>它统一设置 PUS 版本 2、无 Message Type Counter、Destination ID&#x3D;42。服务实现只需声明 service&#x2F;subtype 和数据，不必在每个报告里重复这些任务字段。</p>
+<h3 id="Policy-不应该隐藏服务专属行为"><a href="#Policy-不应该隐藏服务专属行为" class="headerlink" title="Policy 不应该隐藏服务专属行为"></a>Policy 不应该隐藏服务专属行为</h3><p>“Process ID 是 16 bit”只属于 ST17 当前任务定义；“未登记进程返回 TM[1,4]”属于 ST17 行为；都不应加到影响所有服务的公共 Policy。Policy 处理的是包公共裁剪，服务模块处理的是服务语义。</p>
+<h3 id="两端对齐-Policy-的方法"><a href="#两端对齐-Policy-的方法" class="headerlink" title="两端对齐 Policy 的方法"></a>两端对齐 Policy 的方法</h3><p>建议维护一张单独任务剖面表，把每项分别指向 EDS XML 和 Python Policy 位置。交叉失败时逐项比较，而不是边试边改默认值直到测试偶然通过。</p>
+<h2 id="17-3-17-4-的补充"><a href="#17-3-17-4-的补充" class="headerlink" title="17.3&#x2F;17.4 的补充"></a>17.3&#x2F;17.4 的补充</h2><p>使用的 puslib 0.4.0 快照已经有 PUS 服务类型 17 的基础实现，但主要覆盖 17.1&#x2F;17.2。为了验证第二组消息，在本地服务模块补了：</p>
+<ol>
+<li>注册可测试的 Application Process ID；</li>
+<li>TC[17,3] 查找对应测试回调；</li>
+<li>回调成功时生成 TM[17,4]；</li>
+<li>TM[17,4] 返回请求中的同一进程 ID；</li>
+<li>未登记或测试失败时走失败报告。</li>
+</ol>
+<p>扩展尽量留在 <code>pus_017_test.py</code> 内，没有为了一个服务修改公共 Process API，也没有改变 PUS 服务类型 1 的确认语义。这一点对第三方库维护很重要：局部需求不要轻易污染所有服务。</p>
+<p>补充后的核心状态可以写成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">收到 TC[17,1]<br>  ├─ app_data 非空 → TM[1,4] 非法应用数据<br>  └─ app_data 为空 → TM[17,2]<br><br>收到 TC[17,3]<br>  ├─ app_data 缺失 → TM[1,4] 非法应用数据<br>  ├─ 进程未登记 → TM[1,4] 进程不可测试<br>  ├─ 回调返回 false/抛异常 → TM[1,8] 连接测试失败<br>  └─ 回调成功 → TM[17,4]，原样返回进程 ID<br></code></pre></td></tr></table></figure>
+
+<p>这里的错误码 170 和 171 是当前任务为两种失败原因分配的值，不是 ECSS 为所有任务固定的通用数值。标准规定失败报告与语义，具体错误码取值需要任务声明。</p>
+<h3 id="为什么扩展只放在-pus-017-test-py"><a href="#为什么扩展只放在-pus-017-test-py" class="headerlink" title="为什么扩展只放在 pus_017_test.py"></a>为什么扩展只放在 <code>pus_017_test.py</code></h3><p>上游 0.4.0 测试只覆盖 17.1→17.2，现有 Service 17 也主要提供 are-you-alive。补充 17.3&#x2F;17.4 时，最小影响策略是让该服务自己维护：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-variable language_">self</span>._connection_tests: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">bytes</span>, <span class="hljs-type">Callable</span>[[], <span class="hljs-built_in">bool</span>]] = &#123;&#125;<br></code></pre></td></tr></table></figure>
+
+<p>键是任务定义的原始进程 ID bytes，值是该进程的成功判据回调。没有给所有 Process 对象增加 <code>add_testable_process()</code>，没有修改公共 Policy 的 APID 类型，也没有改变服务类型 1 的成功确认接口。</p>
+<h3 id="add-testable-process-的职责"><a href="#add-testable-process-的职责" class="headerlink" title="add_testable_process() 的职责"></a><code>add_testable_process()</code> 的职责</h3><p>注册时把 <code>bytearray</code> 归一化成不可变 <code>bytes</code>，拒绝空 ID，并检查回调可调用。它实现的是 41C 6.17.4.1 要求的“可测试应用过程列表”和成功判据的任务声明入口。</p>
+<p>真实系统的回调可以检查心跳、消息往返或任务状态；示例回调只返回 True，用于证明流程。不能把演示回调成功描述成真实应用健康。</p>
+<h3 id="process-的分发逻辑"><a href="#process-的分发逻辑" class="headerlink" title="process() 的分发逻辑"></a><code>process()</code> 的分发逻辑</h3><p>服务从输入队列取尽所有 TC，先交给服务类型 1 处理 acceptance，然后按 subtype 进入 17.1 或 17.3 分支。注册的 subservice 只有 1 和 3，适配器还在入队前做范围检查，因此不会把未知 subtype 当成 17.3。</p>
+<h3 id="17-1-分支为何检查空正文"><a href="#17-1-分支为何检查空正文" class="headerlink" title="17.1 分支为何检查空正文"></a>17.1 分支为何检查空正文</h3><p>标准要求 application data field omitted。puslib 反序列化后可能把“无数据”表示成 <code>None</code> 或 <code>b&#39;&#39;</code>，实现接受这两种内部空表示；任何非空数据都产生非法应用数据失败，不生成 17.2。</p>
+<h3 id="17-3-分支为何保留原始-bytes"><a href="#17-3-分支为何保留原始-bytes" class="headerlink" title="17.3 分支为何保留原始 bytes"></a>17.3 分支为何保留原始 bytes</h3><p>ECSS 只规定字段是任务声明枚举，没有固定宽度。若服务内部先强制转成 Python int，再按某个公共默认宽度序列化，容易把前导零和任务宽度丢掉。使用原始 bytes 作为注册键并原样放入 17.4，能够保持 EDS 的 2 byte 大端选择，同时不把 2 byte 写死到公共库。</p>
+<h3 id="异常为什么等同连接测试失败"><a href="#异常为什么等同连接测试失败" class="headerlink" title="异常为什么等同连接测试失败"></a>异常为什么等同连接测试失败</h3><p>回调返回 false 或抛异常，都表示成功判据未满足。服务把它们转换为 completion failure，避免测试进程崩溃导致请求永远无响应。实际系统还应记录异常原因，但线上 failure code 与 failure data 应按任务定义控制，不能泄漏任意 Python 异常文本。</p>
+<h2 id="为什么失败报告不能被-ACK-NONE-吞掉"><a href="#为什么失败报告不能被-ACK-NONE-吞掉" class="headerlink" title="为什么失败报告不能被 ACK_NONE 吞掉"></a>为什么失败报告不能被 ACK_NONE 吞掉</h2><p>测试请求把四个成功确认请求位都清零，目的是确认“标准要求的失败通知”与“请求方是否订阅成功确认”不是同一件事。</p>
+<p>若直接复用只在 ACK 位开启时才输出报告的成功确认接口，未知进程或测试失败可能什么都不返回。局部实现因此显式构造 TM[1,4] 或 TM[1,8]，但没有给公共 PUS 服务类型 1 API 增加 <code>force_report</code> 参数。这样既满足本服务失败路径，也不改变其他服务对 ACK 的既有行为。</p>
+<h3 id="成功确认和强制失败报告是两套条件"><a href="#成功确认和强制失败报告是两套条件" class="headerlink" title="成功确认和强制失败报告是两套条件"></a>成功确认和强制失败报告是两套条件</h3><p>ACK flags 让请求方选择是否接收成功的 acceptance&#x2F;start&#x2F;progress&#x2F;completion 通知。ST17 标准又明确要求特定失败时生成 failed start 或 failed completion。若通用 API 把二者统一为“对应 ACK 位为 0 就不发”，会漏掉强制失败语义。</p>
+<p>局部 <code>_write_failure_report()</code> 直接构造服务类型 1 报告，包含原 TC 的 request ID 和任务 failure code。它只服务 ST17 扩展，不修改 ST01 公共源码，减少对其他服务的回归风险。</p>
+<h3 id="为什么仍要单测输出数量"><a href="#为什么仍要单测输出数量" class="headerlink" title="为什么仍要单测输出数量"></a>为什么仍要单测输出数量</h3><p>ACK_NONE 的正常 17.1 应只产生一个 17.2；未知进程应只产生一个 1.4；回调失败应只产生一个 1.8。若多出成功确认或功能报告，说明分支在失败后没有及时 return，或 ACK 处理不符合当前测试条件。</p>
+<h3 id="当前交叉测试没有覆盖非零-ACK-位"><a href="#当前交叉测试没有覆盖非零-ACK-位" class="headerlink" title="当前交叉测试没有覆盖非零 ACK 位"></a>当前交叉测试没有覆盖非零 ACK 位</h3><p>这里必须额外记录一个源码差异：ECSS-E-ST-70-41C 7.4.4.1d 规定 acknowledgement flags 的 bit3&#x2F;bit2&#x2F;bit1&#x2F;bit0 依次代表 acceptance&#x2F;start&#x2F;progress&#x2F;completion；当前 vendored puslib 0.4.0 的 <code>AckFlag</code> 枚举数值则按 bit0&#x2F;bit1&#x2F;bit2&#x2F;bit3 依次命名为这四项，顺序相反。</p>
+<p>本实验所有成功确认位都为 0，因此这项差异不会影响当前 17.1&#x2F;17.3 正常功能报告和局部强制失败报告，但也意味着当前结果<strong>不能宣称验证了非零 ACK flags 的 ST01 成功确认选择</strong>。未来开启 ACK 位以前，应先修正或适配该映射，并单独用四个单 bit 向量验证线上 nibble 与报告阶段。</p>
+<h2 id="puslib-在这条链里怎样流转对象"><a href="#puslib-在这条链里怎样流转对象" class="headerlink" title="puslib 在这条链里怎样流转对象"></a>puslib 在这条链里怎样流转对象</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs text">UDP bytes<br>  ↓ PusTcPacket.deserialize(...)<br>PusTcPacket<br>  ↓ service.enqueue()<br>服务类型 17 输入队列<br>  ↓ service.process()<br>测试回调 / 服务类型 1 失败报告 / 服务类型 17 成功报告<br>  ↓ QueuedOutput<br>PusTmPacket<br>  ↓ bytes(packet)<br>UDP bytes<br></code></pre></td></tr></table></figure>
+
+<p><code>QueuedOutput</code> 是测试用输出流：服务只负责向抽象输出流写报告，不关心报告最终经 UDP、文件还是其他通道发送。适配器从队列取出 <code>PusTmPacket</code> 再负责网络发送。这种边界让服务单元测试可以完全不启动 socket。</p>
+<h3 id="队列边界让测试分成两层"><a href="#队列边界让测试分成两层" class="headerlink" title="队列边界让测试分成两层"></a>队列边界让测试分成两层</h3><p>服务单元测试直接构造 <code>PusTcPacket</code>、调用 enqueue&#x2F;process，再检查 <code>QueuedOutput</code>，用于验证状态机。跨进程测试则在此基础上增加 serialize&#x2F;deserialize 和 UDP，用于验证线格式与传输。</p>
+<p>若单元测试失败，不需要启动 socket；若单元测试通过而跨进程失败，优先检查 Policy、PEC、字段宽度和端口。分层能显著缩短定位路径。</p>
+<h3 id="对象与-bytes-的转换点只有两个"><a href="#对象与-bytes-的转换点只有两个" class="headerlink" title="对象与 bytes 的转换点只有两个"></a>对象与 bytes 的转换点只有两个</h3><p>Python 侧只有入口 <code>PusTcPacket.deserialize(tc_bytes, ...)</code> 和出口 <code>bytes(tm_packet)</code> 直接接触线包。服务内部始终处理 packet 对象。这两个点最适合记录 hex、长度与异常，其他函数不应重复切片解析。</p>
+<h2 id="固定字节必须绑定到明确的任务剖面"><a href="#固定字节必须绑定到明确的任务剖面" class="headerlink" title="固定字节必须绑定到明确的任务剖面"></a>固定字节必须绑定到明确的任务剖面</h2><p>TC 侧的一组已知输入是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">TC[17,1]<br>19 41 c0 01 00 06 20 11 01 00 2a 1b 4c<br><br>TC[17,3]，Application Process ID = 1<br>19 41 c0 01 00 08 20 11 03 00 2a 00 01 9c 72<br></code></pre></td></tr></table></figure>
+
+<p>两包分别为 13 和 15 字节，后者多出的 <code>00 01</code> 是 16 位进程 ID，因此 Packet Data Length 从 6 变为 8，PEC 也随之变化。</p>
+<p>TM 不能脱离任务剖面只写一串“标准答案”。早期最小模型包含一个 16 位 Message Type Counter，所以固定时间下的 TM[17,2]&#x2F;TM[17,4] 分别比不含计数器的模型多 2 字节；当前合并模型明确设置 <code>msg_type_counter=None</code>。如果直接拿旧 TM golden vector 检查新模型，会得到长度和字段错位，而问题不是 CRC 算错，而是两端采用了不同剖面。</p>
+<p>因此 golden vector 旁边至少要记录：</p>
+<ul>
+<li>EDS XML 或任务剖面版本；</li>
+<li>APID、Sequence Count、Source&#x2F;Destination ID；</li>
+<li>是否有 Message Type Counter；</li>
+<li>时间编码、长度和值；</li>
+<li>Application Process ID 宽度和值；</li>
+<li>PEC 算法。</li>
+</ul>
+<p>稳定断言应优先检查协议关系：类型、长度、字段位置、CRC、请求&#x2F;响应对应关系；只有所有输入固定时，才逐字节比较完整 TM。</p>
+<h3 id="为什么-TC-向量比-TM-更容易固定"><a href="#为什么-TC-向量比-TM-更容易固定" class="headerlink" title="为什么 TC 向量比 TM 更容易固定"></a>为什么 TC 向量比 TM 更容易固定</h3><p>TC 示例可以固定 APID、Sequence Count、ACK、Source ID 和 Process ID，所有输入都由命令构造器控制。TM 还包含时间和独立序列计数，若不通过 Policy 固定，连续两次合法输出也会不同。</p>
+<p>因此调试顺序可以是：先让 puslib 稳定解析固定 TC；再固定测试时间，比较 TM；最后恢复真实时间，只检查结构、字段关系和 CRC，而不要求完整 hex 恒定。</p>
+<h3 id="每个向量旁边应保留解释"><a href="#每个向量旁边应保留解释" class="headerlink" title="每个向量旁边应保留解释"></a>每个向量旁边应保留解释</h3><p>以 15 byte TC[17,3] 为例，至少记录：前 6 byte 主头、5 byte TC 次头、2 byte Process ID、2 byte PEC；Length&#x3D;8；Process ID&#x3D;1 编码为 <code>00 01</code>。向量本身不能替代这些解释。</p>
+<h3 id="向量发生变化时怎样判断"><a href="#向量发生变化时怎样判断" class="headerlink" title="向量发生变化时怎样判断"></a>向量发生变化时怎样判断</h3><p>先比较任务剖面与输入值，再定位第一处不同 byte。若从 TM Destination ID 之后全部错位，优先怀疑可选计数器或时间前导；若只有最后 2 byte 不同，优先检查 CRC 参数或此前某个未打印字段；若第 5～6 byte length 不同，先重新计算整包结构。</p>
+<h2 id="除了正常路径，还测失败"><a href="#除了正常路径，还测失败" class="headerlink" title="除了正常路径，还测失败"></a>除了正常路径，还测失败</h2><p>只有 happy path 不够。当前还检查：</p>
+<ul>
+<li>未登记的进程 ID；</li>
+<li>连接测试回调返回失败；</li>
+<li>TC 服务号或消息子类型号不匹配；</li>
+<li>没有产生服务类型 17 的预期 TM；</li>
+<li>TM[17,4] 没有返回原进程 ID。</li>
+</ul>
+<p>本地不经 UDP 的服务测试覆盖四个关键场景：</p>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>预期唯一输出</th>
+<th>关键断言</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TC[17,1]，无正文</td>
+<td>TM[17,2]</td>
+<td>source data 为空</td>
+</tr>
+<tr>
+<td>TC[17,3]，ID&#x3D;1，回调成功</td>
+<td>TM[17,4]</td>
+<td>返回 <code>00 01</code></td>
+</tr>
+<tr>
+<td>TC[17,3]，ID&#x3D;99，未登记</td>
+<td>TM[1,4]</td>
+<td>失败码 170</td>
+</tr>
+<tr>
+<td>TC[17,3]，ID&#x3D;1，回调失败</td>
+<td>TM[1,8]</td>
+<td>失败码 171</td>
+</tr>
+</tbody></table>
+<p>先做不经 UDP 的服务单元测试，再做完整跨进程测试，能把失败定位为“服务状态机问题”或“线格式&#x2F;传输问题”。所有逻辑一股脑放进一个 UDP 脚本，失败时很难知道是哪层出错。</p>
+<h3 id="单元测试应直接对应标准分支"><a href="#单元测试应直接对应标准分支" class="headerlink" title="单元测试应直接对应标准分支"></a>单元测试应直接对应标准分支</h3><p>正常 17.1 对应 6.17.3；正常 17.3、未登记目标和判据失败对应 6.17.4.2 的不同条目。测试名应表达语义，例如 <code>test_on_board_connection_unknown_process_reports_start_failure</code>，而不是只写 <code>test_case_3</code>。</p>
+<h3 id="非法正文还需要覆盖"><a href="#非法正文还需要覆盖" class="headerlink" title="非法正文还需要覆盖"></a>非法正文还需要覆盖</h3><p>17.1 带非空 app data 应被拒绝；17.3 缺少 app data 也应失败。它们验证 8.17 的消息结构，而不是连接回调。若只测未知 ID，无法知道服务是否区分“字段缺失”和“值未登记”。</p>
+<h3 id="失败报告也要验证-payload"><a href="#失败报告也要验证-payload" class="headerlink" title="失败报告也要验证 payload"></a>失败报告也要验证 payload</h3><p>除了 Service&#x3D;1、Subtype&#x3D;4&#x2F;8，还应检查 request ID 能关联原 TC，failure code 宽度与当前 Policy 一致，任务错误码数值正确。只检查 subtype 容易漏掉报告内容错位。</p>
+<h2 id="一次完整交叉验证应怎样判定"><a href="#一次完整交叉验证应怎样判定" class="headerlink" title="一次完整交叉验证应怎样判定"></a>一次完整交叉验证应怎样判定</h2><p>建议按下面顺序检查，而不是只看脚本最后是否打印 PASS：</p>
+<ol>
+<li>C 端打印所选 EDS 类型、packed size 和 TC hex；</li>
+<li>Python 端反序列化后打印 Service&#x2F;Message Subtype 与 app data；</li>
+<li>PUS 服务类型 17 处理器选择正确分支并调用预期回调；</li>
+<li>Python 端生成唯一正确类型的 TM；</li>
+<li>C 端收到的长度等于目标 EDS 类型 packed size；</li>
+<li><code>UnpackCompleteObject()</code> 成功，说明长度、约束和 PEC 均通过；</li>
+<li>17.4 的进程 ID 与请求相同；</li>
+<li>任一进程异常或超时都使总脚本非零退出并清理后台进程。</li>
+</ol>
+<p>这套判据能明确交叉验证覆盖了哪些边界，而不是用“一条命令跑完”掩盖内部是否真的互相独立。</p>
+<h3 id="建议把判据落实为分层退出码"><a href="#建议把判据落实为分层退出码" class="headerlink" title="建议把判据落实为分层退出码"></a>建议把判据落实为分层退出码</h3><p>总脚本可以依赖每个进程非零退出，并在失败时打印阶段：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">BUILD        生成/编译失败<br>TC_PACK      C/EdsLib 无法构造请求<br>TC_TRANSPORT puslib 未收到或超时<br>TC_PARSE     puslib 拒绝线包<br>SERVICE      未产生预期报告<br>TM_TRANSPORT C 端未收到报告<br>TM_UNPACK    EDS 拒绝响应<br>ASSERT       字段关系不满足<br></code></pre></td></tr></table></figure>
+
+<p>不必真的规定这些字符串为协议，只要日志能保留层次。这样一次失败不会被统一包装成“cross validation failed”。</p>
+<h3 id="C-端最终检查为何最重要"><a href="#C-端最终检查为何最重要" class="headerlink" title="C 端最终检查为何最重要"></a>C 端最终检查为何最重要</h3><p>Python 端能创建 <code>PusTmPacket</code> 不代表它符合 EDS 模型。C 端以 TM[17,2] 或 TM[17,4] 的具体 Type ID 调用 Complete Unpack，长度、固定 subtype、时间布局和 PEC 任一不一致都会失败。最后再比较 17.4 Process ID，才完成响应验证。</p>
+<h2 id="交叉验证能发现的典型不一致"><a href="#交叉验证能发现的典型不一致" class="headerlink" title="交叉验证能发现的典型不一致"></a>交叉验证能发现的典型不一致</h2><table>
+<thead>
+<tr>
+<th>不一致</th>
+<th>常见表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TC Source ID 是否存在&#x2F;宽度不同</td>
+<td>puslib 从错误偏移读正文或 PEC</td>
+</tr>
+<tr>
+<td>TM 是否有 Message Type Counter</td>
+<td>TM 长度差 2 字节，后续字段错位</td>
+</tr>
+<tr>
+<td>CUC 是否带 preamble</td>
+<td>时间与正文整体偏移</td>
+</tr>
+<tr>
+<td>进程 ID 宽度不同</td>
+<td>17.3 app data 无法匹配注册 ID</td>
+</tr>
+<tr>
+<td>Packet Data Length 算法错误</td>
+<td>对端拒绝反序列化或 EdsLib 长度校验失败</td>
+</tr>
+<tr>
+<td>CRC 参数&#x2F;覆盖范围不同</td>
+<td>字段似乎正确，但 PEC 校验失败</td>
+</tr>
+<tr>
+<td>17.3 失败阶段处理错误</td>
+<td>应返回 1.4 却返回 1.8，或完全无报告</td>
+</tr>
+</tbody></table>
+<p>这些问题大多是单实现往返测试不容易发现的。</p>
+<h3 id="共同错误仍然可能存在"><a href="#共同错误仍然可能存在" class="headerlink" title="共同错误仍然可能存在"></a>共同错误仍然可能存在</h3><p>两个实现可能都参考了同一份错误任务剖面，或者本地扩展恰好复制了 EDS 的误解。因此还需要标准条款、手算尺寸和必要的第三方&#x2F;标准向量。交叉验证降低风险，不把概率降为零。</p>
+<h3 id="“能解析”与“行为一致”分开报告"><a href="#“能解析”与“行为一致”分开报告" class="headerlink" title="“能解析”与“行为一致”分开报告"></a>“能解析”与“行为一致”分开报告</h3><p>puslib 成功 deserialize TC 证明线格式基本一致；产生正确 TM subtype 和失败阶段才证明服务行为一致；C 端成功 Unpack TM 又证明反向线格式一致。报告应分别列出，不用一句“puslib 验证通过”覆盖三层。</p>
+<p>这里可以放一张完整运行日志：</p>
+<blockquote>
+<p>图片预留：截取 EdsLib → puslib → EdsLib 一次完整运行日志，保存为 <code>eds-pus-06-service-type-17-puslib-cross-validation/puslib-cross-check.png</code>。</p>
+</blockquote>
+<h2 id="怎样看待测试结论"><a href="#怎样看待测试结论" class="headerlink" title="怎样看待测试结论"></a>怎样看待测试结论</h2><p>puslib 是独立实现，因此它能发现字段宽度、PUS 版本、时间格式、CRC 和响应类型不一致的问题。但它不是标准认证工具，本地又对 17.3&#x2F;17.4 做了扩展，所以结论仍然要写准确：</p>
+<blockquote>
+<p>当前 EDS 数据库与指定版本、指定任务策略下的 puslib 能互相解析，并完成 PUS 服务类型 17 两组正常请求&#x2F;报告和若干失败路径。</p>
+</blockquote>
+<p>相比一句“测试通过”，这句话更长，但也更真实。它仍然不等于标准认证，也不证明真实进程健康、实时性、链路可靠性或所有 PUS 服务都已实现。</p>
+<h3 id="当前结论成立所依赖的条件"><a href="#当前结论成立所依赖的条件" class="headerlink" title="当前结论成立所依赖的条件"></a>当前结论成立所依赖的条件</h3><ul>
+<li>使用记录中的 EDS XML 与生成数据库版本；</li>
+<li>使用当前 vendored puslib 版本及本地 ST17 扩展；</li>
+<li>使用同一任务剖面：Source&#x2F;Destination ID、时间、计数器、PEC；</li>
+<li>TC 使用 ACK_NONE；</li>
+<li>DemoProcess1 的 16 bit ID 为 <code>00 01</code>；</li>
+<li>测试回调返回预设结果；</li>
+<li>UDP 在本机 loopback 上完成传输。</li>
+</ul>
+<p>这些条件变化后，需要重新判断哪些断言仍适用。把条件写清楚不是削弱成果，而是让结果可复现。</p>
+<h3 id="还没有覆盖的工程问题"><a href="#还没有覆盖的工程问题" class="headerlink" title="还没有覆盖的工程问题"></a>还没有覆盖的工程问题</h3><p>真实系统还需要多请求并发、序列计数持久性、重复&#x2F;乱序包处理、超时、进程动态上下线、真实成功判据、线程安全、资源上限和安全机制。本文只验证最小单请求功能与若干失败分支，不把实验工具描述成完整飞行服务。</p>
+<h2 id="怎样把方法迁移到其他服务"><a href="#怎样把方法迁移到其他服务" class="headerlink" title="怎样把方法迁移到其他服务"></a>怎样把方法迁移到其他服务</h2><p>交叉验证框架可以复用，服务语义不能照抄：</p>
+<ol>
+<li>EDS 增加新服务的具体 TC&#x2F;TM 类型；</li>
+<li>C 端仍用统一的类型查询、Pack&#x2F;Unpack 和 UDP 适配；</li>
+<li>puslib 端启用或局部补充对应服务对象；</li>
+<li>Policy 只处理任务级公共字段；</li>
+<li>每个服务独立列出正常、拒绝、执行失败和边界输入；</li>
+<li>golden vector 与任务剖面版本绑定。</li>
+</ol>
+<p>例如 PUS 服务类型 1 是请求验证服务（Request verification service），服务类型 3 是星务与诊断数据报告服务（Housekeeping and diagnostic data reporting service），服务类型 8 是功能管理服务（Function management service）；它们可以共享 CCSDS&#x2F;PUS 头和测试通道，却有完全不同的状态机和正文。最重要的复用是分层与验证方法，而不是复制 PUS 服务类型 17 的代码。</p>
+<h3 id="推荐的扩展架构"><a href="#推荐的扩展架构" class="headerlink" title="推荐的扩展架构"></a>推荐的扩展架构</h3><p>保持四层稳定：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs text">common packet profile<br>  ├─ EDS common XML<br>  └─ puslib Policy<br><br>service model<br>  ├─ stXX.xml<br>  └─ puslib 对应 service<br><br>codec adapters<br>  ├─ C/EdsLib pack/unpack<br>  └─ Python serialize/deserialize<br><br>transport/test orchestration<br>  └─ UDP + shell test runner<br></code></pre></td></tr></table></figure>
+
+<p>新增服务主要改变第二层及其测试向量；公共剖面不应为了一个服务随意扩展，UDP 适配也不应知道每个业务字段。</p>
+<h3 id="多服务时如何选择消息类型"><a href="#多服务时如何选择消息类型" class="headerlink" title="多服务时如何选择消息类型"></a>多服务时如何选择消息类型</h3><p>最小 ST17 程序可由命令行固定 Type ID。服务增多后，可以建立 <code>(PacketType, APID, ServiceType, MessageSubtype) → EdsLib Type ID</code> 的任务映射，或利用生成接口数据库辅助发现。这个路由层应单独测试未知组合和冲突，不要在每个服务里重复 switch。</p>
+<h3 id="puslib-扩展的维护原则"><a href="#puslib-扩展的维护原则" class="headerlink" title="puslib 扩展的维护原则"></a>puslib 扩展的维护原则</h3><p>优先使用已有公共 API；任务策略放局部 Policy；服务专属字段和错误码放服务模块或验证层；修改 vendored 公共源码前评估所有服务回归。若上游以后原生支持 17.3&#x2F;17.4，应比较行为和 API，再决定移除本地补丁，而不是长期维护两套实现。</p>
+<h2 id="这一组实践最终得到的认识"><a href="#这一组实践最终得到的认识" class="headerlink" title="这一组实践最终得到的认识"></a>这一组实践最终得到的认识</h2><p>六篇文章形成了一条完整但边界明确的路径：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">EDS XML 数据契约<br>  → sedstool 生成 C 类型与数据库<br>  → EdsLib 构造/校验 packed bytes<br>  → CCSDS/PUS 标准解释每个字段<br>  → 服务类型 17 的 EDS XML 表达四种消息<br>  → UDP 建立跨进程传输边界<br>  → puslib 独立执行服务并交叉验证<br></code></pre></td></tr></table></figure>
+
+<p>其中最重要的不是某个脚本，而是始终分清三件事：<strong>模型是否正确、编解码是否正确、服务行为是否正确</strong>。三者需要不同证据，不能用一个“能跑”互相替代。</p>
+<h3 id="回看七篇文章的逻辑"><a href="#回看七篇文章的逻辑" class="headerlink" title="回看七篇文章的逻辑"></a>回看七篇文章的逻辑</h3><p>第 0 篇建立地图；第一篇解释 XML 怎样成为类型与数据库；第二篇完成 EdsLib 最小 API 闭环；第三篇从标准解释 packed bytes；第四篇把标准落回 ST17 XML；第五篇增加跨进程传输；本篇用第二套实现补上服务行为和反向 TM 验证。</p>
+<p>每一步只增加一个主要变量，因此失败时可以退回前一层：生成错看第一篇，Pack 错看第二篇，字段语义错看第三&#x2F;四篇，UDP 错看第五篇，服务或互操作错看本篇。系列不是七篇并列资料，而是一条逐层增强证据的路径。</p>
+<h3 id="最终可以复用的不是代码量，而是方法"><a href="#最终可以复用的不是代码量，而是方法" class="headerlink" title="最终可以复用的不是代码量，而是方法"></a>最终可以复用的不是代码量，而是方法</h3><p>实现另一个 PUS 服务时，最有价值的模板是：</p>
+<ol>
+<li>同时阅读系统要求和接口要求；</li>
+<li>冻结任务剖面；</li>
+<li>把公共、服务、消息和行为分层；</li>
+<li>先生成并审查模型；</li>
+<li>再做单实现 Pack&#x2F;Unpack；</li>
+<li>加入独立实现和失败路径；</li>
+<li>最后才扩大到真实系统集成。</li>
+</ol>
+<p>这套顺序避免一开始就把 XML、业务状态机、网络和框架全部揉在一起，也让每个“通过”都有明确含义。</p>
+<h2 id="本章小结"><a href="#本章小结" class="headerlink" title="本章小结"></a>本章小结</h2><p>puslib 在这里不是替代 EdsLib，也不是标准认证器，而是独立的 PUS packet&#x2F;service 实现。C&#x2F;EdsLib 负责 EDS 数据契约，Python&#x2F;puslib 负责另一套解析、服务状态机和响应生成，UDP 只连接 bytes。</p>
+<p>正常路径证明 17.1→17.2 与 17.3→17.4；失败路径证明未知目标在开始阶段失败、连接判据在完成阶段失败。最终 TM 再由 EdsLib Complete Unpack，形成双向交叉。只有把版本、任务剖面、输入和未覆盖范围一起记录，这个结果才对后来者真正有用。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/pxntus/puslib">puslib</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/nasa/EdsLib">NASA EdsLib</a></li>
+<li><a target="_blank" rel="noopener" href="https://ecss.nl/standard/ecss-e-st-70-41c-space-engineering-telemetry-and-telecommand-packet-utilization-15-april-2016/">ECSS-E-ST-70-41C</a></li>
+</ul>
+</div><div class="article-licensing box"><div class="licensing-title"><p>EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</p><p><a href="https://goko-son626.github.io/post/eds-pus-06-service-type-17-puslib-cross-validation.html">https://goko-son626.github.io/post/eds-pus-06-service-type-17-puslib-cross-validation.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-09-06</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-09-20</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"><div class="recommend-post"><span class="is-size-6 has-text-grey has-mr-7"># 相关文章</span><br><span>  1.<a class="is-size-6" href="/post/eds-pus-05-service-type-17-edslib-udp.html" target="_blank">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a><br></span><span>  2.<a class="is-size-6" href="/post/eds-pus-04-service-type-17-eds-model.html" target="_blank">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a><br></span><span>  3.<a class="is-size-6" href="/post/eds-pus-03-ccsds-pus-service-type-17.html" target="_blank">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a><br></span></div></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/eds-pus-05-service-type-17-edslib-udp.html"><span class="level-item">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: 'b583a44a098e11a5040269adf34ce8ac',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">38</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">29</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">67</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-09-06T13:18:00.000Z">2026-09-06</time></p><p class="title"><a href="/post/eds-pus-06-service-type-17-puslib-cross-validation.html">EDS与PUS实践（六）：用puslib交叉验证服务类型17的TC与TM</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-30T12:54:00.000Z">2026-08-30</time></p><p class="title"><a href="/post/eds-pus-05-service-type-17-edslib-udp.html">EDS与PUS实践（五）：用EdsLib与UDP验证服务类型17线包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-16T13:25:00.000Z">2026-08-16</time></p><p class="title"><a href="/post/eds-pus-04-service-type-17-eds-model.html">EDS与PUS实践（四）：用EDS描述服务类型17的四种消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-09T12:48:00.000Z">2026-08-09</time></p><p class="title"><a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">EDS与PUS实践（三）：从CCSDS空间包理解PUS服务类型17</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/PUS/">PUS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-08-02T13:12:00.000Z">2026-08-02</time></p><p class="title"><a href="/post/eds-pus-02-edslib-pack-unpack.html">EDS与PUS实践（二）：用EdsLib完成对象打包与解包</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/EDS/">EDS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">7</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/"><span class="level-start"><span class="level-item">kernel</span></span><span class="level-end"><span class="level-item tag">11</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/linux/kernel/driver/"><span class="level-start"><span class="level-item">driver</span></span><span class="level-end"><span class="level-item tag">2</span></span></a><ul class="mr-0"></ul></li></ul></li></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/06/"><span class="level-start"><span class="level-item">六月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/02/"><span class="level-start"><span class="level-item">二月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARM%E6%B1%87%E7%BC%96/"><span class="tag">ARM汇编</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/C/"><span class="tag">C</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CLOCK/"><span class="tag">CLOCK</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CPSR/"><span class="tag">CPSR</span><span class="tag is-grey-lightest">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cache/"><span class="tag">Cache</span><span class="tag is-grey-lightest">1</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/removeif/hexo-theme-amazing"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
