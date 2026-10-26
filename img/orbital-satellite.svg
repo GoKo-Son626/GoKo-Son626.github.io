@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" fill="none">
+  <defs>
+    <linearGradient id="cell" x1="0" y1="0" x2="21" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2d5487"/><stop offset=".38" stop-color="#132e52"/><stop offset="1" stop-color="#071527"/>
+    </linearGradient>
+    <pattern id="cells" width="21" height="18" patternUnits="userSpaceOnUse">
+      <path d="M1.2 1.2h18.6v15.6H1.2z" fill="url(#cell)" stroke="#7292ad" stroke-opacity=".52" stroke-width=".45"/>
+      <path d="M7.3 1.5v15M13.7 1.5v15" stroke="#b7cfdd" stroke-opacity=".28" stroke-width=".42"/>
+      <path d="M1.5 4.2h18M1.5 7.5h18M1.5 10.8h18M1.5 14.1h18" stroke="#030c18" stroke-opacity=".52" stroke-width=".35"/>
+    </pattern>
+    <linearGradient id="arrayLight" x1="85" y1="264" x2="652" y2="164" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#073f74" stop-opacity=".05"/><stop offset=".38" stop-color="#68abea" stop-opacity=".14"/><stop offset=".5" stop-color="#b9dfff" stop-opacity=".02"/><stop offset="1" stop-color="#91beeb" stop-opacity=".23"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="50" y1="175" x2="670" y2="255" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#526b82"/><stop offset=".35" stop-color="#acbac4"/><stop offset=".5" stop-color="#283e50"/><stop offset=".8" stop-color="#94a7b8"/><stop offset="1" stop-color="#d6b998"/>
+    </linearGradient>
+    <linearGradient id="goldTop" x1="309" y1="210" x2="387" y2="147" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7a5826"/><stop offset=".27" stop-color="#c39748"/><stop offset=".52" stop-color="#edc976"/><stop offset=".7" stop-color="#ae7e37"/><stop offset="1" stop-color="#e9c77d"/>
+    </linearGradient>
+    <linearGradient id="goldLeft" x1="302" y1="177" x2="356" y2="269" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9c7437"/><stop offset=".37" stop-color="#4c3e26"/><stop offset=".62" stop-color="#8b6f3f"/><stop offset="1" stop-color="#293640"/>
+    </linearGradient>
+    <linearGradient id="goldFront" x1="350" y1="274" x2="413" y2="188" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#584d33"/><stop offset=".24" stop-color="#a88542"/><stop offset=".53" stop-color="#d6b268"/><stop offset=".75" stop-color="#8b652e"/><stop offset="1" stop-color="#f2d49a"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="377" y1="239" x2="417" y2="204" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1f303c"/><stop offset=".26" stop-color="#586775"/><stop offset=".5" stop-color="#a2a9a8"/><stop offset=".72" stop-color="#e1d8c7"/><stop offset="1" stop-color="#6b7a83"/>
+    </linearGradient>
+    <linearGradient id="dish" x1="342" y1="115" x2="401" y2="141" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#243847"/><stop offset=".42" stop-color="#93a8b6"/><stop offset=".67" stop-color="#e1dfd3"/><stop offset="1" stop-color="#667987"/>
+    </linearGradient>
+    <radialGradient id="glass" cx=".3" cy=".3" r=".8">
+      <stop stop-color="#30475c"/><stop offset=".28" stop-color="#13263c"/><stop offset=".64" stop-color="#030b14"/><stop offset="1" stop-color="#0e1b2d"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="425" y1="274" x2="457" y2="233" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#456881"/><stop offset=".43" stop-color="#53616c"/><stop offset=".8" stop-color="#efe1c5"/><stop offset="1" stop-color="#8f9da0"/>
+    </linearGradient>
+    <clipPath id="arrays">
+      <path d="M42 175h242v78H42zM440 175h242v78H440z"/>
+    </clipPath>
+  </defs>
+
+  <g transform="rotate(-19 360 220)">
+    <!-- Array booms, hinges and tension braces remain visible between the wings and bus. -->
+    <path d="M274 212h39m99 0h40" stroke="#293d4c" stroke-width="13"/>
+    <path d="M274 208h39m99 0h40" stroke="#b2b4a8" stroke-width="3"/>
+    <path d="M281 186l30 30-30 30m159-60-27 30 27 30" stroke="#6e8393" stroke-width="2"/>
+    <path d="M290 202v23m144-23v23" stroke="#d9c9a9" stroke-width="6"/>
+    <path d="M294 203v22m136-22v22" stroke="#162735" stroke-width="2"/>
+
+    <!-- Four articulated panel sections on each wing; the fine busbars belong to the cells. -->
+    <path d="M40 176h246v81H40zm398 0h246v81H438z" fill="#071420" stroke="#283d50" stroke-width="2"/>
+    <g clip-path="url(#arrays)">
+      <path d="M42 175h242v78H42zm398 0h242v78H440z" fill="url(#cells)"/>
+      <path d="M42 175h640v78H42z" fill="url(#arrayLight)"/>
+      <path d="m76 172 67 85h19l-67-85zm445 0 67 85h34l-67-85z" fill="#bbd9ef" opacity=".07"/>
+    </g>
+    <path d="M42 175h242v78H42zm398 0h242v78H440z" stroke="url(#frame)" stroke-width="2.3"/>
+    <path d="M102 176v76m61-76v76m60-76v76m278-76v76m60-76v76m61-76v76" stroke="#09121c" stroke-width="4"/>
+    <path d="M103 176v76m61-76v76m60-76v76m278-76v76m60-76v76m61-76v76" stroke="#8799a7" stroke-width=".8"/>
+    <path d="M43 213h240m158 0h240" stroke="#b2c0c5" stroke-opacity=".6" stroke-width="1"/>
+    <path d="M43 176h240m158 0h240" stroke="#e3c5a1" stroke-opacity=".7"/>
+    <path d="M43 254h241m156 0h242" stroke="#588bb7" stroke-opacity=".7"/>
+    <g fill="#c1c6c3">
+      <path d="M99 171h7v8h-7zm61 0h7v8h-7zm60 0h7v8h-7zm278 0h7v8h-7zm60 0h7v8h-7zm61 0h7v8h-7z"/>
+      <path d="M99 250h7v8h-7zm61 0h7v8h-7zm60 0h7v8h-7zm278 0h7v8h-7zm60 0h7v8h-7zm61 0h7v8h-7z" fill="#617b91"/>
+    </g>
+
+    <!-- Multilayer insulation on three separately lit faces. -->
+    <path d="m303 177 71-31 47 41-71 32z" fill="url(#goldTop)" stroke="#dfc28b" stroke-width="1.1"/>
+    <path d="m303 177 47 42v61l-47-43z" fill="url(#goldLeft)" stroke="#42505b" stroke-width="1.2"/>
+    <path d="m350 219 71-32v62l-71 31z" fill="url(#goldFront)" stroke="#e1ba72" stroke-width="1.2"/>
+    <path d="m305 181 44 41v53l-43-40z" stroke="#ccb179" stroke-opacity=".55"/>
+    <path d="m353 221 65-30v55l-65 29z" stroke="#4d4129" stroke-width="1.4"/>
+    <g stroke="#f4d58d" stroke-opacity=".48" stroke-width=".65">
+      <path d="m311 179 21 2 8 17 20-22 12 18 22-5m-62-8 16-20 12 15 19-20m-39 42 19 14 13-18 35 1"/>
+      <path d="m310 190 13 34 19-9m-31-9 12 18-12 11 26 13 5 20m-17-57 9 25-9 7 17 13"/>
+      <path d="m357 226 17 6 7-22 14 19 18-27m-55 42 16-12 10 17 20-14 9 8m-51 20 22-14 8 12"/>
+    </g>
+    <g stroke="#4d3b1d" stroke-opacity=".5" stroke-width=".9">
+      <path d="m318 177 17 7 9 17 17-20 12 16 24-8m-42-24 6 16 21-19"/>
+      <path d="m313 196 12 30-11 9 24 15m-6-37 4 23-9 9 15 15"/>
+      <path d="m359 228 17 7 8-20m-26 33 18-13 11 17 20-15m-18 16 6 9"/>
+    </g>
+    <path d="m303 177 47 42 71-32m-71 32v61" stroke="#1b2b35" stroke-width="3"/>
+    <path d="m305 176 45 40 70-31" stroke="#f8d9a5" stroke-width="1.5"/>
+    <path d="m350 280 71-31" stroke="#79a2bd" stroke-width="2"/>
+    <path d="m303 237 47 43" stroke="#6084a2" stroke-width="1.5"/>
+    <g fill="#c5c9c4" stroke="#2c404e" stroke-width=".7">
+      <path d="m302 177 8 7v10l-8-7zm41 36 8 7v10l-8-7zm0 53 8 7v9l-8-7zm70-76 9-4v10l-9 4zm0 51 9-4v11l-9 4z"/>
+    </g>
+
+    <!-- Radiator plate, miniature thruster and star tracker. -->
+    <path d="m307 198 27 25v24l-27-25z" fill="#526773" stroke="#a3b4bb" stroke-width=".9"/>
+    <path d="m311 204 19 18m-19-12 19 18m-19-12 19 18m-19-12 19 18" stroke="#152a39" stroke-width="2"/>
+    <path d="m310 242 15 13-8 11-15-13z" fill="#687781" stroke="#a6b5be" stroke-width="1"/>
+    <path d="m302 253 15 13-9 4-12-11z" fill="#172936"/>
+    <path d="m383 163 11-5 11 10-11 5z" fill="#a3a99f"/>
+    <path d="m383 163 11 10v13l-11-10z" fill="#3e505a"/>
+    <path d="m394 173 11-5v13l-11 5z" fill="#132536" stroke="#889ba5" stroke-width=".8"/>
+    <path d="m397 175 5-2v5l-5 2z" fill="#02080f"/>
+
+    <!-- Antenna with its feed horn and fine triangular support members. -->
+    <path d="m353 171 13-27m3 32 7-31" stroke="#c7cdc9" stroke-width="2.6"/>
+    <path d="m357 171 14-27m-4 27 4-27" stroke="#405d72" stroke-width="1"/>
+    <path d="M339 126c8 24 47 32 69-1-20 7-47 8-69 1Z" fill="url(#dish)" stroke="#b7c5c9" stroke-width=".8"/>
+    <ellipse cx="373.5" cy="124" rx="35" ry="11" fill="#778e9f" stroke="#dbe0d7" stroke-width="1.4" transform="rotate(-4 373.5 124)"/>
+    <ellipse cx="373.5" cy="124" rx="29" ry="7.9" fill="#526d81" stroke="#9dafb8" stroke-width=".6" transform="rotate(-4 373.5 124)"/>
+    <path d="m342 124 29-22 34 20m-34-20 2 28" stroke="#d5dcd5" stroke-width="1.15"/>
+    <path d="m368 101 6-1 2 6-6 2z" fill="#ced0c1" stroke="#5d707a" stroke-width=".8"/>
+    <path d="m376 153 4-26" stroke="#dae1dc" stroke-width="1"/>
+    <path d="m329 162-8-37m-1-1-1-5" stroke="#9aaebc" stroke-width="1.15"/>
+    <circle cx="318.8" cy="119" r="1.5" fill="#d2e0de"/>
+
+    <!-- The optical assembly projects toward the viewer, across the bus's sunlit face. -->
+    <path d="m371 225 26-35 64 47-31 39z" fill="url(#metal)" stroke="#73848c" stroke-width="1"/>
+    <path d="m377 229 25-34m-17 40 25-34m24 63 25-34" stroke="#162b39" stroke-width="4"/>
+    <path d="m379 229 25-33m-17 38 25-33m24 62 25-34" stroke="#d0d2c6" stroke-width="1"/>
+    <path d="m399 197 49 36" stroke="#f1dcc0" stroke-opacity=".8" stroke-width="2"/>
+    <path d="m375 230 51 38" stroke="#729cb7" stroke-width="2"/>
+    <ellipse cx="445" cy="254" rx="27" ry="21" transform="rotate(-51 445 254)" fill="url(#rim)" stroke="#a7b6bc" stroke-width="1.1"/>
+    <ellipse cx="445" cy="254" rx="22.5" ry="17" transform="rotate(-51 445 254)" fill="#0a1521" stroke="#172c3f" stroke-width="2.5"/>
+    <ellipse cx="445" cy="254" rx="18.7" ry="13.5" transform="rotate(-51 445 254)" fill="url(#glass)" stroke="#67879b" stroke-opacity=".65" stroke-width=".8"/>
+    <path d="M437 241c-8 4-13 11-12 17" stroke="#8eb5d4" stroke-opacity=".5" stroke-width="1.3" stroke-linecap="round"/>
+    <ellipse cx="440" cy="249" rx="6" ry="2" transform="rotate(-51 440 249)" fill="#c0e5fa" opacity=".16"/>
+    <g fill="#172b3a" stroke="#d1d5ca" stroke-width=".55">
+      <circle cx="437" cy="230" r="1.5"/><circle cx="463" cy="250" r="1.5"/>
+      <circle cx="451" cy="276" r="1.5"/><circle cx="427" cy="258" r="1.5"/>
+    </g>
+    <path d="m358 252 9-4v7l-9 4z" fill="#273946" stroke="#b8c2bd" stroke-width=".6"/>
+    <circle cx="362" cy="252" r="1.2" fill="#a8d9d7"/>
+  </g>
+</svg>

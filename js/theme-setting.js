@@ -2,6 +2,12 @@
 // https://removeif.github.io/
 
 function isNightFun() {
+    try {
+        var palette = localStorage.getItem('goko-v3-palette');
+        if (palette === 'dark' || palette === 'light') {
+            return palette === 'dark' ? 'true' : 'false';
+        }
+    } catch (e) { /* Keep the existing fallback when storage is unavailable. */ }
     var isNightTemp = localStorage.getExpire('night');
 
     // 第一次进来判断是白天还是晚上
@@ -42,7 +48,7 @@ function findNightIcon() {
         setTimeout(findNightIcon, 100);
     } else {
         nightNav.addEventListener('click', switchNight);
-        if (isNight) {
+        if (isNight == 'true') {
             nightIcon.className = nightIcon.className.replace(/ fa-moon/g, '') + ' fa-lightbulb'
         } else {
             nightIcon.className = nightIcon.className.replace(/ fa-lightbulb/g, '') + ' fa-moon'
@@ -60,6 +66,7 @@ function switchNight() {
     
     applyNight(isNight);
     localStorage.setExpire('night', isNight, expireTime1H);
+    try { localStorage.setItem('goko-v3-palette', isNight == 'true' ? 'dark' : 'light'); } catch (e) { /* No persistence. */ }
     if(typeof loadUtterances == 'function'){
         loadUtterances();
     }
