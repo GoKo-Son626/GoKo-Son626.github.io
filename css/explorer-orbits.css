@@ -29,7 +29,7 @@
 }
 .universe-shade {
   position: absolute; inset: 0;
-  background: linear-gradient(90deg, #040813eb 0%, #040813ba 22%, #04081352 48%, #04081305 76%),
+  background: linear-gradient(90deg, #04081385 0%, #040813a6 22%, #04081352 48%, #04081305 76%),
     linear-gradient(0deg, #040813b3, transparent 65%);
 }
 .universe-marks { position: absolute; right: 4.5vw; top: 53vh; width: 170px; height: 185px; }
@@ -58,7 +58,7 @@
 .celestial-index .explorer-shell { position: relative; border-color: transparent; }
 .celestial-index .explorer-sidebar {
   border-right-color: rgba(var(--orbit-rgb), .10);
-  background: linear-gradient(90deg, #050a166b, #050a1626);
+  background: linear-gradient(90deg, #050a1699, #050a1678);
   padding-top: 52px;
 }
 .celestial-index .sidebar-label { color: #acb8ca; }
@@ -183,4 +183,89 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .celestial-index .ledger-entry:hover, .celestial-index .ledger-entry:focus-within { transform: none; }
+}
+
+/* V4.3: pointer light is kept on the surfaces, away from the letterforms. */
+.celestial-index .ledger-entry { --light-x: 28%; --light-y: 40%; }
+.celestial-index .ledger-entry::before {
+  background: radial-gradient(330px circle at var(--light-x) var(--light-y), rgba(var(--orbit-rgb), .065), transparent 72%);
+  pointer-events: none;
+}
+.celestial-index .ledger-entry::after {
+  inset: -1px; height: auto; padding: 1px; border-radius: inherit;
+  background: radial-gradient(220px circle at var(--light-x) var(--light-y), rgba(var(--orbit-rgb), .88), rgba(var(--orbit-rgb), .10) 52%, transparent 78%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0; transition: opacity .3s;
+}
+.celestial-index .ledger-entry:hover::after,
+.celestial-index .ledger-entry:focus-within::after { right: -1px; opacity: .7; }
+.celestial-index .ledger-entry.is-pointer-lit::before { opacity: 1; }
+.celestial-index .ledger-entry.is-pointer-lit::after { opacity: 1; }
+.celestial-index .entry-number { transition: color .3s, text-shadow .3s; }
+.celestial-index .ledger-entry.is-pointer-lit .entry-number { color: var(--orbit-color); text-shadow: 0 0 13px rgba(var(--orbit-rgb), .55); }
+.celestial-index .ledger-entry.is-pointer-lit .entry-arrow { color: var(--orbit-color); transform: translate(2px, -2px); }
+.celestial-index .collection-nav { position: relative; }
+.celestial-index .collection-link { --light-x: 35%; --light-y: 50%; }
+.celestial-index .collection-link.is-pointer-lit {
+  background: radial-gradient(160px circle at var(--light-x) var(--light-y), rgba(var(--nav-rgb), .13), transparent 85%),
+    linear-gradient(100deg, rgba(var(--nav-rgb), .045), transparent);
+  border-color: rgba(var(--nav-rgb), .24);
+}
+.celestial-index .collection-link.is-pointer-lit.is-active {
+  background: radial-gradient(160px circle at var(--light-x) var(--light-y), rgba(var(--nav-rgb), .19), transparent 85%),
+    linear-gradient(100deg, rgba(var(--nav-rgb), .10), rgba(var(--nav-rgb), .025));
+}
+.celestial-index .collection-link.is-pointer-lit small { color: rgb(var(--nav-rgb)); text-shadow: 0 0 12px rgba(var(--nav-rgb), .4); }
+.celestial-index .collection-symbol { transition: transform .45s, box-shadow .45s; }
+.celestial-index .collection-link.is-pointer-lit .collection-symbol { transform: scale(1.22); box-shadow: 0 0 16px rgba(var(--nav-rgb), .28); }
+.celestial-index .collection-symbol:not(.collection-system)::after {
+  content: ""; position: absolute; left: -5px; top: 1px; width: 18px; height: 6px;
+  border: 1px solid rgba(var(--nav-rgb), .55); border-radius: 50%;
+  transform: rotate(-32deg); opacity: 0; transition: opacity .35s;
+}
+.celestial-index .collection-symbol::before {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 3px; height: 3px;
+  border-radius: 50%; background: rgb(var(--nav-rgb));
+  box-shadow: 0 0 5px rgba(var(--nav-rgb), .75); opacity: 0;
+  transform: rotate(-32deg) translateX(10px);
+}
+.celestial-index .collection-link.is-pointer-lit .collection-symbol::after { opacity: .75; }
+.celestial-index .collection-link.is-pointer-lit .collection-symbol::before {
+  opacity: .85; animation: navigation-moon 5s linear infinite;
+}
+.nav-tracer {
+  position: absolute; left: -8px; top: 0; width: 2px; height: var(--nav-height, 46px);
+  transform: translateY(var(--nav-y, 0)); pointer-events: none; opacity: 0; border-radius: 2px;
+  background: linear-gradient(transparent, rgba(var(--preview-rgb, 164,193,226), .9), transparent);
+  box-shadow: 0 0 13px rgba(var(--preview-rgb, 164,193,226), .25);
+  transition: transform .24s ease, height .24s, opacity .3s;
+}
+.is-previewing .nav-tracer { opacity: 1; }
+.celestial-index .collection-link.is-locking { animation: navigation-lock .65s ease-out; }
+@keyframes navigation-moon {
+  from { transform: rotate(-32deg) translateX(10px) scale(.8); }
+  50% { transform: rotate(148deg) translateX(10px) scale(1); }
+  to { transform: rotate(328deg) translateX(10px) scale(.8); }
+}
+@keyframes navigation-lock {
+  0% { box-shadow: inset 0 0 0 1px rgba(var(--nav-rgb), .42), 0 0 22px rgba(var(--nav-rgb), .15); }
+  100% { box-shadow: inset 0 0 0 1px rgba(var(--nav-rgb), 0), 0 0 22px rgba(var(--nav-rgb), 0); }
+}
+.celestial-index[data-motion-paused="true"] .collection-symbol::before,
+.celestial-index[data-motion-paused="true"] .collection-link.is-locking { animation: none; }
+.celestial-index[data-motion-paused="true"] .nav-tracer { opacity: 0; }
+.celestial-index[data-motion-paused="true"] .ledger-entry:hover,
+.celestial-index[data-motion-paused="true"] .ledger-entry:focus-within { transform: none; }
+@media (max-width: 780px) {
+  .celestial-index .explorer-sidebar { background: none; }
+  .nav-tracer { display: none; }
+}
+@media (hover: none), (pointer: coarse) {
+  .celestial-index .ledger-entry::before, .celestial-index .ledger-entry::after { display: none; }
+  .celestial-index .ledger-entry:hover { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celestial-index .collection-symbol::before, .nav-tracer { display: none; }
 }

@@ -6,7 +6,7 @@
         element, index, title: element.dataset.title, stack: element.dataset.stack,
         tags: JSON.parse(element.dataset.tags || '[]'), date: element.dataset.date
     }));
-    const nav = Array.from(document.querySelectorAll('[data-collection]'));
+    const nav = Array.from(document.querySelectorAll('.collection-link[data-collection]'));
     const query = document.getElementById('article-query');
     const order = document.getElementById('article-order');
     const title = document.getElementById('collection-title');

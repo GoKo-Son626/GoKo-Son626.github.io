@@ -9,6 +9,7 @@
   const motionButton = document.getElementById('scene-motion');
   const motionLabel = motionButton && motionButton.querySelector('[data-motion-label]');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = window.matchMedia('(any-pointer: fine)');
   const TAU = Math.PI * 2;
   const ids = ['cfs', 'arm', 'eds', 'linux', 'ebpf', 'tools'];
   const colors = {
@@ -22,6 +23,11 @@
   let clock = 0, lastFrame = 0, animation = 0, resizeTimer = 0;
   let paused = reducedMotion.matches, transitionAge = 1, previousFrame = null;
   let starField = null, grain = null;
+  let cloudMask = null, foregroundStars = [], nextMeteor = 5.8, meteor = null;
+  let previewId = null, previewStrength = 0, meteorNumber = 0, lastRipple = -10;
+  const cloudCache = new Map(), ripples = [];
+  const pointer = { x: 0, y: 0, active: false, strength: 0, shiftX: 0, shiftY: 0 };
+  const blockedSkyTarget = '.ledger-entry,.collection-link,.explorer-header,.index-controls,.index-status,.index-bottom,.explorer-footer,.sidebar-footnote,a,button,input,select';
   const readyWorlds = new Set();
   const warmQueue = current === 'all' ? ids.slice() : [current, ...ids.filter(id => id !== current)];
 
@@ -39,6 +45,69 @@
     return surface;
   }
   function rgba(rgb, alpha) { return `rgba(${rgb},${alpha})`; }
+  function noise(x, y) {
+    const hash = (a, b) => {
+      let n = Math.imul(a, 374761393) ^ Math.imul(b, 668265263);
+      n = Math.imul(n ^ n >>> 13, 1274126177);
+      return ((n ^ n >>> 16) >>> 0) / 4294967295;
+    };
+    const ix = Math.floor(x), iy = Math.floor(y);
+    let u = x - ix, v = y - iy;
+    u = u * u * (3 - 2 * u); v = v * v * (3 - 2 * v);
+    return (hash(ix, iy) * (1 - u) + hash(ix + 1, iy) * u) * (1 - v)
+      + (hash(ix, iy + 1) * (1 - u) + hash(ix + 1, iy + 1) * u) * v;
+  }
+  function nebulaTexture(id) {
+    if (cloudCache.has(id)) return cloudCache.get(id);
+    if (!cloudMask) {
+      cloudMask = makeSurface(320, 240);
+      const mask = cloudMask.getContext('2d');
+      if (!mask) return null;
+      const pixels = mask.createImageData(320, 240);
+      for (let y = 0; y < 240; y++) for (let x = 0; x < 320; x++) {
+        const nx = x / 320 * 2 - 1, ny = y / 240 * 2 - 1;
+        const u = x / 69 + 11, v = y / 61 + 27;
+        const turbulence = noise(u, v) * .54 + noise(u * 2.1, v * 2.1) * .28
+          + noise(u * 4.3, v * 4.3) * .12 + noise(u * 8.7, v * 8.7) * .06;
+        const band = Math.exp(-Math.pow((ny + nx * .42 + Math.sin(nx * 4.1) * .15) * 3.1, 2));
+        const envelope = Math.pow(Math.max(0, 1 - nx * nx), 1.3) * Math.pow(Math.max(0, 1 - ny * ny), 1.5);
+        const filament = clamp((turbulence - .29) * 2.2, 0, 1);
+        const at = (y * 320 + x) * 4;
+        pixels.data[at] = pixels.data[at + 1] = pixels.data[at + 2] = 255;
+        pixels.data[at + 3] = Math.round(envelope * filament * (.2 + band * .8) * 225);
+      }
+      mask.putImageData(pixels, 0, 0);
+    }
+    const surface = makeSurface(320, 240), cloud = surface.getContext('2d');
+    if (!cloud) return null;
+    const tint = cloud.createLinearGradient(25, 225, 300, 15);
+    tint.addColorStop(0, '#253b6e');
+    tint.addColorStop(.48, rgba(colors[id], .85));
+    tint.addColorStop(.76, '#435a8c');
+    tint.addColorStop(1, '#18263e');
+    cloud.fillStyle = tint; cloud.fillRect(0, 0, 320, 240);
+    cloud.globalCompositeOperation = 'destination-in'; cloud.drawImage(cloudMask, 0, 0);
+    cloudCache.set(id, surface);
+    return surface;
+  }
+  function drawNebula() {
+    const cloud = nebulaTexture(current), farCloud = nebulaTexture('all');
+    if (!cloud || !farCloud) return;
+    const breath = .94 + Math.sin(clock * .07) * .06;
+    context.save(); context.globalCompositeOperation = 'screen';
+    context.globalAlpha *= .52;
+    context.drawImage(farCloud, -width * .22 + pointer.shiftX * .32, height * .30 + pointer.shiftY * .25, width * .73, height * .85);
+    context.globalAlpha *= breath * 1.16;
+    context.drawImage(cloud, width * .49 + pointer.shiftX * .55, -height * .23 + pointer.shiftY * .4, width * .73, height * .95);
+    if (previewId && previewStrength > .005) {
+      const preview = nebulaTexture(previewId);
+      if (preview) {
+        context.globalAlpha *= previewStrength * .8;
+        context.drawImage(preview, width * .49 + pointer.shiftX * .55, -height * .23 + pointer.shiftY * .4, width * .73, height * .95);
+      }
+    }
+    context.restore();
+  }
   function halo(x, y, radius, rgb, alpha, inner = 0) {
     const glow = context.createRadialGradient(x, y, radius * inner, x, y, radius);
     glow.addColorStop(0, rgba(rgb, alpha));
@@ -53,7 +122,7 @@
     if (!stars) return;
     stars.scale(ratio, ratio);
     const rand = seeded(4026);
-    const count = Math.round(clamp(width * height / 6000, 70, 280));
+    const count = Math.round(clamp(width * height / 4200, 95, 380));
     for (let i = 0; i < count; i++) {
       const x = rand() * width, y = rand() * height;
       const r = .3 + Math.pow(rand(), 3) * 1.1;
@@ -67,6 +136,11 @@
         stars.moveTo(x, y - 3.5); stars.lineTo(x, y + 3.5); stars.stroke();
       }
     }
+    foregroundStars = Array.from({ length: small ? 34 : 68 }, (_, index) => ({
+      x: index % 3 === 0 ? rand() * .24 : .60 + rand() * .40,
+      y: rand(), radius: .55 + rand() * .85, phase: rand() * TAU,
+      speed: .16 + rand() * .24, depth: .35 + rand() * .65
+    }));
     // A still, high-resolution dust layer prevents large upscaled worlds looking flat.
     if (!grain) {
       grain = makeSurface(640, 640);
@@ -80,6 +154,82 @@
         }
         dust.putImageData(pixels, 0, 0);
       }
+    }
+  }
+  function livingStars() {
+    const near = [], rgb = colors[previewId || current];
+    foregroundStars.forEach(star => {
+      let x = star.x * width + pointer.shiftX * star.depth, y = star.y * height + pointer.shiftY * star.depth;
+      const distance = Math.hypot(x - pointer.x, y - pointer.y);
+      const attraction = pointer.strength * Math.max(0, 1 - distance / 155);
+      x += (pointer.x - x) * attraction * .12; y += (pointer.y - y) * attraction * .12;
+      const pulse = .5 + Math.sin(clock * star.speed + star.phase) * .16;
+      const alpha = .18 + pulse * .32 + attraction * .35;
+      context.fillStyle = rgba(rgb, alpha);
+      context.beginPath(); context.arc(x, y, star.radius + attraction * .4, 0, TAU); context.fill();
+      if (star.radius > 1.08 || attraction > .5) halo(x, y, 4.5 + attraction * 3, rgb, .055 + attraction * .09);
+      if (attraction > .1) near.push({ x, y, distance, attraction });
+    });
+    if (pointer.strength > .01) {
+      // Connect only the four nearest stars; a quiet local field, not a mesh.
+      near.sort((a, b) => a.distance - b.distance).slice(0, 4).forEach(star => {
+        const thread = context.createLinearGradient(pointer.x, pointer.y, star.x, star.y);
+        thread.addColorStop(0, rgba(rgb, .025 * pointer.strength));
+        thread.addColorStop(1, rgba(rgb, .17 * star.attraction));
+        context.strokeStyle = thread; context.lineWidth = .65;
+        context.beginPath(); context.moveTo(pointer.x, pointer.y); context.lineTo(star.x, star.y); context.stroke();
+      });
+    }
+  }
+  function drawMeteor() {
+    if (!meteor) return;
+    const age = clock - meteor.start, progress = age / 1.65;
+    if (progress > 1) { meteor = null; return; }
+    const fade = Math.sin(Math.max(0, progress) * Math.PI);
+    const x = meteor.x + meteor.dx * progress, y = meteor.y + meteor.dy * progress;
+    const tx = x - meteor.dx * .42, ty = y - meteor.dy * .42;
+    const streak = context.createLinearGradient(tx, ty, x, y);
+    streak.addColorStop(0, 'rgba(164,190,225,0)');
+    streak.addColorStop(.72, rgba('172,199,230', fade * .16));
+    streak.addColorStop(1, rgba('230,238,251', fade * .65));
+    context.strokeStyle = streak; context.lineWidth = 1;
+    context.beginPath(); context.moveTo(tx, ty); context.lineTo(x, y); context.stroke();
+    halo(x, y, 4, '201,221,247', fade * .3);
+  }
+  function drawProbe() {
+    const rgb = colors[previewId || current];
+    if (pointer.strength > .01) halo(pointer.x, pointer.y, 100, rgb, .055 * pointer.strength);
+    for (const ripple of ripples) {
+      const progress = clamp((clock - ripple.start) / 1.5, 0, 1);
+      const radius = 10 + (1 - Math.pow(1 - progress, 2)) * 96;
+      const fade = Math.pow(1 - progress, 1.7);
+      context.save(); context.translate(ripple.x, ripple.y); context.rotate(-.35);
+      context.strokeStyle = rgba(ripple.rgb, fade * .28); context.lineWidth = .75;
+      context.beginPath(); context.ellipse(0, 0, radius, radius * .64, 0, 0, TAU); context.stroke();
+      for (let i = 0; i < 12; i++) {
+        const angle = i * TAU / 12 + progress * .24;
+        const r = radius * (.68 + i % 3 * .13);
+        context.fillStyle = rgba(ripple.rgb, fade * (.18 + i % 2 * .2));
+        context.beginPath(); context.arc(Math.cos(angle) * r, Math.sin(angle) * r * .64, .8, 0, TAU); context.fill();
+      }
+      context.restore();
+    }
+  }
+  function updateAtmosphere(delta) {
+    const smoothing = 1 - Math.exp(-delta * 5);
+    pointer.strength += ((pointer.active ? 1 : 0) - pointer.strength) * smoothing;
+    const targetX = pointer.active ? (pointer.x / width - .5) * 18 : 0;
+    const targetY = pointer.active ? (pointer.y / height - .5) * 14 : 0;
+    pointer.shiftX += (targetX - pointer.shiftX) * smoothing;
+    pointer.shiftY += (targetY - pointer.shiftY) * smoothing;
+    previewStrength += ((previewId ? 1 : 0) - previewStrength) * smoothing;
+    while (ripples.length && clock - ripples[0].start > 1.5) ripples.shift();
+    if (!small && clock >= nextMeteor) {
+      const rand = seeded(9107 + meteorNumber++ * 307);
+      const left = meteorNumber % 3 === 0;
+      meteor = { start: clock, x: width * (left ? .17 : .96), y: height * (.08 + rand() * .24),
+        dx: -Math.min(width * (left ? .10 : .12), 160), dy: height * (.13 + rand() * .09) };
+      nextMeteor = clock + 15 + rand() * 10;
     }
   }
   function fallbackWorld(id, x, y, radius, opacity) {
@@ -144,7 +294,7 @@
       context.lineWidth = index === 1 ? .85 : .5; context.stroke();
     });
     context.restore();
-    // Tiny orbital dust moves with the system; no flashing or shooting stars.
+    // Fine orbital dust remains slower than the separate distant meteor layer.
     for (let i = 0; i < 36; i++) {
       const p = orbitPoint(i / 36 * TAU + clock * .022, major * 1.02, minor * 1.02, tilt, cx, cy);
       context.fillStyle = rgba(colors.all, .06 + (p.depth + 1) * .05);
@@ -169,8 +319,14 @@
     const progress = clamp(transitionAge / .62, 0, 1);
     const blend = progress * progress * (3 - 2 * progress);
     context.globalAlpha = previousFrame ? blend : 1;
-    if (starField) context.drawImage(starField, 0, 0, width, height);
+    drawNebula();
+    if (starField) context.drawImage(starField, -12 + pointer.shiftX * .18, -10 + pointer.shiftY * .18, width + 24, height + 20);
+    livingStars();
+    drawMeteor();
+    context.save(); context.translate(pointer.shiftX * .38, pointer.shiftY * .38);
     if (current === 'all') planetarySystem(); else singleWorld(current);
+    context.restore();
+    drawProbe();
     context.globalAlpha = 1;
     if (previousFrame) {
       context.save(); context.globalAlpha = 1 - blend;
@@ -186,7 +342,7 @@
     if (elapsed >= 1000 / 30 - .5) {
       const delta = Math.min(elapsed / 1000, .1);
       lastFrame = now;
-      if (!paused) clock += delta;
+      if (!paused) { clock += delta; updateAtmosphere(delta); }
       transitionAge += delta;
       paint();
     }
@@ -205,7 +361,7 @@
   function setCollection(value) {
     const next = validId(value);
     if (next === current) return;
-    if (!reducedMotion.matches && width && height) {
+    if (!paused && !reducedMotion.matches && width && height) {
       previousFrame = makeSurface(canvas.width, canvas.height);
       const previous = previousFrame.getContext('2d');
       if (previous) previous.drawImage(canvas, 0, 0); else previousFrame = null;
@@ -217,7 +373,13 @@
     lastFrame = 0; requestFrame();
   }
   function updateMotionButton() {
+    document.body.dataset.motionPaused = String(paused);
+    if (paused) {
+      pointer.active = false; pointer.strength = 0;
+      previewId = null; previewStrength = 0; ripples.length = 0;
+    }
     if (!motionButton) return;
+    motionButton.hidden = false;
     motionButton.setAttribute('aria-pressed', String(paused));
     motionButton.setAttribute('aria-label', paused ? '继续背景动效' : '暂停背景动效');
     if (motionLabel) motionLabel.textContent = paused ? '继续动效' : '暂停动效';
@@ -236,10 +398,38 @@
       else setTimeout(warmNext, 70);
     }
   }
+  function canProbe(event) {
+    return !paused && !reducedMotion.matches && !small && finePointer.matches
+      && event.clientX > width * .62
+      && !(event.target instanceof Element && event.target.closest(blockedSkyTarget));
+  }
+  window.addEventListener('pointermove', event => {
+    if (event.pointerType !== 'mouse' || paused || reducedMotion.matches) return;
+    pointer.x = event.clientX; pointer.y = event.clientY;
+    pointer.active = canProbe(event);
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => { pointer.active = false; }, { passive: true });
+  window.addEventListener('blur', () => { pointer.active = false; });
+  window.addEventListener('scroll', () => { pointer.active = false; }, { passive: true });
+  window.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button !== 0 || event.detail === 0 || !canProbe(event)
+      || event.pointerType === 'touch' || clock - lastRipple < .65) return;
+    lastRipple = clock;
+    if (ripples.length >= 2) ripples.shift();
+    ripples.push({ x: event.clientX, y: event.clientY, start: clock, rgb: colors[current] });
+    pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true;
+    requestFrame();
+  });
+  window.addEventListener('explorer:preview', event => {
+    if (paused || reducedMotion.matches) return;
+    const id = event.detail && event.detail.id;
+    previewId = id == null ? null : validId(id);
+    requestFrame();
+  });
   window.addEventListener('explorer:collection', event => setCollection(event.detail && event.detail.id));
   window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 120); }, { passive: true });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { cancelAnimationFrame(animation); animation = 0; lastFrame = 0; }
+    if (document.hidden) { cancelAnimationFrame(animation); animation = 0; lastFrame = 0; pointer.active = false; }
     else { lastFrame = 0; requestFrame(); }
   });
   reducedMotion.addEventListener('change', event => {
