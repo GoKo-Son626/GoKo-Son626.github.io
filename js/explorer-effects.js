@@ -17,7 +17,7 @@
   let activeSurface = null, previewId = null, frame = 0, x = 0, y = 0;
   let clickedLink = null, clickTimer = 0;
   const enabled = () => finePointer.matches && !reducedMotion.matches && body.dataset.motionPaused !== 'true';
-  const surfaceFor = target => target instanceof Element ? target.closest('.ledger-entry, .collection-link') : null;
+  const surfaceFor = target => target instanceof Element ? target.closest('.entry-title-link, .collection-link') : null;
 
   function preview(link) {
     const id = link ? link.dataset.collection : null;
@@ -56,14 +56,14 @@
     if (event.pointerType !== 'mouse' || !enabled()) return;
     x = event.clientX; y = event.clientY;
     illuminate(surfaceFor(event.target));
-    if (activeSurface && !frame) frame = requestAnimationFrame(positionLight);
+    if (activeSurface && activeSurface.classList.contains('collection-link') && !frame) frame = requestAnimationFrame(positionLight);
   }, { passive: true });
   document.addEventListener('pointerout', event => { if (!event.relatedTarget) reset(); }, { passive: true });
   document.addEventListener('focusin', event => {
     if (!enabled()) return;
     const surface = surfaceFor(event.target);
     illuminate(surface);
-    if (surface) {
+    if (surface && surface.classList.contains('collection-link')) {
       const rect = surface.getBoundingClientRect();
       x = rect.left + rect.width * .28; y = rect.top + rect.height * .45;
       positionLight();

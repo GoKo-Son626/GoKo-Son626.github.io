@@ -111,9 +111,9 @@
 .celestial-index .article-ledger { display: grid; gap: 12px; border-top: 0; }
 .celestial-index .ledger-entry {
   padding: 26px 24px; column-gap: 17px;
-  border: 1px solid rgba(var(--orbit-rgb), .16); border-radius: 8px;
-  background: linear-gradient(110deg, rgba(10,18,32,.95), rgba(7,13,25,.82));
-  box-shadow: inset 0 1px 0 #e2f2ff04, 0 9px 24px #0000001a;
+  border: 1px solid rgba(var(--orbit-rgb), .09); border-radius: 8px;
+  background: linear-gradient(110deg, rgba(10,18,32,.30), rgba(7,13,25,.14));
+  box-shadow: none;
   transition: border-color .28s, background .28s, box-shadow .28s, transform .28s;
   isolation: isolate;
 }
@@ -269,3 +269,33 @@
 @media (prefers-reduced-motion: reduce) {
   .celestial-index .collection-symbol::before, .nav-tracer { display: none; }
 }
+
+/* V4.5: the card is a transparent reading guide; only title text locks a link. */
+.celestial-index .ledger-entry::before,
+.celestial-index .ledger-entry::after { display: none; }
+.celestial-index .ledger-entry:hover,
+.celestial-index .ledger-entry:focus-within {
+  border-color: rgba(var(--orbit-rgb), .09);
+  box-shadow: none; transform: none;
+}
+.celestial-index .entry-content,
+.celestial-index .entry-date,
+.celestial-index .entry-number { text-shadow: 0 1px 5px #020610, 0 0 14px #02061099; }
+.celestial-index .entry-content h2 { text-shadow: 0 1px 5px #020610, 0 0 18px #020610cc; }
+.celestial-index .entry-title-link {
+  display: inline; padding: 0; margin: 0;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 5px;
+  background-image: linear-gradient(90deg, rgba(var(--orbit-rgb), .13), rgba(var(--orbit-rgb), .04));
+  background-repeat: no-repeat; background-size: 0 100%;
+  transition: color .2s, text-decoration-color .2s, background-size .2s;
+}
+.celestial-index .entry-title-link:hover,
+.celestial-index .entry-title-link:focus-visible,
+.celestial-index .entry-title-link.is-pointer-lit {
+  color: #fff; text-decoration-color: rgba(var(--orbit-rgb), .75);
+  background-size: 100% 100%; text-shadow: 0 1px 5px #020610, 0 0 16px rgba(var(--orbit-rgb), .24);
+}
+.celestial-index .entry-arrow { pointer-events: none; }
+.celestial-index .entry-title-link:hover + .entry-arrow,
+.celestial-index .entry-title-link:focus-visible + .entry-arrow,
+.celestial-index .entry-title-link.is-pointer-lit + .entry-arrow { color: var(--orbit-color); transform: translate(2px, -2px); }

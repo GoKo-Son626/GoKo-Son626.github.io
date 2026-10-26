@@ -27,7 +27,7 @@
   let previewId = null, previewStrength = 0, meteorNumber = 0, lastRipple = -10;
   const cloudCache = new Map(), ripples = [];
   const pointer = { x: 0, y: 0, active: false, strength: 0, shiftX: 0, shiftY: 0 };
-  const blockedSkyTarget = '.ledger-entry,.collection-link,.explorer-header,.index-controls,.index-status,.index-bottom,.explorer-footer,.sidebar-footnote,a,button,input,select';
+  const blockedSkyTarget = '.entry-title-link,.collection-link,.explorer-header,.index-controls,.index-status,.index-bottom,.explorer-footer,.sidebar-footnote,button,input,select';
   const readyWorlds = new Set();
   const warmQueue = current === 'all' ? ids.slice() : [current, ...ids.filter(id => id !== current)];
 

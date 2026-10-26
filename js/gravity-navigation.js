@@ -14,11 +14,17 @@
   const colors = ['219,164,99','149,138,190','153,215,231','218,137,86','139,191,167','190,208,221'];
   const planets = Array.from(document.querySelectorAll('.planet-link')).map((link, index) => ({
     id: link.dataset.id, link, index, angle0: -1.48 + index * TAU / 6,
+    count: Math.max(0, Number(link.dataset.count) || 0), sizeScale: 1,
     x: 0, y: 0, radius: 28, theta: 0, depth: 0, opacity: 0,
     hover: 0, hovering: false, heldAngle: null, angleOffset: 0,
     spin: index * .91, trail: [], breakup: 0, fragmentOrigin: null,
     end: 46.5 + index * .7, color: colors[index], alive: false
   }));
+  const averageCount = planets.reduce((total, p) => total + p.count, 0) / (planets.length || 1);
+  // Build-time article totals set a gentle, cached radius adjustment within +/-14%.
+  planets.forEach(p => {
+    p.sizeScale = 1 + .14 * Math.tanh(Math.log((p.count + 1) / (averageCount + 1)));
+  });
   let engine = null, geometry = null, phase = 'idle', elapsed = 0;
   let selected = null, transitionTime = 0, zoomStart = null, didNavigate = false;
   let burstEnded = false, cycleNumber = 0;
@@ -153,7 +159,7 @@
       }
       p.x = x; p.y = y; p.depth = target.depth;
       const base = g.mobile ? 20 : clamp(g.size * .062, 28, 38);
-      p.radius = base * [1.1,.88,1.03,.96,.89,1][p.index] * (1 + p.depth * .13) * (1 - smooth((individual - .83) / .17) * .32);
+      p.radius = base * p.sizeScale * (1 + p.depth * .13) * (1 - smooth((individual - .83) / .17) * .32);
       p.spin += step * (.08 + p.index * .008);
       p.hover += ((p.hovering ? 1 : 0) - p.hover) * Math.min(1, step * 8);
       p.opacity = smooth(arrival * 3);

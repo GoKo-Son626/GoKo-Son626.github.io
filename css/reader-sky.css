@@ -1,0 +1,206 @@
+/* Article-only sky. The six accents match the explorer's stack palette. */
+body.celestial-reader:not(.portal) {
+  --reader-accent: 190, 208, 221;
+  --reader-bg: #0b1018;
+  --reader-card: #131b26;
+  --reader-text: #dce3eb;
+  --reader-muted: #a0adbc;
+  --reader-line: rgba(var(--reader-accent), .19);
+  --reader-link: rgb(var(--reader-accent));
+  isolation: isolate;
+  color-scheme: dark;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+body.celestial-reader[data-reader-stack="cfs"] {
+  --reader-accent: 219, 164, 99;
+  --reader-bg: #110f0e;
+  --reader-card: #1b1815;
+}
+body.celestial-reader[data-reader-stack="arm"] {
+  --reader-accent: 176, 159, 218;
+  --reader-bg: #0e0d18;
+  --reader-card: #181724;
+}
+body.celestial-reader[data-reader-stack="eds"] {
+  --reader-accent: 153, 215, 231;
+  --reader-bg: #09121f;
+  --reader-card: #111d2b;
+}
+body.celestial-reader[data-reader-stack="linux"] {
+  --reader-accent: 218, 137, 86;
+  --reader-bg: #130e0d;
+  --reader-card: #1e1715;
+}
+body.celestial-reader[data-reader-stack="ebpf"] {
+  --reader-accent: 139, 191, 167;
+  --reader-bg: #0b1312;
+  --reader-card: #131e1b;
+}
+body.celestial-reader[data-reader-stack="tools"] {
+  --reader-accent: 190, 208, 221;
+  --reader-bg: #0b111a;
+  --reader-card: #141d28;
+}
+
+/* Static pinpoints and two small gradient surfaces; the viewport never animates. */
+.celestial-reader .reader-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  background-image:
+    radial-gradient(circle at 23px 43px, rgba(235, 241, 248, .42) .7px, transparent 1.3px),
+    radial-gradient(circle at 127px 173px, rgba(var(--reader-accent), .5) .8px, transparent 1.5px),
+    radial-gradient(circle at 79px 107px, rgba(230, 239, 249, .25) .5px, transparent 1.1px),
+    radial-gradient(circle at 193px 29px, rgba(var(--reader-accent), .27) .6px, transparent 1.3px);
+  background-size: 251px 293px, 367px 431px, 173px 233px, 419px 347px;
+}
+.celestial-reader .reader-sky__nebula {
+  position: absolute;
+  display: block;
+  width: 420px;
+  height: 420px;
+  max-width: 70vw;
+  max-height: 70vw;
+  border-radius: 50%;
+  pointer-events: none;
+  contain: paint;
+  background:
+    radial-gradient(ellipse at 43% 48%, rgba(var(--reader-accent), .16), transparent 50%),
+    radial-gradient(ellipse at 65% 38%, rgba(var(--reader-accent), .09), transparent 38%),
+    radial-gradient(ellipse at 33% 69%, rgba(var(--reader-accent), .07), transparent 42%);
+  animation: reader-nebula-drift 180s ease-in-out infinite alternate;
+}
+.celestial-reader .reader-sky__nebula--near {
+  top: 19vh;
+  left: -190px;
+  transform: rotate(-24deg);
+}
+.celestial-reader .reader-sky__nebula--far {
+  right: -180px;
+  bottom: 6vh;
+  width: 360px;
+  height: 360px;
+  opacity: .7;
+  animation-duration: 230s;
+  animation-delay: -90s;
+  animation-direction: alternate-reverse;
+}
+@keyframes reader-nebula-drift {
+  from { transform: translateY(-8px) rotate(-24deg); }
+  to { transform: translateY(12px) rotate(18deg); }
+}
+.celestial-reader.reader-sky-paused .reader-sky__nebula {
+  animation-play-state: paused;
+}
+
+/* Opaque reading surfaces keep all scenery outside the text and sidebar cards. */
+body.celestial-reader .card,
+body.celestial-reader .navbar-main,
+body.celestial-reader .footer {
+  background: var(--reader-card);
+  border-color: var(--reader-line);
+  color: var(--reader-text);
+  box-shadow: none;
+}
+body.celestial-reader .navbar-menu {
+  background: var(--reader-card);
+}
+body.celestial-reader .navbar-item,
+body.celestial-reader .navbar-link,
+body.celestial-reader .article > .title,
+body.celestial-reader .column-left .title,
+body.celestial-reader .subtitle,
+body.celestial-reader .content :is(h1, h2, h3, h4, h5, h6, strong),
+body.celestial-reader .column-left strong {
+  color: var(--reader-text);
+}
+body.celestial-reader :is(a, .menu-list a, .link-muted, .post-navigation a) {
+  color: var(--reader-link);
+}
+body.celestial-reader .article-meta,
+body.celestial-reader .article-meta a {
+  color: var(--reader-muted);
+}
+body.celestial-reader :is(.has-text-grey, .has-link-grey, .has-text-black-ter, .has-link-black-ter) {
+  color: var(--reader-muted) !important;
+}
+body.celestial-reader .navbar-highlight {
+  background-color: var(--reader-card) !important;
+}
+body.celestial-reader :is(.navbar-item, .navbar-link, .menu-list a):is(:hover, :focus, .is-active),
+body.celestial-reader .level a:hover,
+body.celestial-reader .article-licensing .licensing-title a,
+body.celestial-reader #hitokoto strong {
+  color: var(--reader-link) !important;
+}
+body.celestial-reader .menu-list a:is(:hover, .is-active, .is-current) {
+  background: rgba(var(--reader-accent), .09);
+}
+body.celestial-reader :is(hr, .menu-list li ul) {
+  background-color: var(--reader-line);
+  border-color: var(--reader-line);
+}
+body.celestial-reader .menu-list li ul {
+  background: transparent;
+}
+body.celestial-reader :is(.article-licensing, .recommend-area, .post-copyright) {
+  background: var(--reader-bg);
+  border-color: var(--reader-line);
+}
+body.celestial-reader .article .content blockquote {
+  border-left-color: var(--reader-link);
+  background: var(--reader-bg);
+}
+body.celestial-reader .article .content a {
+  text-decoration-color: rgba(var(--reader-accent), .4);
+}
+body.celestial-reader .article .content :not(pre) > code {
+  color: var(--reader-link);
+  background: rgba(var(--reader-accent), .08);
+}
+body.celestial-reader .article .content > pre,
+body.celestial-reader .article .content figure.highlight {
+  background: #0a1019;
+  color: #dce3eb;
+  border: 1px solid var(--reader-line);
+}
+body.celestial-reader .article .content table tr:hover {
+  background: rgba(var(--reader-accent), .05);
+}
+body.celestial-reader .article .content figure.highlight table tr:hover {
+  background: transparent;
+}
+body.celestial-reader .button:is(.is-white, .is-light, .is-transparent),
+body.celestial-reader .tag:not(body) {
+  background-color: var(--reader-bg);
+  border-color: var(--reader-line);
+  color: var(--reader-link);
+}
+body.celestial-reader .button.is-primary {
+  background-color: rgba(var(--reader-accent), .13);
+  border-color: rgba(var(--reader-accent), .35);
+  color: var(--reader-link);
+}
+body.celestial-reader.night :is(.avatar, .column-left figure, .column-left strong, .button, .fas, .fab) {
+  filter: none !important;
+}
+body.celestial-reader ::selection {
+  background: rgba(var(--reader-accent), .3);
+  color: #fff;
+}
+
+@media (max-width: 767px) {
+  .celestial-reader .reader-sky__nebula--near { left: -120px; }
+  .celestial-reader .reader-sky__nebula--far { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celestial-reader .reader-sky__nebula { animation: none; }
+}
+@media print {
+  .celestial-reader .reader-sky { display: none; }
+}
