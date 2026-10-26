@@ -264,6 +264,7 @@
     focusToggle.setAttribute('aria-label', enabled ? '显示界面文字' : '专注星空，隐藏界面文字');
     focusToggle.querySelector('span').textContent = enabled ? '退出专注' : '专注星空';
   }
+  setFocus(true);
   focusToggle.addEventListener('click', () => setFocus(!body.classList.contains('scene-only')));
   // Consume the wake-up click before it can summon planets or follow a link.
   document.addEventListener('click', event => {

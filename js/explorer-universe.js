@@ -23,7 +23,7 @@
   let clock = 0, lastFrame = 0, animation = 0, resizeTimer = 0;
   let paused = reducedMotion.matches, transitionAge = 1, previousFrame = null;
   let starField = null, grain = null;
-  let cloudMask = null, foregroundStars = [], nextMeteor = 5.8, meteor = null;
+  let cloudMask = null, foregroundStars = [], nextMeteor = 3.8, meteor = null;
   let previewId = null, previewStrength = 0, meteorNumber = 0, lastRipple = -10;
   const cloudCache = new Map(), ripples = [];
   const pointer = { x: 0, y: 0, active: false, strength: 0, shiftX: 0, shiftY: 0 };
@@ -95,9 +95,9 @@
     if (!cloud || !farCloud) return;
     const breath = .94 + Math.sin(clock * .07) * .06;
     context.save(); context.globalCompositeOperation = 'screen';
-    context.globalAlpha *= .52;
-    context.drawImage(farCloud, -width * .22 + pointer.shiftX * .32, height * .30 + pointer.shiftY * .25, width * .73, height * .85);
-    context.globalAlpha *= breath * 1.16;
+    context.globalAlpha *= .90;
+    context.drawImage(farCloud, -width * .22 + pointer.shiftX * .32, height * .02 + pointer.shiftY * .25, width * .88, height * 1.12);
+    context.globalAlpha *= breath * .95;
     context.drawImage(cloud, width * .49 + pointer.shiftX * .55, -height * .23 + pointer.shiftY * .4, width * .73, height * .95);
     if (previewId && previewStrength > .005) {
       const preview = nebulaTexture(previewId);
@@ -125,20 +125,20 @@
     const count = Math.round(clamp(width * height / 4200, 95, 380));
     for (let i = 0; i < count; i++) {
       const x = rand() * width, y = rand() * height;
-      const r = .3 + Math.pow(rand(), 3) * 1.1;
-      const opacity = .12 + rand() * .38;
+      const r = .55 + Math.pow(rand(), 3) * 1.8;
+      const opacity = .24 + rand() * .48;
       stars.fillStyle = i % 9 === 0 ? rgba('220,185,143', opacity) : rgba('177,199,224', opacity);
       stars.beginPath(); stars.arc(x, y, r, 0, TAU); stars.fill();
       if (r > 1.15) {
-        stars.strokeStyle = rgba('187,212,239', .12);
-        stars.lineWidth = .5;
-        stars.beginPath(); stars.moveTo(x - 3.5, y); stars.lineTo(x + 3.5, y);
-        stars.moveTo(x, y - 3.5); stars.lineTo(x, y + 3.5); stars.stroke();
+        stars.strokeStyle = rgba('187,212,239', .27);
+        stars.lineWidth = .9;
+        stars.beginPath(); stars.moveTo(x - 5.5, y); stars.lineTo(x + 5.5, y);
+        stars.moveTo(x, y - 5.5); stars.lineTo(x, y + 5.5); stars.stroke();
       }
     }
-    foregroundStars = Array.from({ length: small ? 34 : 68 }, (_, index) => ({
-      x: index % 3 === 0 ? rand() * .24 : .60 + rand() * .40,
-      y: rand(), radius: .55 + rand() * .85, phase: rand() * TAU,
+    foregroundStars = Array.from({ length: small ? 48 : 110 }, (_, index) => ({
+      x: index % 3 === 0 ? rand() * .24 : index % 3 === 1 ? .24 + rand() * .52 : .76 + rand() * .24,
+      y: rand(), radius: 1.05 + rand() * 1.5, phase: rand() * TAU,
       speed: .16 + rand() * .24, depth: .35 + rand() * .65
     }));
     // A still, high-resolution dust layer prevents large upscaled worlds looking flat.
@@ -161,22 +161,22 @@
     foregroundStars.forEach(star => {
       let x = star.x * width + pointer.shiftX * star.depth, y = star.y * height + pointer.shiftY * star.depth;
       const distance = Math.hypot(x - pointer.x, y - pointer.y);
-      const attraction = pointer.strength * Math.max(0, 1 - distance / 155);
+      const attraction = pointer.strength * Math.max(0, 1 - distance / 250);
       x += (pointer.x - x) * attraction * .12; y += (pointer.y - y) * attraction * .12;
       const pulse = .5 + Math.sin(clock * star.speed + star.phase) * .16;
-      const alpha = .18 + pulse * .32 + attraction * .35;
+      const alpha = .28 + pulse * .45 + attraction * .24;
       context.fillStyle = rgba(rgb, alpha);
-      context.beginPath(); context.arc(x, y, star.radius + attraction * .4, 0, TAU); context.fill();
-      if (star.radius > 1.08 || attraction > .5) halo(x, y, 4.5 + attraction * 3, rgb, .055 + attraction * .09);
+      context.beginPath(); context.arc(x, y, star.radius + attraction * .8, 0, TAU); context.fill();
+      if (star.radius > 1.08 || attraction > .5) halo(x, y, 8 + attraction * 6, rgb, .11 + attraction * .18);
       if (attraction > .1) near.push({ x, y, distance, attraction });
     });
     if (pointer.strength > .01) {
-      // Connect only the four nearest stars; a quiet local field, not a mesh.
-      near.sort((a, b) => a.distance - b.distance).slice(0, 4).forEach(star => {
+      // Connect only the six nearest stars; a quiet local field, not a mesh.
+      near.sort((a, b) => a.distance - b.distance) .slice(0, 6).forEach(star => {
         const thread = context.createLinearGradient(pointer.x, pointer.y, star.x, star.y);
-        thread.addColorStop(0, rgba(rgb, .025 * pointer.strength));
-        thread.addColorStop(1, rgba(rgb, .17 * star.attraction));
-        context.strokeStyle = thread; context.lineWidth = .65;
+        thread.addColorStop(0, rgba(rgb, .12 * pointer.strength));
+        thread.addColorStop(1, rgba(rgb, .58 * star.attraction));
+        context.strokeStyle = thread; context.lineWidth = 1.3;
         context.beginPath(); context.moveTo(pointer.x, pointer.y); context.lineTo(star.x, star.y); context.stroke();
       });
     }
@@ -187,24 +187,24 @@
     if (progress > 1) { meteor = null; return; }
     const fade = Math.sin(Math.max(0, progress) * Math.PI);
     const x = meteor.x + meteor.dx * progress, y = meteor.y + meteor.dy * progress;
-    const tx = x - meteor.dx * .42, ty = y - meteor.dy * .42;
+    const tx = x - meteor.dx * .58, ty = y - meteor.dy * .58;
     const streak = context.createLinearGradient(tx, ty, x, y);
     streak.addColorStop(0, 'rgba(164,190,225,0)');
-    streak.addColorStop(.72, rgba('172,199,230', fade * .16));
-    streak.addColorStop(1, rgba('230,238,251', fade * .65));
-    context.strokeStyle = streak; context.lineWidth = 1;
+    streak.addColorStop(.72, rgba('172,199,230', fade * .38));
+    streak.addColorStop(1, rgba('230,238,251', fade * .95));
+    context.strokeStyle = streak; context.lineWidth = 2;
     context.beginPath(); context.moveTo(tx, ty); context.lineTo(x, y); context.stroke();
-    halo(x, y, 4, '201,221,247', fade * .3);
+    halo(x, y, 9, '201,221,247', fade * .6);
   }
   function drawProbe() {
     const rgb = colors[previewId || current];
-    if (pointer.strength > .01) halo(pointer.x, pointer.y, 100, rgb, .055 * pointer.strength);
+    if (pointer.strength > .01) halo(pointer.x, pointer.y, 165, rgb, .10 * pointer.strength);
     for (const ripple of ripples) {
       const progress = clamp((clock - ripple.start) / 1.5, 0, 1);
-      const radius = 10 + (1 - Math.pow(1 - progress, 2)) * 96;
+      const radius = 10 + (1 - Math.pow(1 - progress, 2)) * 155;
       const fade = Math.pow(1 - progress, 1.7);
       context.save(); context.translate(ripple.x, ripple.y); context.rotate(-.35);
-      context.strokeStyle = rgba(ripple.rgb, fade * .28); context.lineWidth = .75;
+      context.strokeStyle = rgba(ripple.rgb, fade * .52); context.lineWidth = 1.3;
       context.beginPath(); context.ellipse(0, 0, radius, radius * .64, 0, 0, TAU); context.stroke();
       for (let i = 0; i < 12; i++) {
         const angle = i * TAU / 12 + progress * .24;
@@ -229,7 +229,7 @@
       const left = meteorNumber % 3 === 0;
       meteor = { start: clock, x: width * (left ? .17 : .96), y: height * (.08 + rand() * .24),
         dx: -Math.min(width * (left ? .10 : .12), 160), dy: height * (.13 + rand() * .09) };
-      nextMeteor = clock + 15 + rand() * 10;
+      nextMeteor = clock + 10 + rand() * 8;
     }
   }
   function fallbackWorld(id, x, y, radius, opacity) {
@@ -321,11 +321,12 @@
     context.globalAlpha = previousFrame ? blend : 1;
     drawNebula();
     if (starField) context.drawImage(starField, -12 + pointer.shiftX * .18, -10 + pointer.shiftY * .18, width + 24, height + 20);
-    livingStars();
-    drawMeteor();
     context.save(); context.translate(pointer.shiftX * .38, pointer.shiftY * .38);
     if (current === 'all') planetarySystem(); else singleWorld(current);
     context.restore();
+    // Nearby dust and interaction lines stay visible in front of the distant planet.
+    livingStars();
+    drawMeteor();
     drawProbe();
     context.globalAlpha = 1;
     if (previousFrame) {
@@ -400,7 +401,7 @@
   }
   function canProbe(event) {
     return !paused && !reducedMotion.matches && !small && finePointer.matches
-      && event.clientX > width * .62
+      && event.clientX >= 0 && event.clientX <= width
       && !(event.target instanceof Element && event.target.closest(blockedSkyTarget));
   }
   window.addEventListener('pointermove', event => {

@@ -29,8 +29,8 @@
 }
 .universe-shade {
   position: absolute; inset: 0;
-  background: linear-gradient(90deg, #04081385 0%, #040813a6 22%, #04081352 48%, #04081305 76%),
-    linear-gradient(0deg, #040813b3, transparent 65%);
+  background: linear-gradient(90deg, #04081326 0%, #04081338 22%, #0408131a 48%, #04081305 76%),
+    linear-gradient(0deg, #04081366, transparent 70%);
 }
 .universe-marks { position: absolute; right: 4.5vw; top: 53vh; width: 170px; height: 185px; }
 .universe-mark { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; color: var(--orbit-color); opacity: 0; transform: translateY(8px); transition: opacity .8s, transform .8s; }
@@ -58,7 +58,7 @@
 .celestial-index .explorer-shell { position: relative; border-color: transparent; }
 .celestial-index .explorer-sidebar {
   border-right-color: rgba(var(--orbit-rgb), .10);
-  background: linear-gradient(90deg, #050a1699, #050a1678);
+  background: linear-gradient(90deg, #050a1626, #050a161a);
   padding-top: 52px;
 }
 .celestial-index .sidebar-label { color: #acb8ca; }
