@@ -19,6 +19,7 @@
     const resets = Array.from(document.querySelectorAll('[data-reset]'));
     const pageSize = 10;
     const knownStacks = nav.map(item => item.dataset.collection);
+    const collectionMarkers = { all: 'ORBITAL ARCHIVE', cfs: 'FLIGHT SOFTWARE', arm: 'PROCESSOR SYSTEMS', eds: 'SPACE DATA SYSTEMS', linux: 'KERNEL INTERNALS', ebpf: 'SYSTEM OBSERVABILITY', tools: 'ENGINEERING TOOLKIT' };
     let state = { stack: 'all', q: '', order: 'newest', tag: '' };
     let visibleCount = pageSize;
     let searchTimer;
@@ -46,6 +47,9 @@
         window.history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
     function render(animate) {
+        document.body.dataset.collection = state.stack;
+        document.getElementById('collection-marker').textContent = collectionMarkers[state.stack];
+        window.dispatchEvent(new CustomEvent('explorer:collection', { detail: { id: state.stack } }));
         const words = state.q.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
         const matching = rows.filter(row => {
             if (state.stack !== 'all' && state.stack !== row.stack) return false;

@@ -1,0 +1,254 @@
+/* The article index has its own sky. It never controls the home-page simulation. */
+(() => {
+  'use strict';
+  const canvas = document.getElementById('collection-canvas');
+  if (!canvas) return;
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) return;
+  const stage = canvas.closest('.collection-universe');
+  const motionButton = document.getElementById('scene-motion');
+  const motionLabel = motionButton && motionButton.querySelector('[data-motion-label]');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const TAU = Math.PI * 2;
+  const ids = ['cfs', 'arm', 'eds', 'linux', 'ebpf', 'tools'];
+  const colors = {
+    all: '171,197,225', cfs: '219,164,99', arm: '149,138,190',
+    eds: '153,215,231', linux: '218,137,86', ebpf: '139,191,167', tools: '190,208,221'
+  };
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  const validId = value => ids.includes(value) ? value : 'all';
+  let current = validId(new URLSearchParams(location.search).get('stack') || document.body.dataset.collection);
+  let width = 0, height = 0, ratio = 1, small = false;
+  let clock = 0, lastFrame = 0, animation = 0, resizeTimer = 0;
+  let paused = reducedMotion.matches, transitionAge = 1, previousFrame = null;
+  let starField = null, grain = null;
+  const readyWorlds = new Set();
+  const warmQueue = current === 'all' ? ids.slice() : [current, ...ids.filter(id => id !== current)];
+
+  function seeded(seed) {
+    return () => {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let n = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      n = n + Math.imul(n ^ n >>> 7, 61 | n) ^ n;
+      return ((n ^ n >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function makeSurface(w, h) {
+    const surface = document.createElement('canvas');
+    surface.width = w; surface.height = h;
+    return surface;
+  }
+  function rgba(rgb, alpha) { return `rgba(${rgb},${alpha})`; }
+  function halo(x, y, radius, rgb, alpha, inner = 0) {
+    const glow = context.createRadialGradient(x, y, radius * inner, x, y, radius);
+    glow.addColorStop(0, rgba(rgb, alpha));
+    glow.addColorStop(.48, rgba(rgb, alpha * .3));
+    glow.addColorStop(1, rgba(rgb, 0));
+    context.fillStyle = glow;
+    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+  function makeStars() {
+    starField = makeSurface(Math.ceil(width * ratio), Math.ceil(height * ratio));
+    const stars = starField.getContext('2d');
+    if (!stars) return;
+    stars.scale(ratio, ratio);
+    const rand = seeded(4026);
+    const count = Math.round(clamp(width * height / 6000, 70, 280));
+    for (let i = 0; i < count; i++) {
+      const x = rand() * width, y = rand() * height;
+      const r = .3 + Math.pow(rand(), 3) * 1.1;
+      const opacity = .12 + rand() * .38;
+      stars.fillStyle = i % 9 === 0 ? rgba('220,185,143', opacity) : rgba('177,199,224', opacity);
+      stars.beginPath(); stars.arc(x, y, r, 0, TAU); stars.fill();
+      if (r > 1.15) {
+        stars.strokeStyle = rgba('187,212,239', .12);
+        stars.lineWidth = .5;
+        stars.beginPath(); stars.moveTo(x - 3.5, y); stars.lineTo(x + 3.5, y);
+        stars.moveTo(x, y - 3.5); stars.lineTo(x, y + 3.5); stars.stroke();
+      }
+    }
+    // A still, high-resolution dust layer prevents large upscaled worlds looking flat.
+    if (!grain) {
+      grain = makeSurface(640, 640);
+      const dust = grain.getContext('2d');
+      if (dust) {
+        const pixels = dust.createImageData(640, 640), random = seeded(6871);
+        for (let i = 0; i < pixels.data.length; i += 4) {
+          const tone = Math.floor(random() * 230);
+          pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = tone;
+          pixels.data[i + 3] = Math.floor(random() * 18);
+        }
+        dust.putImageData(pixels, 0, 0);
+      }
+    }
+  }
+  function fallbackWorld(id, x, y, radius, opacity) {
+    context.save(); context.globalAlpha *= opacity;
+    const surface = context.createRadialGradient(x - radius * .4, y - radius * .42, 0, x, y, radius);
+    surface.addColorStop(0, rgba(colors[id], .72));
+    surface.addColorStop(.45, rgba(colors[id], .28));
+    surface.addColorStop(1, '#03060c');
+    context.fillStyle = surface;
+    context.beginPath(); context.arc(x, y, radius, 0, TAU); context.fill();
+    context.restore();
+  }
+  function world(id, x, y, radius, spin, light, opacity) {
+    if (window.PlanetMaterials && readyWorlds.has(id)) {
+      window.PlanetMaterials.draw(context, { id, x, y, radius, spin, lightAngle: light, opacity });
+    } else fallbackWorld(id, x, y, radius, opacity);
+  }
+  function singleWorld(id) {
+    const radius = small ? width * .46 : Math.min(width * .27, height * .40);
+    const x = width * (small ? .87 : .84), y = height * (small ? .29 : .40);
+    const rgb = colors[id], spin = clock * .009 + ids.indexOf(id) * .51;
+    halo(x - radius * .1, y - radius * .08, radius * 1.68, rgb, .13);
+    // A thin, interrupted survey arc sits outside the limb, away from the text.
+    context.save(); context.translate(x, y); context.rotate(-.37);
+    context.strokeStyle = rgba(rgb, .12); context.lineWidth = .7;
+    context.beginPath(); context.ellipse(0, 0, radius * 1.16, radius * 1.08, 0, -.65, 1.48); context.stroke();
+    context.strokeStyle = rgba(rgb, .055);
+    context.beginPath(); context.ellipse(0, 0, radius * 1.24, radius * 1.16, 0, 2.25, 4.6); context.stroke();
+    context.restore();
+    world(id, x, y, radius, spin, -2.25, .94);
+    if (grain) {
+      context.save(); context.translate(x, y); context.rotate(spin);
+      context.beginPath(); context.arc(0, 0, radius * .975, 0, TAU); context.clip();
+      context.globalAlpha *= .35; context.globalCompositeOperation = 'soft-light';
+      context.drawImage(grain, -radius, -radius, radius * 2, radius * 2);
+      context.restore();
+    }
+    // Illumination follows the same upper-left light source as the rock material.
+    context.save(); context.translate(x, y); context.rotate(-2.25);
+    const limb = context.createLinearGradient(radius * .2, 0, radius * 1.02, 0);
+    limb.addColorStop(0, rgba(rgb, 0)); limb.addColorStop(1, rgba(rgb, .42));
+    context.strokeStyle = limb; context.lineWidth = small ? .7 : 1.05;
+    context.beginPath(); context.arc(0, 0, radius * .992, -.81, .81); context.stroke();
+    context.restore();
+    halo(x - radius * .64, y - radius * .64, radius * .5, rgb, .035);
+  }
+  function orbitPoint(theta, major, minor, tilt, cx, cy) {
+    const x = Math.cos(theta) * major, y = Math.sin(theta) * minor;
+    return { x: cx + x * Math.cos(tilt) - y * Math.sin(tilt),
+      y: cy + x * Math.sin(tilt) + y * Math.cos(tilt), depth: Math.sin(theta) };
+  }
+  function planetarySystem() {
+    const cx = width * (small ? .62 : .77), cy = height * (small ? .29 : .38);
+    const major = small ? width * .35 : Math.min(width * .24, height * .36);
+    const minor = major * .57, tilt = -.32;
+    halo(cx, cy, major * 1.58, colors.all, .065);
+    halo(cx, cy, major * .36, '177,202,234', .08);
+    context.save(); context.translate(cx, cy); context.rotate(tilt);
+    [.965, 1, 1.035].forEach((scale, index) => {
+      context.beginPath(); context.ellipse(0, 0, major * scale, minor * scale, 0, 0, TAU);
+      context.strokeStyle = rgba(colors.all, index === 1 ? .19 : .045);
+      context.lineWidth = index === 1 ? .85 : .5; context.stroke();
+    });
+    context.restore();
+    // Tiny orbital dust moves with the system; no flashing or shooting stars.
+    for (let i = 0; i < 36; i++) {
+      const p = orbitPoint(i / 36 * TAU + clock * .022, major * 1.02, minor * 1.02, tilt, cx, cy);
+      context.fillStyle = rgba(colors.all, .06 + (p.depth + 1) * .05);
+      context.beginPath(); context.arc(p.x, p.y, i % 7 === 0 ? 1 : .55, 0, TAU); context.fill();
+    }
+    const worlds = ids.map((id, i) => {
+      const theta = i * TAU / 6 - 1.15 + clock * .038;
+      const point = orbitPoint(theta, major, minor, tilt, cx, cy);
+      const base = small ? width * .042 : clamp(major * .12, 23, 43);
+      return { id, index: i, ...point, radius: base * (1 + point.depth * .2) * [1.1, .88, .97, 1, .84, .78][i] };
+    }).sort((a, b) => a.depth - b.depth);
+    worlds.forEach(p => {
+      const light = Math.atan2(cy - p.y, cx - p.x);
+      halo(p.x, p.y, p.radius * 1.5, colors[p.id], .055);
+      world(p.id, p.x, p.y, p.radius, p.index * .7 + clock * .018, light, .82 + (p.depth + 1) * .08);
+    });
+  }
+  function paint() {
+    if (!width || !height) return;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    const progress = clamp(transitionAge / .62, 0, 1);
+    const blend = progress * progress * (3 - 2 * progress);
+    context.globalAlpha = previousFrame ? blend : 1;
+    if (starField) context.drawImage(starField, 0, 0, width, height);
+    if (current === 'all') planetarySystem(); else singleWorld(current);
+    context.globalAlpha = 1;
+    if (previousFrame) {
+      context.save(); context.globalAlpha = 1 - blend;
+      context.drawImage(previousFrame, 0, 0, width, height); context.restore();
+      if (progress >= 1) previousFrame = null;
+    }
+    if (stage) stage.classList.add('is-ready');
+  }
+  function frame(now) {
+    animation = 0;
+    if (document.hidden) { lastFrame = 0; return; }
+    const elapsed = lastFrame ? now - lastFrame : 1000 / 30;
+    if (elapsed >= 1000 / 30 - .5) {
+      const delta = Math.min(elapsed / 1000, .1);
+      lastFrame = now;
+      if (!paused) clock += delta;
+      transitionAge += delta;
+      paint();
+    }
+    if (!paused || previousFrame) animation = requestAnimationFrame(frame);
+  }
+  function requestFrame() {
+    if (!animation && !document.hidden) animation = requestAnimationFrame(frame);
+  }
+  function resize() {
+    width = window.innerWidth; height = window.innerHeight; small = width <= 780;
+    ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.ceil(width * ratio); canvas.height = Math.ceil(height * ratio);
+    previousFrame = null;
+    makeStars(); lastFrame = 0; requestFrame();
+  }
+  function setCollection(value) {
+    const next = validId(value);
+    if (next === current) return;
+    if (!reducedMotion.matches && width && height) {
+      previousFrame = makeSurface(canvas.width, canvas.height);
+      const previous = previousFrame.getContext('2d');
+      if (previous) previous.drawImage(canvas, 0, 0); else previousFrame = null;
+    } else previousFrame = null;
+    current = next; transitionAge = 0;
+    // Prioritize a newly selected material if the remaining worlds are still warming.
+    const pending = warmQueue.indexOf(current);
+    if (pending > 0) warmQueue.unshift(...warmQueue.splice(pending, 1));
+    lastFrame = 0; requestFrame();
+  }
+  function updateMotionButton() {
+    if (!motionButton) return;
+    motionButton.setAttribute('aria-pressed', String(paused));
+    motionButton.setAttribute('aria-label', paused ? '继续背景动效' : '暂停背景动效');
+    if (motionLabel) motionLabel.textContent = paused ? '继续动效' : '暂停动效';
+    motionButton.dataset.paused = String(paused);
+  }
+  function warmNext() {
+    if (!warmQueue.length || !window.PlanetMaterials) return;
+    if (document.hidden) { setTimeout(warmNext, 400); return; }
+    const id = warmQueue.shift(), scratch = makeSurface(96, 96), scratchContext = scratch.getContext('2d');
+    if (scratchContext) {
+      window.PlanetMaterials.draw(scratchContext, { id, x: 48, y: 48, radius: 40, lightAngle: -2.25 });
+      readyWorlds.add(id); requestFrame();
+    }
+    if (warmQueue.length) {
+      if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 300 });
+      else setTimeout(warmNext, 70);
+    }
+  }
+  window.addEventListener('explorer:collection', event => setCollection(event.detail && event.detail.id));
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 120); }, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(animation); animation = 0; lastFrame = 0; }
+    else { lastFrame = 0; requestFrame(); }
+  });
+  reducedMotion.addEventListener('change', event => {
+    paused = event.matches; previousFrame = null; updateMotionButton(); lastFrame = 0; requestFrame();
+  });
+  if (motionButton) motionButton.addEventListener('click', () => {
+    paused = !paused; updateMotionButton(); lastFrame = 0; requestFrame();
+  });
+  updateMotionButton(); resize();
+  if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 250 });
+  else setTimeout(warmNext, 80);
+})();
