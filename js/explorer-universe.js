@@ -136,11 +136,19 @@
         stars.moveTo(x, y - 5.5); stars.lineTo(x, y + 5.5); stars.stroke();
       }
     }
-    foregroundStars = Array.from({ length: small ? 48 : 110 }, (_, index) => ({
-      x: index % 3 === 0 ? rand() * .24 : index % 3 === 1 ? .24 + rand() * .52 : .76 + rand() * .24,
-      y: rand(), radius: 1.05 + rand() * 1.5, phase: rand() * TAU,
-      speed: .16 + rand() * .24, depth: .35 + rand() * .65
-    }));
+    // Ten existing stars become brighter beacons across both margins; no new loop.
+    const beaconPositions = [[.045,.19],[.95,.22],[.18,.37],[.84,.40],[.07,.55],
+      [.94,.58],[.16,.72],[.85,.75],[.045,.88],[.96,.90]];
+    foregroundStars = Array.from({ length: small ? 48 : 110 }, (_, index) => {
+      const beacon = index < beaconPositions.length;
+      return {
+        x: beacon ? beaconPositions[index][0] : index % 3 === 0 ? rand() * .24 : index % 3 === 1 ? .24 + rand() * .52 : .76 + rand() * .24,
+        y: beacon ? beaconPositions[index][1] : rand(),
+        radius: beacon ? 1.55 + rand() * 1.4 : 1.05 + rand() * 1.5,
+        phase: rand() * TAU, speed: beacon ? TAU / (3 + rand() * 4) : .16 + rand() * .24,
+        depth: .35 + rand() * .65, beacon, spike: beacon && index % 4 === 0
+      };
+    });
     // A still, high-resolution dust layer prevents large upscaled worlds looking flat.
     if (!grain) {
       grain = makeSurface(640, 640);
@@ -163,11 +171,21 @@
       const distance = Math.hypot(x - pointer.x, y - pointer.y);
       const attraction = pointer.strength * Math.max(0, 1 - distance / 250);
       x += (pointer.x - x) * attraction * .12; y += (pointer.y - y) * attraction * .12;
-      const pulse = .5 + Math.sin(clock * star.speed + star.phase) * .16;
-      const alpha = .28 + pulse * .45 + attraction * .24;
+      const wave = .5 + Math.sin(clock * star.speed + star.phase) * .5;
+      const pulse = star.beacon ? wave * wave * (3 - 2 * wave) : .34 + wave * .32;
+      const alpha = star.beacon ? .12 + pulse * .82 : .28 + pulse * .45 + attraction * .24;
       context.fillStyle = rgba(rgb, alpha);
-      context.beginPath(); context.arc(x, y, star.radius + attraction * .8, 0, TAU); context.fill();
-      if (star.radius > 1.08 || attraction > .5) halo(x, y, 8 + attraction * 6, rgb, .11 + attraction * .18);
+      context.beginPath(); context.arc(x, y, star.radius + attraction * .8 + (star.beacon ? pulse * .3 : 0), 0, TAU); context.fill();
+      if (star.radius > 1.08 || attraction > .5) {
+        halo(x, y, (star.beacon ? 11 + pulse * 5 : 8) + attraction * 6, rgb,
+          (star.beacon ? .035 + pulse * .3 : .11) + attraction * .18);
+      }
+      if (star.spike) {
+        const reach = star.radius * (1.4 + pulse * 1.1);
+        context.strokeStyle = rgba(rgb, pulse * .55); context.lineWidth = .7;
+        context.beginPath(); context.moveTo(x - reach, y); context.lineTo(x + reach, y);
+        context.moveTo(x, y - reach); context.lineTo(x, y + reach); context.stroke();
+      }
       if (attraction > .1) near.push({ x, y, distance, attraction });
     });
     if (pointer.strength > .01) {

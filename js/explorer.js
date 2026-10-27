@@ -23,6 +23,22 @@
     let state = { stack: 'all', q: '', order: 'newest', tag: '' };
     let visibleCount = pageSize;
     let searchTimer;
+    const historyKey = 'gokoExplorerV46';
+
+    function savedVisit() {
+        const saved = window.history.state && window.history.state[historyKey];
+        return saved && saved.url === location.pathname + location.search ? saved : null;
+    }
+    function rememberVisit(url = location.pathname + location.search + location.hash) {
+        // Keep state on this history entry, not globally: a new /explore/ stays unfiltered.
+        const entry = Object.assign({}, window.history.state);
+        entry[historyKey] = {
+            url: url.split('#')[0],
+            visibleCount,
+            scrollY: window.scrollY
+        };
+        window.history.replaceState(entry, '', url);
+    }
 
     function readLocation() {
         const params = new URLSearchParams(window.location.search);
@@ -35,7 +51,9 @@
         };
         query.value = state.q;
         order.value = state.order;
-        visibleCount = pageSize;
+        const saved = savedVisit();
+        visibleCount = saved && Number.isFinite(saved.visibleCount)
+            ? Math.max(pageSize, Math.min(rows.length, saved.visibleCount)) : pageSize;
     }
     function writeLocation() {
         const url = new URL(window.location.href);
@@ -44,7 +62,7 @@
         if (state.q) url.searchParams.set('q', state.q);
         if (state.order !== 'newest') url.searchParams.set('order', state.order);
         if (state.tag) url.searchParams.set('tag', state.tag);
-        window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+        rememberVisit(url.pathname + url.search + url.hash);
     }
     function render(animate) {
         document.body.dataset.collection = state.stack;
@@ -136,6 +154,7 @@
         const previousCount = visibleCount;
         visibleCount += pageSize;
         render(false);
+        rememberVisit();
         const next = Array.from(ledger.querySelectorAll('[data-article]:not([hidden])'))[previousCount];
         if (next) {
             const link = next.querySelector('h2 a');
@@ -152,8 +171,26 @@
         if (event.key === 'Escape' && document.activeElement === query) query.blur();
     });
     window.addEventListener('popstate', () => { clearTimeout(searchTimer); readLocation(); render(false); });
+    // Save before navigation as well as pagehide; no continuously running scroll handler.
+    ledger.addEventListener('click', event => {
+        if (event.target.closest('.entry-title-link')) rememberVisit();
+    });
+    window.addEventListener('pagehide', () => { clearTimeout(searchTimer); rememberVisit(); });
+    window.addEventListener('pageshow', event => {
+        // BFCache already preserves the DOM and scroll. Leave its restoration untouched.
+        if (event.persisted) return;
+        const saved = savedVisit();
+        const navigation = performance.getEntriesByType('navigation')[0];
+        if (!saved || !navigation || !['back_forward', 'reload'].includes(navigation.type) || location.hash) return;
+        requestAnimationFrame(() => {
+            // Native restoration normally wins; only fill in a missing restored position.
+            if (window.scrollY === 0 && Number.isFinite(saved.scrollY) && saved.scrollY > 0) {
+                window.scrollTo({ top: saved.scrollY, behavior: 'instant' });
+            }
+        });
+    });
     document.querySelectorAll('[data-enhanced]').forEach(element => { element.hidden = false; });
     readLocation();
-    render(true);
+    render(!savedVisit());
     if (new URLSearchParams(location.search).get('focus') === 'search') query.focus();
 })();

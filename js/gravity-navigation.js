@@ -61,6 +61,7 @@
     root.style.setProperty('--portal-opacity', '0');
     trigger.disabled = false;
     trigger.setAttribute('aria-label', '点击黑洞，唤出六颗技术方向行星');
+    trigger.title = '点击黑洞，唤出技术方向';
     planets.forEach(p => {
       p.alive = false; p.link.hidden = true; p.opacity = 0; p.trail = [];
       p.fragmentOrigin = null; p.breakup = 0; p.hovering = false;
@@ -78,7 +79,8 @@
       p.heldAngle = null; p.angleOffset = 0;
     });
     trigger.disabled = true;
-    trigger.setAttribute('aria-label', '行星正在环绕，请选择一个技术方向');
+    trigger.setAttribute('aria-label', '行星正在进入轨道');
+    trigger.title = '行星正在进入轨道';
     setPhase('summoning');
     status.textContent = '六个技术方向正在进入轨道。可以点击行星或英文名称，约五十秒后本轮结束。';
     engine.setIntensity(reduce.matches ? 1 : 7.2);
@@ -102,7 +104,7 @@
     const coreDiameter = g.core * 1.78;
     trigger.style.left = `${g.cx}px`; trigger.style.top = `${g.cy}px`;
     trigger.style.width = `${coreDiameter}px`; trigger.style.height = `${coreDiameter}px`;
-    if (phase === 'idle') return;
+    if (phase === 'idle' || didNavigate) return;
     const step = Math.min(dt, .25);
     if (phase === 'navigating') {
       transitionTime += step;
@@ -117,10 +119,14 @@
     elapsed += step;
     if (elapsed >= 1 && !burstEnded) {
       burstEnded = true; setPhase('orbiting'); engine.setIntensity(1);
+      trigger.disabled = false;
+      trigger.setAttribute('aria-label', '点击黑洞，查看全部文章');
+      trigger.title = '查看全部文章';
+      status.textContent = '点击行星查看对应技术方向，点击黑洞查看全部文章。';
     }
     if (elapsed >= 42 && phase !== 'dissolving') {
       setPhase('dissolving');
-      status.textContent = '行星正在逐渐解体。仍可选择尚未消失的行星。';
+      status.textContent = '行星正在逐渐解体。仍可选择尚未消失的行星，或点击黑洞查看全部文章。';
     }
     if (elapsed >= DURATION) {
       reset();
@@ -244,18 +250,27 @@
   }
   function choose(p, event) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    if (phase === 'idle' || phase === 'navigating' || !p.alive || p.breakup >= .42) { event.preventDefault(); return; }
+    if (phase === 'idle' || phase === 'navigating' || didNavigate || !p.alive || p.breakup >= .42) { event.preventDefault(); return; }
     event.preventDefault();
     selected = p; transitionTime = 0; didNavigate = false;
     zoomStart = { x:p.x, y:p.y, radius:p.radius, spin:p.spin,
       lightAngle:Math.atan2(geometry.cy - p.y, geometry.cx - p.x) };
     setPhase('navigating'); body.classList.add('portal-navigating');
+    trigger.disabled = true;
     planets.forEach(world => { world.link.hidden = true; });
     status.textContent = `正在进入 ${p.link.dataset.label}。`;
     engine.setIntensity(reduce.matches ? 1 : 2.5);
     engine.setInteractive(true);
   }
-  trigger.addEventListener('click', summon);
+  trigger.addEventListener('click', () => {
+    if (phase === 'idle') { summon(); return; }
+    if (didNavigate || (phase !== 'orbiting' && phase !== 'dissolving')) return;
+    didNavigate = true;
+    trigger.disabled = true;
+    planets.forEach(p => { p.link.hidden = true; });
+    status.textContent = '正在打开全部文章。';
+    window.location.assign(trigger.dataset.exploreUrl);
+  });
   planets.forEach(p => {
     p.link.addEventListener('click', event => choose(p, event));
     p.link.addEventListener('pointerenter', () => { p.hovering = true; });

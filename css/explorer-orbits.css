@@ -299,3 +299,12 @@
 .celestial-index .entry-title-link:hover + .entry-arrow,
 .celestial-index .entry-title-link:focus-visible + .entry-arrow,
 .celestial-index .entry-title-link.is-pointer-lit + .entry-arrow { color: var(--orbit-color); transform: translate(2px, -2px); }
+
+/* A brief content entrance; the existing sky remains visible and navigation is immediate. */
+@keyframes explorer-content-arrive {
+  from { opacity: .55; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .celestial-index .explorer-main { animation: explorer-content-arrive 300ms ease-out both; }
+}

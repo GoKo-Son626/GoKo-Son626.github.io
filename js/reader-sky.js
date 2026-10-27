@@ -1,4 +1,4 @@
-/* Two CSS clouds only: no frame loop, pointer listener, canvas or particle state. */
+/* Pause the small CSS clouds and five stars; no frame loop or pointer listeners. */
 (function () {
     'use strict';
 

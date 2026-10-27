@@ -7,6 +7,7 @@ body.celestial-reader:not(.portal) {
   --reader-muted: #a0adbc;
   --reader-line: rgba(var(--reader-accent), .19);
   --reader-link: rgb(var(--reader-accent));
+  --reader-gutter: max(28px, calc((100vw - 1360px) / 2));
   isolation: isolate;
   color-scheme: dark;
   background: var(--reader-bg);
@@ -44,19 +45,24 @@ body.celestial-reader[data-reader-stack="tools"] {
   --reader-card: #141d28;
 }
 
-/* Static pinpoints and two small gradient surfaces; the viewport never animates. */
+/* Explicit background/content layers keep the sky visible without crossing the text. */
+body.celestial-reader > .section,
+body.celestial-reader > .footer {
+  position: relative;
+  z-index: 1;
+}
 .celestial-reader .reader-sky {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
   contain: strict;
   background-image:
-    radial-gradient(circle at 23px 43px, rgba(235, 241, 248, .42) .7px, transparent 1.3px),
-    radial-gradient(circle at 127px 173px, rgba(var(--reader-accent), .5) .8px, transparent 1.5px),
-    radial-gradient(circle at 79px 107px, rgba(230, 239, 249, .25) .5px, transparent 1.1px),
-    radial-gradient(circle at 193px 29px, rgba(var(--reader-accent), .27) .6px, transparent 1.3px);
+    radial-gradient(circle at 23px 43px, rgba(235, 241, 248, .65) .9px, transparent 1.7px),
+    radial-gradient(circle at 127px 173px, rgba(var(--reader-accent), .6) 1px, transparent 1.8px),
+    radial-gradient(circle at 79px 107px, rgba(230, 239, 249, .36) .6px, transparent 1.2px),
+    radial-gradient(circle at 193px 29px, rgba(var(--reader-accent), .4) .8px, transparent 1.5px);
   background-size: 251px 293px, 367px 431px, 173px 233px, 419px 347px;
 }
 .celestial-reader .reader-sky__nebula {
@@ -64,28 +70,25 @@ body.celestial-reader[data-reader-stack="tools"] {
   display: block;
   width: 420px;
   height: 420px;
-  max-width: 70vw;
-  max-height: 70vw;
   border-radius: 50%;
   pointer-events: none;
   contain: paint;
   background:
-    radial-gradient(ellipse at 43% 48%, rgba(var(--reader-accent), .16), transparent 50%),
-    radial-gradient(ellipse at 65% 38%, rgba(var(--reader-accent), .09), transparent 38%),
-    radial-gradient(ellipse at 33% 69%, rgba(var(--reader-accent), .07), transparent 42%);
+    radial-gradient(ellipse at 46% 45%, rgba(var(--reader-accent), .34), transparent 56%),
+    radial-gradient(ellipse at 66% 30%, rgba(var(--reader-accent), .23), transparent 42%),
+    radial-gradient(ellipse at 30% 72%, rgba(var(--reader-accent), .17), transparent 48%);
   animation: reader-nebula-drift 180s ease-in-out infinite alternate;
 }
 .celestial-reader .reader-sky__nebula--near {
-  top: 19vh;
-  left: -190px;
-  transform: rotate(-24deg);
+  top: 18vh;
+  left: calc(var(--reader-gutter) * .55 - 210px);
 }
 .celestial-reader .reader-sky__nebula--far {
-  right: -180px;
-  bottom: 6vh;
+  right: calc(var(--reader-gutter) * .5 - 180px);
+  bottom: 9vh;
   width: 360px;
   height: 360px;
-  opacity: .7;
+  opacity: .85;
   animation-duration: 230s;
   animation-delay: -90s;
   animation-direction: alternate-reverse;
@@ -94,8 +97,61 @@ body.celestial-reader[data-reader-stack="tools"] {
   from { transform: translateY(-8px) rotate(-24deg); }
   to { transform: translateY(12px) rotate(18deg); }
 }
-.celestial-reader.reader-sky-paused .reader-sky__nebula {
+/* A static crescent, centered on the outer gutter: no texture or rendering loop. */
+.celestial-reader .reader-sky__crescent {
+  position: absolute;
+  top: 33vh;
+  right: calc(var(--reader-gutter) * .8 - 280px);
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 61% 50%, var(--reader-bg) 59%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(var(--reader-accent), .1) 61%, rgba(var(--reader-accent), .8) 66%, rgba(var(--reader-accent), .2) 68%, transparent 72%);
+  opacity: .7;
+}
+.celestial-reader .reader-sky__star {
+  --star-size: 3px;
+  position: absolute;
+  display: block;
+  width: var(--star-size);
+  height: var(--star-size);
+  border-radius: 50%;
+  background: #eef8ff;
+  box-shadow: 0 0 7px 1px rgba(var(--reader-accent), .6);
+  animation: reader-star-breathe 5.2s ease-in-out infinite;
+}
+.celestial-reader .reader-sky__star:nth-child(1) { left: calc(var(--reader-gutter) * .48); top: 29%; animation-delay: -1.7s; }
+.celestial-reader .reader-sky__star:nth-child(2) { --star-size: 4px; right: calc(var(--reader-gutter) * .38); top: 38%; animation-duration: 6.7s; animation-delay: -4.1s; }
+.celestial-reader .reader-sky__star:nth-child(3) { --star-size: 2px; left: calc(var(--reader-gutter) * .7); top: 54%; animation-duration: 3.8s; animation-delay: -2.6s; }
+.celestial-reader .reader-sky__star:nth-child(4) { --star-size: 3.5px; right: calc(var(--reader-gutter) * .7); top: 67%; animation-duration: 4.6s; animation-delay: -.6s; }
+.celestial-reader .reader-sky__star:nth-child(5) { --star-size: 2.5px; left: calc(var(--reader-gutter) * .36); top: 77%; animation-duration: 5.9s; animation-delay: -3.4s; }
+.celestial-reader .reader-sky__star:nth-child(even)::before,
+.celestial-reader .reader-sky__star:nth-child(even)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--star-size) * 4);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--reader-accent), .85), transparent);
+  transform: translate(-50%, -50%);
+}
+.celestial-reader .reader-sky__star:nth-child(even)::after { transform: translate(-50%, -50%) rotate(90deg); }
+@keyframes reader-star-breathe {
+  0%, 100% { opacity: .2; transform: scale(.8); }
+  48% { opacity: .95; transform: scale(1.12); }
+}
+.celestial-reader.reader-sky-paused :is(.reader-sky__nebula, .reader-sky__star) {
   animation-play-state: paused;
+}
+/* A short, theme-colored arrival, with no click interception or navigation delay. */
+.celestial-reader .column-main > .card:first-child {
+  animation: reader-arrive 300ms ease-out;
+}
+@keyframes reader-arrive {
+  from { opacity: .7; }
+  to { opacity: 1; }
 }
 
 /* Opaque reading surfaces keep all scenery outside the text and sidebar cards. */
@@ -195,11 +251,14 @@ body.celestial-reader ::selection {
 }
 
 @media (max-width: 767px) {
-  .celestial-reader .reader-sky__nebula--near { left: -120px; }
+  .celestial-reader .reader-sky__nebula--near { left: -190px; opacity: .65; }
+  .celestial-reader :is(.reader-sky__crescent, .reader-sky__stars) { display: none; }
   .celestial-reader .reader-sky__nebula--far { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .celestial-reader .reader-sky__nebula { animation: none; }
+  .celestial-reader :is(.reader-sky__nebula, .reader-sky__star),
+  .celestial-reader .column-main > .card:first-child { animation: none; }
+  .celestial-reader .reader-sky__star { opacity: .65; }
 }
 @media print {
   .celestial-reader .reader-sky { display: none; }
