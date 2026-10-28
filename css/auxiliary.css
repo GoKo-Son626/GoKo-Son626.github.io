@@ -1,0 +1,41 @@
+/* Shared auxiliary pages: reuse the reader sky, no additional renderer. */
+body.celestial-auxiliary { --reader-accent: 164, 193, 226; }
+body.celestial-auxiliary .column-main { min-width: 0; }
+body.celestial-auxiliary .column-main > .card > .card-content { padding: 30px 34px; }
+body.celestial-auxiliary .column-main .menu-label { font-size: 15px; letter-spacing: .08em; margin-bottom: 24px; color: var(--reader-text) !important; }
+body.celestial-auxiliary .card { border-color: rgba(var(--reader-accent), .16); }
+body.celestial-auxiliary .breadcrumb { white-space: normal; }
+body.celestial-auxiliary .breadcrumb ul { flex-wrap: wrap; }
+body.celestial-auxiliary .breadcrumb a { color: var(--reader-link); overflow-wrap: anywhere; }
+body.celestial-auxiliary .breadcrumb li.is-active a { color: var(--reader-text); }
+body.celestial-auxiliary .breadcrumb li + li::before { color: var(--reader-muted); }
+body.celestial-auxiliary .tags.has-addons { max-width: 100%; }
+body.celestial-auxiliary .tags.has-addons .tag { height: auto; min-height: 2em; padding: .35em .75em; white-space: normal; overflow-wrap: anywhere; border: 1px solid var(--reader-line); }
+body.celestial-auxiliary .tags.has-addons .tag + .tag { background: rgba(var(--reader-accent), .12); }
+body.celestial-auxiliary .tags.has-addons:hover .tag { border-color: rgba(var(--reader-accent), .5); color: var(--reader-text); }
+body.celestial-auxiliary .timeline { border-left-color: var(--reader-line); }
+body.celestial-auxiliary .timeline .media::before { background: var(--reader-link); box-shadow: 0 0 9px rgba(var(--reader-accent), .2); }
+body.celestial-auxiliary .timeline .media:last-child::after { background: var(--reader-card); }
+body.celestial-auxiliary .media-content { min-width: 0; }
+body.celestial-auxiliary .media-content .title { line-height: 1.6; overflow-wrap: anywhere; }
+body.celestial-auxiliary .media-content :is(.date, .categories) { color: var(--reader-muted); }
+body.celestial-auxiliary .media + .media { border-top-color: var(--reader-line); }
+body.celestial-auxiliary .pagination :is(.pagination-link, .pagination-previous, .pagination-next) { background: var(--reader-card); border: 1px solid var(--reader-line); box-shadow: none; color: var(--reader-link); }
+body.celestial-auxiliary .pagination a { color: inherit; }
+body.celestial-auxiliary .pagination .is-current { background: rgba(var(--reader-accent), .19); color: var(--reader-text); filter: none !important; }
+body.celestial-auxiliary .pagination-ellipsis { color: var(--reader-muted); }
+body.celestial-auxiliary #post-calendar { background: transparent; }
+body.celestial-auxiliary #post-calendar canvas { filter: none !important; }
+body.celestial-auxiliary .post-calendar-pre { overflow-x: auto; max-width: 100%; margin-bottom: 30px; scrollbar-width: thin; scrollbar-color: rgba(var(--reader-accent), .3) transparent; }
+body.celestial-auxiliary .friend-link { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 22px; margin: 0 0 24px; border: 1px solid var(--reader-line); border-radius: 10px; background: rgba(var(--reader-accent), .04); color: var(--reader-text); text-decoration: none; }
+body.celestial-auxiliary .friend-link:hover { border-color: rgba(var(--reader-accent), .5); background: rgba(var(--reader-accent), .08); text-decoration: none; }
+body.celestial-auxiliary .friend-link img { display: block; width: 64px; height: 64px; margin: 0; object-fit: cover; border-radius: 50%; }
+body.celestial-auxiliary .friend-link > span { font-size: 20px; overflow-wrap: anywhere; }
+body.celestial-auxiliary .friend-link .friend-link-arrow { margin-left: auto; color: var(--reader-muted); }
+body.celestial-auxiliary :is(a, .post-calendar-pre):focus-visible { outline: 2px solid var(--reader-link); outline-offset: 4px; }
+@media (max-width: 767px) {
+  body.celestial-auxiliary .column-main > .card > .card-content { padding: 24px 20px; }
+  body.celestial-auxiliary .timeline { margin-left: .25rem; padding-left: 1.5rem; }
+  body.celestial-auxiliary .friend-link { gap: 12px; padding: 16px; }
+  body.celestial-auxiliary .friend-link > span { font-size: 17px; }
+}
