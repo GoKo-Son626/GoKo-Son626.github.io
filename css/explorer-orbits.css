@@ -32,17 +32,6 @@
   background: linear-gradient(90deg, #04081326 0%, #04081338 22%, #0408131a 48%, #04081305 76%),
     linear-gradient(0deg, #04081366, transparent 70%);
 }
-.universe-marks { position: absolute; right: 4.5vw; top: 53vh; width: 170px; height: 185px; }
-.universe-mark { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; color: var(--orbit-color); opacity: 0; transform: translateY(8px); transition: opacity .8s, transform .8s; }
-.universe-mark svg { width: 146px; height: 110px; opacity: .35; }
-.universe-mark > span { margin-top: 10px; font: 11px var(--mono); letter-spacing: .26em; opacity: .45; }
-.universe-mark small { margin-top: 9px; font: 7px var(--mono); letter-spacing: .07em; white-space: nowrap; opacity: .35; }
-[data-collection="cfs"] .universe-mark[data-world="cfs"],
-[data-collection="arm"] .universe-mark[data-world="arm"],
-[data-collection="eds"] .universe-mark[data-world="eds"],
-[data-collection="linux"] .universe-mark[data-world="linux"],
-[data-collection="ebpf"] .universe-mark[data-world="ebpf"],
-[data-collection="tools"] .universe-mark[data-world="tools"] { opacity: 1; transform: none; }
 .celestial-index .explorer-header {
   background: rgba(5, 9, 20, .72);
   border-color: rgba(var(--orbit-rgb), .14);
@@ -139,17 +128,14 @@
 @media (min-width: 1600px) {
   .celestial-index .explorer-shell { max-width: 1480px; }
   .celestial-index .explorer-main { padding-right: 100px; }
-  .universe-marks { right: max(3vw, calc((100vw - 1500px) / 2 - 110px)); }
 }
 @media (max-width: 1100px) {
   .celestial-index .ledger-entry { padding: 23px 18px; column-gap: 12px; }
   .celestial-index .entry-content h2 { font-size: 16px; }
   .celestial-index .index-heading > div { max-width: 80%; }
-  .universe-marks { right: 3vw; opacity: .75; }
 }
 @media (max-width: 780px) {
   .universe-shade { background: linear-gradient(90deg, #040813bd, #04081324), linear-gradient(0deg, #040813d9, #04081310 85%); }
-  .universe-marks { display: none; }
   .celestial-index .explorer-sidebar { padding-top: 21px; background: none; }
   .celestial-index .collection-link { padding: 8px 12px; border-color: #afc7e01a; border-radius: 5px; background: #060c19b8; }
   .celestial-index .collection-symbol { width: 8px; height: 8px; flex-shrink: 0; }
@@ -308,3 +294,76 @@
 @media (prefers-reduced-motion: no-preference) {
   .celestial-index .explorer-main { animation: explorer-content-arrive 300ms ease-out both; }
 }
+
+.stack-repository { display: none; }
+[data-collection="linux"].celestial-index .stack-repository { display: inline-block; margin-top: .75rem; color: var(--orbit-color); font-size: .8rem; text-underline-offset: .25em; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .planet-arrival canvas { transform-origin: 84% 40%; animation: planet-arrives .85s ease-out both; }
+  .system-arrival canvas { transform-origin: 76% 38%; animation: system-arrives .75s ease-out both; }
+  @keyframes planet-arrives { from { transform: scale(1.46); opacity: .35; } }
+  @keyframes system-arrives { from { transform: scale(1.22); opacity: .1; } }
+}
+
+.browse-tools { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem; margin: 1.1rem 0; }
+.browse-mode, .kind-options { display: flex; gap: .25rem; }
+.browse-tools button { background: transparent; color: #a4b4c6; border: 1px solid transparent; border-radius: 1rem; padding: .32rem .8rem; cursor: pointer; font: inherit; font-size: .8rem; }
+.browse-tools button[aria-pressed=true] { color: #ebf6ff; background: #85b7e315; border-color: #b4d8f442; }
+.series-routes { margin: 1rem 0; border-block: 1px solid #a4c5e431; }
+.series-route + .series-route { border-top: 1px solid #a4c5e420; }
+.series-route summary { cursor: pointer; padding: .85rem .25rem; color: #d9e7f5; }
+.series-route summary small { float: right; font: .75rem monospace; color: #a9b9ca; }
+.series-route p { color: #a9b9ca; font-size: .86rem; margin: 0 .4rem .7rem; }
+.series-route ol { list-style: decimal-leading-zero; padding-left: 2.6rem; margin: .5rem 0 1rem; }
+.series-route li { padding: .3rem .2rem; color: #a8b8c8; font-size: .9rem; }
+.series-route a { color: #dcefff; }
+
+/* A photographic spread above a continuous, transparent article index. */
+.collection-spread {
+  position: relative; isolation: isolate; max-width: 1440px; margin: auto;
+  min-height: clamp(280px, 40svh, 480px); padding: clamp(34px, 5.5vh, 76px) clamp(34px, 6vw, 112px) 22px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(22px, 3.5vh, 44px);
+}
+.collection-spread .spread-copy { width: min(56%, 38rem); }
+.collection-spread .section-marker { display: block; margin: 0 0 .8rem; color: #b6c2ce; font: .65rem/1.2 var(--mono); letter-spacing: .19em; }
+.collection-spread h1 { margin: 0 0 .35rem; font: 500 clamp(3rem, 5.4vw, 5.8rem)/1.16 'Songti SC','Noto Serif CJK SC','Source Han Serif SC',serif; letter-spacing: -.055em; color: #f2eee7; }
+.collection-spread .collection-description { color: #c5c8cb; line-height: 1.7; font-size: .91rem; }
+.spread-caption { display: flex; gap: 1.15rem; align-items: baseline; color: #a8b1bd; font: .75rem/1.6 var(--mono); font-variant-numeric: tabular-nums; }
+.spread-caption .index-total, .spread-caption .index-total strong { all: unset; }
+.spread-caption .index-total strong { color: #f3ede1; }
+.spread-caption a { color: #dce3e8; text-underline-offset: .25rem; }
+.spread-caption a:hover { text-decoration: underline; }
+.celestial-index .explorer-shell { border-top: 1px solid #bcb39740; padding-inline: clamp(15px, 3vw, 60px); grid-template-columns: clamp(164px, 17vw, 236px) minmax(0,1fr); }
+.celestial-index .explorer-sidebar { padding-top: 2rem; border: 0; background: none; }
+.celestial-index .explorer-main { padding: 1.45rem clamp(1rem, 4vw, 4.5rem) 0; scroll-margin-top: 90px; }
+.celestial-index .index-controls { border: 0; border-bottom: 1px solid #d3dcdf58; border-radius: 0; box-shadow: none; background: linear-gradient(to right,#08101bd9,#08101b32); min-height: 48px; padding: 0 .6rem; }
+.celestial-index .search-field input { height: 48px; }
+.celestial-index .index-controls:focus-within { border-color: var(--orbit-color); }
+.celestial-index .article-ledger { gap: 0; }
+.celestial-index .ledger-entry { border: 0; border-top: 1px solid #a5b6be35; border-radius: 0; background: none; padding: 1.35rem .1rem; gap: clamp(14px, 2.4vw, 44px); grid-template-columns: 4.4rem minmax(0,1fr); }
+.celestial-index .ledger-entry:focus-within, .celestial-index .ledger-entry:hover { border-color: #a5b6be35; }
+.celestial-index .entry-date { position: static; grid-column: auto; text-align: left; align-self: start; margin: 0; padding: .1rem 0; font-variant-numeric: tabular-nums; }
+.celestial-index .entry-date strong { display: block; color: #d8dcda; font: 400 clamp(1.15rem, 1.9vw, 1.7rem)/1.12 Georgia,serif; }
+.celestial-index .entry-date span { display: block; font: .63rem/1.8 var(--mono); letter-spacing: .12em; color: #95a1aa; }
+.celestial-index .entry-meta { padding-right: 0; }
+.celestial-index .entry-chapter { padding-left: .5rem; border-left: 1px solid #b7bdc355; }
+.celestial-index .entry-content h2 { font-size: clamp(1.02rem,1.4vw,1.29rem); font-weight: 500; line-height: 1.65; letter-spacing: .008em; margin: .23rem 0 .5rem; }
+.celestial-index .entry-tags a { border: 0; background: none; padding: 0 .3rem 0 0; }
+.celestial-index .collection-link { border-radius: 0; }
+.celestial-index .collection-link.is-active { background: linear-gradient(90deg,rgba(var(--nav-rgb),.09),transparent 96%); border-color: transparent; box-shadow: none; }
+.celestial-index .collection-symbol, .celestial-index .collection-system { height: 1px; width: 9px; border: 0; background: rgb(var(--nav-rgb)); border-radius: 0; box-shadow: none; }
+.celestial-index .collection-symbol::before, .celestial-index .collection-symbol::after { display: none; }
+.universe-shade { background: linear-gradient(90deg,#04081099 0%,#04081040 48%,transparent 70%),linear-gradient(0deg,#040810b0,transparent 60%); }
+@media (max-width:780px) {
+  .collection-spread { min-height: clamp(242px,37svh,330px); padding: 2rem 20px 1.2rem; gap: 1.25rem; }
+  .collection-spread .spread-copy { width: 68%; }
+  .collection-spread h1 { font-size: clamp(2.65rem,8.5vw,4rem); }
+  .collection-spread .collection-description { font-size: .78rem; margin: .5rem 0; }
+  .spread-caption { gap: .7rem; font-size: .67rem; }
+  .celestial-index .explorer-shell { padding-inline: 0; }
+  .celestial-index .explorer-sidebar { padding-top: .8rem; }
+  .celestial-index .explorer-main { padding: .2rem 20px 0; }
+  .celestial-index .ledger-entry { grid-template-columns: 2.8rem minmax(0,1fr); gap: .7rem; }
+  .universe-shade { background: linear-gradient(90deg,#03071299,transparent 88%),linear-gradient(0deg,#030713b0,transparent 72%); }
+}
+.celestial-index .entry-title-link mark { background: transparent; color: var(--orbit-color); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; }

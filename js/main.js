@@ -71,7 +71,7 @@ function loadMainJs($, moment, ClipboardJS, config) {
         });
 
 
-        const clipboard = config.article.highlight.clipboard;
+        const clipboard = config.article.highlight.clipboard && !document.querySelector('script[src*="/js/reading-tools.js"]');
         const fold = config.article.highlight.fold.trim();
 
         $('figure.highlight').each(function () {

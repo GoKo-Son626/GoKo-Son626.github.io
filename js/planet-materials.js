@@ -46,10 +46,11 @@
 
   function makeWorld(id) {
     var p = palettes[id] || palettes.tools, rand = random(p.seed), count = SIZE * SIZE;
-    var surface = new Float32Array(count * 3), normals = new Float32Array(count * 3);
-    var relief = new Float32Array(count), alpha = new Uint8Array(count), mineral = new Float32Array(count);
+    var surface = new Uint8ClampedArray(count * 3), normals = new Float32Array(count * 3);
+    var relief = new Float32Array(count), alpha = new Uint8Array(count), mineral = new Uint8ClampedArray(count);
+    const gaseous = rings[id].clouds;
     var craters = [];
-    for (var k = 0; k < p.craters; k++) {
+    for (var k = 0; k < (gaseous ? 0 : p.craters); k++) {
       var az = rand() * TAU, nz = .05 + rand() * .94, xy = Math.sqrt(1 - nz * nz);
       craters.push({ x: Math.cos(az) * xy, y: Math.sin(az) * xy, z: nz,
         radius: .025 + Math.pow(rand(), 2.3) * .24, depth: .6 + rand() * .7 });
@@ -58,7 +59,7 @@
       for (var x = 0; x < SIZE; x++) {
         var i = y * SIZE + x, nx = (x + .5 - SIZE / 2) / (SIZE * .47), ny = (y + .5 - SIZE / 2) / (SIZE * .47);
         var angle = Math.atan2(ny, nx);
-        var edge = 1 - .011 * Math.sin(angle * 5 + p.seed) - .006 * Math.sin(angle * 11) - .003 * Math.sin(angle * 23 + 1);
+        var edge = gaseous ? 1 : 1 - .002 * Math.sin(angle * 5 + p.seed) - .001 * Math.sin(angle * 13);
         var rr = (nx * nx + ny * ny) / (edge * edge);
         if (rr >= 1) continue;
         var nz2 = Math.sqrt(1 - rr), u = nx * 3.6 + 13, v = ny * 3.6 + 17, w = nz2 * 3.6 + 7;
@@ -77,15 +78,26 @@
           craterTone += bowl * 2.8 + lip * 3;
         }
         var tone = clamp((terrain - .22) * 1.65 + craterTone + (detail - .5) * .25, 0, 1);
-        var ice = id === 'eds' ? Math.pow(clamp((terrain - .36) * 3.1, 0, 1), .65) * .62 : 0;
-        relief[i] = height - fissure * .009;
+        const latitude = ny * Math.sqrt(1 - rings[id].opening ** 2) - rings[id].opening * nz2;
+        if (gaseous) {
+          // Broad alternating belts curve around the visible hemisphere. Smaller eddies
+          // distort the boundaries without turning the surface into a striped diagram.
+          const warp = (terrain - .5) * .15;
+          const belt = Math.sin((latitude + warp) * gaseous + .7 * Math.sin(latitude * 8));
+          const filaments = Math.sin((latitude + warp) * 111 + nx * 1.8);
+          const polarHaze = Math.min(.25, Math.abs(latitude) ** 4 * .54);
+          tone = clamp(.51 + belt * .19 + filaments * .035 + (terrain - .5) * .67 + polarHaze, 0, 1);
+        }
+        if (id === 'linux') tone *= .68 + .32 * Math.min(1, vein * 16);
+        const ice = id === 'eds' ? clamp((terrain - .31) * 2.6, 0, .78) : 0;
+        relief[i] = gaseous ? terrain * .012 : height - fissure * .006;
         alpha[i] = Math.round(clamp((1 - Math.sqrt(rr)) * SIZE * .47, 0, 1) * 255);
-        mineral[i] = detail > .84 && terrain > .53 ? (detail - .84) * 3.4 : 0;
+        mineral[i] = !gaseous && detail > .84 && terrain > .53 ? (detail - .84) * 255 : 0;
         normals[i * 3] = nx; normals[i * 3 + 1] = ny; normals[i * 3 + 2] = nz2;
         for (var channel = 0; channel < 3; channel++) {
           var color = mix(p.low[channel], p.high[channel], tone);
-          color = mix(color, p.vein[channel], ice + (vein < .018 ? .17 : 0));
-          surface[i * 3 + channel] = color * (1 - fissure * (id === 'eds' ? .48 : .22));
+          color = mix(color, p.vein[channel], ice + (!gaseous && vein < .018 ? .13 : 0));
+          surface[i * 3 + channel] = color * (1 - fissure * (gaseous ? .025 : id === 'eds' ? .4 : .16));
         }
       }
     }
@@ -98,21 +110,22 @@
       var inv = 1 / Math.sqrt(ax * ax + ay * ay + az2 * az2);
       normals[at * 3] = ax * inv; normals[at * 3 + 1] = ay * inv; normals[at * 3 + 2] = az2 * inv;
     }
-    return { palette: p, surface: surface, normals: normals, alpha: alpha, mineral: mineral, frames: new Map() };
+    return { palette: p, surface, normals, alpha, mineral, frames: new Map(),
+      dust: makeDensityProfile(rings[id], p.seed), ringFrames: new Map() };
   }
   function getWorld(id) { return worlds[id] || (worlds[id] = makeWorld(id)); }
   function frame(world, angle) {
     var key = Math.round(((angle % TAU + TAU) % TAU) / TAU * 40) % 40;
     if (world.frames.has(key)) return world.frames.get(key);
     var c = canvas(), context = c.getContext('2d'), pixels = context.createImageData(SIZE, SIZE), data = pixels.data;
-    var a = key / 40 * TAU, lx = Math.cos(a) * .88, ly = Math.sin(a) * .88, lz = .475;
+    var a = key / 40 * TAU, lx = Math.cos(a) * SUN_XY, ly = Math.sin(a) * SUN_XY, lz = SUN_Z;
     for (var i = 0; i < SIZE * SIZE; i++) {
       if (!world.alpha[i]) continue;
       var nx = world.normals[i * 3], ny = world.normals[i * 3 + 1], nz = world.normals[i * 3 + 2];
       var dot = nx * lx + ny * ly + nz * lz;
-      var diffuse = Math.max(0, dot), earthshine = .12 + Math.max(0, -nx * .25 - ny * .45 + nz * .3) * .09;
-      var illumination = earthshine + Math.pow(diffuse, .85) * 1.15;
-      var spec = Math.pow(Math.max(0, nx * lx * .58 + ny * ly * .58 + nz * .88), 24) * world.mineral[i] * 110;
+      var diffuse = Math.max(0, dot), earthshine = .075 + Math.max(0, -nx * .25 - ny * .45 + nz * .3) * .09;
+      var illumination = earthshine + Math.pow(diffuse, .68) * 1.25;
+      var spec = Math.pow(Math.max(0, nx * lx * .58 + ny * ly * .58 + nz * .88), 24) * world.mineral[i] * 1.45;
       var rim = Math.pow(1 - Math.max(0, nz), 5) * Math.max(0, dot + .3) * world.palette.atmosphere * 250;
       for (var channel = 0; channel < 3; channel++) {
         data[i * 4 + channel] = clamp(world.surface[i * 3 + channel] * illumination + spec + rim * world.palette.rim[channel] / 180, 0, 255);
@@ -121,15 +134,113 @@
     }
     context.putImageData(pixels, 0, 0);
     // Bound retained memory while keeping commonly reused light directions warm.
-    if (world.frames.size >= 16) world.frames.delete(world.frames.keys().next().value);
+    if (world.frames.size >= 4) world.frames.delete(world.frames.keys().next().value);
     world.frames.set(key, c);
     return c;
   }
 
+  const SUN_Z = .36;
+  const SUN_XY = Math.sqrt(1 - SUN_Z * SUN_Z);
+  const rings = {
+    cfs:   { tilt: -.22, opening: .36, inner: 1.20, outer: 1.98, gap: .65, color: [196, 177, 155], clouds: 18 },
+    arm:   { tilt: -.51, opening: .24, inner: 1.28, outer: 1.86, gap: .73, color: [182, 177, 186] },
+    eds:   { tilt:  .29, opening: .40, inner: 1.17, outer: 1.90, gap: .58, color: [190, 205, 204] },
+    linux: { tilt: -.34, opening: .29, inner: 1.20, outer: 1.89, gap: .68, color: [196, 163, 139] },
+    ebpf:  { tilt:  .14, opening: .23, inner: 1.35, outer: 2.06, gap: .69, color: [179, 192, 180], clouds: 12 },
+    tools: { tilt: -.74, opening: .35, inner: 1.25, outer: 1.84, gap: .62, color: [198, 195, 185] }
+  };
+
+  function smoothEdge(lo, hi, value) {
+    const t = clamp((value - lo) / (hi - lo), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  // Normal optical depth across the sheet. The density is coherent around a whole
+  // orbit, so a distant ring resolves into broad bands instead of flickering specks.
+  function makeDensityProfile(p, seed) {
+    const samples = new Float32Array(512);
+    const profilePhase = seed * .039;
+    for (let i = 0; i < samples.length; i++) {
+      const t = i / (samples.length - 1);
+      const shelf = smoothEdge(0, .2, t) * (1 - smoothEdge(.95, 1, t));
+      const main = smoothEdge(.18, .26, t) * (1 - smoothEdge(p.gap - .045, p.gap, t));
+      const outer = smoothEdge(p.gap + .035, p.gap + .057, t) * (1 - smoothEdge(.91, .97, t));
+      const laminae = noise(t * 23, 0, 0, seed) * .32 + noise(t * 128, 0, 0, seed) * .20;
+      const radialWaves = .80 + .13 * Math.cos(t * 81 + profilePhase) + .07 * Math.cos(t * 211);
+      const hairline = 1 - .45 * Math.exp(-(((t - .87) / .013) ** 2));
+      samples[i] = shelf * (.024 + (main * .70 + outer * .34) * (.65 + laminae)) * radialWaves * hairline;
+    }
+    return samples;
+  }
+
+  function sheetDensity(world, p, distance) {
+    const t = (distance - p.inner) / (p.outer - p.inner);
+    if (t <= 0 || t >= 1) return 0;
+    return world.dust[Math.round(t * (world.dust.length - 1))];
+  }
+
+  // Orthographic ray intersections for a unit sphere and its inclined dust sheet.
+  // A single transparent plate carries both the visible ring and the shadow it
+  // casts onto the dayside. Only the last light direction per resolution is retained.
+  function ringPlate(world, p, light, large) {
+    const key = Math.round((light - p.tilt) / TAU * 48);
+    const cached = world.ringFrames.get(large);
+    if (cached && cached.key === key) return cached;
+    const resolution = large ? 172 : 47; // pixels per globe radius
+    const halfWidth = Math.ceil((p.outer + .015) * resolution);
+    const halfHeight = resolution + 1;
+    const plate = cached ? cached.image : document.createElement('canvas');
+    if (!cached) { plate.width = halfWidth * 2; plate.height = halfHeight * 2; }
+    const ctx = plate.getContext('2d');
+    const pixels = cached ? cached.pixels : ctx.createImageData(plate.width, plate.height);
+    if (cached) pixels.data.fill(0);
+    const data = pixels.data, cosInclination = p.opening;
+    const sinInclination = Math.sqrt(1 - cosInclination ** 2);
+    const slope = sinInclination / cosInclination;
+    const sunX = Math.cos(key * TAU / 48) * SUN_XY;
+    const sunY = Math.sin(key * TAU / 48) * SUN_XY;
+    const sunNormal = SUN_Z * cosInclination - sunY * sinInclination;
+    for (let row = 0; row < plate.height; row++) {
+      const y = (row + .5 - halfHeight) / resolution;
+      const ringY = y / cosInclination, ringZ = y * slope;
+      for (let col = 0; col < plate.width; col++) {
+        const x = (col + .5 - halfWidth) / resolution;
+        const rr = x * x + y * y;
+        const i = 4 * (row * plate.width + col);
+        const ringDistance = Math.sqrt(x * x + ringY * ringY);
+        const density = sheetDensity(world, p, ringDistance);
+        if (density > 0 && (rr >= 1 || y > 0)) {
+          // Trace from the grain toward the sun: measure the closest approach to
+          // the globe along that half-line. Soft penumbra bridges the size levels.
+          const along = x * sunX + y * sunY + ringZ * SUN_Z;
+          const clearance = ringDistance * ringDistance - Math.min(0, along) ** 2;
+          const lit = smoothEdge(.86, 1.10, clearance);
+          const facing = (x * sunX + y * sunY + ringZ * SUN_Z) / ringDistance;
+          const scatter = (.13 + lit * .87) * (.64 + .14 * facing + .19 * density + .08 * Math.abs(sunNormal));
+          const opacity = 1 - Math.exp(-density / cosInclination);
+          for (let c = 0; c < 3; c++) data[i+c] = p.color[c] * scatter;
+          data[i+3] = 255 * opacity;
+        } else if (rr < 1 && Math.abs(sunNormal) > .02) {
+          const z = Math.sqrt(1 - rr);
+          const t = (y * sinInclination - z * cosInclination) / sunNormal;
+          const day = x * sunX + y * sunY + z * SUN_Z;
+          if (t <= 0 || day <= 0) continue;
+          const castRadius = Math.hypot(x + t * sunX, (y + t * sunY) / cosInclination);
+          const depth = sheetDensity(world, p, castRadius);
+          data[i+3] = 205 * (1 - Math.exp(-depth / Math.abs(sunNormal))) * smoothEdge(0, .22, day);
+        }
+      }
+    }
+    ctx.putImageData(pixels, 0, 0);
+    const result = { key, image: plate, pixels, halfWidth: halfWidth / resolution, halfHeight: halfHeight / resolution };
+    world.ringFrames.set(large, result);
+    return result;
+  }
+
   function draw(ctx, options) {
-    var o = options || {}, id = o.id || 'tools', w = getWorld(id);
+    var o = options || {}, id = Object.hasOwn(palettes, o.id) ? o.id : 'tools', w = getWorld(id);
     var r = Math.max(.1, o.radius || 28), spin = o.spin || 0, light = o.lightAngle == null ? -2.3 : o.lightAngle;
-    var opacity = o.opacity == null ? 1 : o.opacity, hover = o.hover || 0, heat = o.heat || 0;
+    var opacity = o.opacity == null ? 1 : o.opacity, hover = Math.max(o.hover || 0, o.highlight || 0), heat = o.heat || 0;
     ctx.save();
     ctx.translate(o.x || 0, o.y || 0);
     ctx.globalAlpha *= clamp(opacity, 0, 1);
@@ -141,12 +252,16 @@
       halo.addColorStop(1, rgba(w.palette.rim, 0));
       ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, glowRadius, 0, TAU); ctx.fill();
     }
+    const profile = rings[id] || rings.tools;
+    // Keep atmospheric bands aligned with their equator, even as the light turns.
+    const textureAngle = profile.clouds ? profile.tilt + Math.sin(spin) * .035 : spin;
+    ctx.save();
     ctx.rotate(light);
     ctx.scale(o.stretch || 1, 1 / Math.sqrt(o.stretch || 1));
-    ctx.rotate(spin - light);
-    ctx.drawImage(frame(w, light - spin), -r / .94, -r / .94, r * 2 / .94, r * 2 / .94);
+    ctx.rotate(textureAngle - light);
+    ctx.drawImage(frame(w, light - textureAngle), -r / .94, -r / .94, r * 2 / .94, r * 2 / .94);
     if (heat > .01) {
-      ctx.rotate(light - spin);
+      ctx.rotate(light - textureAngle);
       ctx.globalCompositeOperation = 'screen';
       var heated = ctx.createRadialGradient(r * .72, 0, 0, r * .1, 0, r);
       heated.addColorStop(0, 'rgba(255,203,141,' + heat * .65 + ')');
@@ -154,6 +269,10 @@
       heated.addColorStop(1, 'rgba(255,113,50,0)');
       ctx.fillStyle = heated; ctx.beginPath(); ctx.arc(0, 0, r * .98, 0, TAU); ctx.fill();
     }
+    ctx.restore();
+    ctx.rotate(profile.tilt);
+    const dust = ringPlate(w, profile, light, r > 48);
+    ctx.drawImage(dust.image, -dust.halfWidth * r, -dust.halfHeight * r, dust.halfWidth * r * 2, dust.halfHeight * r * 2);
     ctx.restore();
   }
 

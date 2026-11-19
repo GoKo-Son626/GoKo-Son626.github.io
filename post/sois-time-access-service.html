@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>星上时间访问服务（SOIS TAS）：时间关联、服务原语与时间编码 - GoKo&#039;s blog</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="GoKo&#039;s blog"><meta name="msapplication-TileImage" content="/img/portal-mark.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GoKo&#039;s blog"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="从 PPS 时间关联、TAS 服务原语和 cFE 时间适配入手，区分星上时间读取、同步、编码与访问延迟。"><meta property="og:type" content="blog"><meta property="og:title" content="GoKo"><meta property="og:url" content="https://goko-son626.github.io/"><meta property="og:site_name" content="GoKo"><meta property="og:description" content="从 PPS 时间关联、TAS 服务原语和 cFE 时间适配入手，区分星上时间读取、同步、编码与访问延迟。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><meta property="article:published_time" content="2026-11-16T16:00:00.000Z"><meta property="article:modified_time" content="2026-11-18T04:46:32.686Z"><meta property="article:author" content="GoKo Mell"><meta property="article:tag" content="CCSDS"><meta property="article:tag" content="SOIS"><meta property="article:tag" content="Time Access Service"><meta property="article:tag" content="星上时间"><meta property="article:tag" content="时间同步"><meta property="article:tag" content="PPS"><meta property="article:tag" content="CUC"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="https://cdn.jsdelivr.net/gh/removeif/removeif-demo@latest/img/avatar.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://goko-son626.github.io/post/sois-time-access-service.html"},"headline":"GoKo's blog","image":["https://goko-son626.github.io/img/og_image.png"],"datePublished":"2026-11-16T16:00:00.000Z","dateModified":"2026-11-18T04:46:32.686Z","author":{"@type":"Person","name":"GoKo Mell"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject"}},"description":"从 PPS 时间关联、TAS 服务原语和 cFE 时间适配入手，区分星上时间读取、同步、编码与访问延迟。"}</script><link rel="canonical" href="https://goko-son626.github.io/post/sois-time-access-service.html"><link rel="icon" href="/img/portal-mark.svg"><meta name="referrer" content="no-referrer-when-downgrade"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/6.0.0/css/all.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/font-awesome/5.12.0/css/all.min.css"><link rel="stylesheet" href="https://fonts.loli.net/css?family=Ubuntu:400,600|Source+Code+Pro|Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|Microsoft YaHei:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;amp;subset=latin,latin-ext|Inconsolata|Itim|Lobster.css"><script src="https://cdnjs.loli.net/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="/js/globalUtils.js"></script><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" defer></script><!--!--><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdnjs.loli.net/ajax/libs/pace/1.2.4/pace.min.js"></script><link rel="stylesheet" href="/css/reader.css"><link rel="stylesheet" href="/css/reader-sky.css?v=v52"><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/rss.xml" title="GoKo's blog" type="application/rss+xml">
+</head><body class="is-3-column has-navbar-fixed-top celestial-reader" data-reader-stack="eds"><div class="reader-sky" aria-hidden="true"><span class="reader-sky__nebula reader-sky__nebula--near"></span><span class="reader-sky__nebula reader-sky__nebula--far"></span><div class="reader-limb"></div><div class="reader-sky__stars"><span class="reader-sky__star"></span><span class="reader-sky__star"></span><span class="reader-sky__star"></span><span class="reader-sky__star"></span><span class="reader-sky__star"></span></div></div><nav class="navbar navbar-main is-fixed-top"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">返回主页</a><a class="navbar-item" href="/explore/">文章探索</a><a class="navbar-item" href="/archives">归档</a><a class="navbar-item" href="/tags">标签</a><a class="navbar-item" href="/friend">友链</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a><a class="navbar-item" id="night-nav" title="Night Mode" href="javascript:;"><i class="fas fa-moon" id="night-icon"></i></a></div></div></div></nav><script type="text/javascript" src="/js/theme-setting.js"></script><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><!--!--><div class="card"><article class="card-content article" role="article"><div class="article-meta size-small is-uppercase level is-mobile"><div class="level-left"><i class="far fa-calendar-plus"> </i>2026-11-17  <a class="commentCountImg" href="/post/sois-time-access-service.html#comment-container"><span class="display-none-class">6ff87bec0d21418cdc65d33ffa1c574d</span><i class="far fa-comment-dots"></i> <span class="commentCount" id="6ff87bec0d21418cdc65d33ffa1c574d">—</span>  </a><span class="level-item"><i class="far fa-clock"> </i>1 小时  <i class="fas fa-pencil-alt"> </i>13.3 k</span><span class="level-item" id="busuanzi_container_page_pv"><span id="busuanzi_value_page_pv">0</span>次访问</span></div></div><header class="reader-masthead"><img class="reader-exposure" src="/img/cassini-pia08271.webp" alt="" width="620" height="1043" decoding="async"><div class="reader-heading"><a class="reader-collection" href="/explore/?stack=eds">EDS / PUS<span aria-hidden="true">↗</span></a><h1 class="title">星上时间访问服务（SOIS TAS）：时间关联、服务原语与时间编码</h1></div><a class="exposure-credit" aria-label="卡西尼号土星照片与原始资料，NASA、JPL 与空间科学研究所" title="NASA / JPL / Space Science Institute · Shadow and Shade" target="_blank" rel="noopener" href="https://science.nasa.gov/photojournal/shadow-and-shade/">Cassini · PIA08271 ↗</a></header><div class="reading-dock" hidden><label class="chapter-dial"><span class="dial-caption"></span><input type="range" min="1" max="74" value="1" step="1" aria-label="选择文章小节"></label><button class="focus-reading" type="button" aria-pressed="false">专注阅读</button></div><div class="reading-tools"><a class="resume-section" hidden></a><details class="reading-outline"><summary>本文目录 <small>74 节</small></summary><nav aria-label="本文小节"><a href="#1-%E6%A0%87%E5%87%86%E4%BE%9D%E6%8D%AE%E4%B8%8E%E9%80%82%E7%94%A8%E7%8A%B6%E6%80%81" data-heading="1-标准依据与适用状态">1. 标准依据与适用状态</a><a href="#1-1-%E4%B8%89%E4%BB%BD%E6%96%87%E4%BB%B6%E5%88%86%E5%88%AB%E8%A7%84%E5%AE%9A%E4%BB%80%E4%B9%88" data-heading="1-1-三份文件分别规定什么">1.1 三份文件分别规定什么</a><a href="#1-2-%E5%BF%85%E9%A1%BB%E6%B3%A8%E6%84%8F%E7%9A%84%E7%89%88%E6%9C%AC%E5%92%8C%E7%8A%B6%E6%80%81%E9%97%AE%E9%A2%98" data-heading="1-2-必须注意的版本和状态问题">1.2 必须注意的版本和状态问题</a><a href="#2-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%88%AA%E5%A4%A9%E5%99%A8%E9%9C%80%E8%A6%81%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E6%9C%8D%E5%8A%A1" data-heading="2-为什么航天器需要时间访问服务">2. 为什么航天器需要时间访问服务</a><a href="#2-1-%E5%A4%9A%E5%A4%84%E7%90%86%E8%8A%82%E7%82%B9%E4%BC%9A%E4%BA%A7%E7%94%9F%E5%A4%9A%E4%B8%AA%E6%9C%AC%E5%9C%B0%E6%97%B6%E9%97%B4%E6%BA%90" data-heading="2-1-多处理节点会产生多个本地时间源">2.1 多处理节点会产生多个本地时间源</a><a href="#2-2-%E4%B8%BB%E6%98%9F%E4%B8%8A%E6%97%B6%E9%97%B4%E6%BA%90%E4%B8%8E%E6%9C%AC%E5%9C%B0%E6%97%B6%E9%97%B4%E6%BA%90" data-heading="2-2-主星上时间源与本地时间源">2.2 主星上时间源与本地时间源</a><a href="#2-3-Time-Access-Service-%E7%9A%84%E6%A0%B8%E5%BF%83%E4%BB%B7%E5%80%BC" data-heading="2-3-Time-Access-Service-的核心价值">2.3 Time Access Service 的核心价值</a><a href="#3-Time-Access-Service-%E5%9C%A8-SOIS-%E6%9E%B6%E6%9E%84%E4%B8%AD%E7%9A%84%E4%BD%8D%E7%BD%AE" data-heading="3-Time-Access-Service-在-SOIS-架构中的位置">3. Time Access Service 在 SOIS 架构中的位置</a><a href="#3-1-TAS-%E4%BD%8D%E4%BA%8E-Application-Support-Layer" data-heading="3-1-TAS-位于-Application-Support-Layer">3.1 TAS 位于 Application Support Layer</a><a href="#3-2-TAS-%E4%B8%8D%E8%B4%9F%E8%B4%A3%E4%BA%A7%E7%94%9F%E6%97%B6%E9%97%B4%EF%BC%8C%E4%B9%9F%E4%B8%8D%E8%B4%9F%E8%B4%A3%E5%90%8C%E6%AD%A5%E6%97%B6%E9%97%B4" data-heading="3-2-TAS-不负责产生时间，也不负责同步时间">3.2 TAS 不负责产生时间，也不负责同步时间</a><a href="#4-%E6%9C%AC%E5%9C%B0%E6%97%B6%E9%97%B4%E6%BA%90%E7%9A%84%E7%A1%AC%E4%BB%B6%E5%AE%9E%E7%8E%B0%E4%B8%8E%E6%97%B6%E9%97%B4%E5%85%B3%E8%81%94" data-heading="4-本地时间源的硬件实现与时间关联">4. 本地时间源的硬件实现与时间关联</a><a href="#4-1-%E8%87%AA%E7%94%B1%E8%BF%90%E8%A1%8C%E8%AE%A1%E6%95%B0%E5%99%A8" data-heading="4-1-自由运行计数器">4.1 自由运行计数器</a><a href="#4-2-872-%E6%96%87%E6%A1%A3%E4%B8%AD%E7%9A%84-32-%E4%BD%8D%E8%AE%A1%E6%95%B0%E5%99%A8%E7%A4%BA%E4%BE%8B" data-heading="4-2-872-文档中的-32-位计数器示例">4.2 872 文档中的 32 位计数器示例</a><a href="#4-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E4%B8%80%E4%B8%AA%E4%B8%BB%E6%97%B6%E9%97%B4%E6%BA%90" data-heading="4-3-为什么需要一个主时间源">4.3 为什么需要一个主时间源</a><a href="#5-PPS-%E5%8A%A0%E6%97%B6%E9%97%B4%E6%B6%88%E6%81%AF%EF%BC%9A872-%E9%99%84%E5%BD%95-B-%E7%BB%99%E5%87%BA%E7%9A%84%E5%85%B8%E5%9E%8B%E6%96%B9%E6%A1%88" data-heading="5-PPS-加时间消息：872-附录-B-给出的典型方案">5. PPS 加时间消息：872 附录 B 给出的典型方案</a><a href="#5-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%90%8C%E6%97%B6%E6%9C%89%E6%97%B6%E9%97%B4%E6%B6%88%E6%81%AF%E5%92%8C-PPS" data-heading="5-1-为什么要同时有时间消息和-PPS">5.1 为什么要同时有时间消息和 PPS</a><a href="#5-2-%E4%BB%8E%E6%97%B6%E9%97%B4%E6%B6%88%E6%81%AF%E5%88%B0%E6%9C%AC%E5%9C%B0%E8%AE%A1%E6%95%B0%E5%99%A8%E6%9B%B4%E6%96%B0" data-heading="5-2-从时间消息到本地计数器更新">5.2 从时间消息到本地计数器更新</a><a href="#5-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E8%83%BD%E5%9C%A8%E6%94%B6%E5%88%B0%E8%BD%AF%E4%BB%B6%E6%B6%88%E6%81%AF%E6%97%B6%E7%9B%B4%E6%8E%A5%E6%B8%85%E9%9B%B6" data-heading="5-3-为什么不能在收到软件消息时直接清零">5.3 为什么不能在收到软件消息时直接清零</a><a href="#5-4-%E4%B8%A4%E6%AC%A1-PPS-%E4%B9%8B%E9%97%B4%E4%BB%8D%E7%84%B6%E5%AD%98%E5%9C%A8%E6%BC%82%E7%A7%BB" data-heading="5-4-两次-PPS-之间仍然存在漂移">5.4 两次 PPS 之间仍然存在漂移</a><a href="#6-Time-Access-Service-%E7%9A%84%E6%9C%8D%E5%8A%A1%E6%A8%A1%E5%9E%8B" data-heading="6-Time-Access-Service-的服务模型">6. Time Access Service 的服务模型</a><a href="#6-1-Service-User-%E4%B8%8E-Service-Provider" data-heading="6-1-Service-User-与-Service-Provider">6.1 Service User 与 Service Provider</a><a href="#6-2-%E5%BF%85%E9%80%89%E8%83%BD%E5%8A%9B%EF%BC%9AWall-Clock" data-heading="6-2-必选能力：Wall-Clock">6.2 必选能力：Wall Clock</a><a href="#TIME-request" data-heading="TIME-request">TIME.request</a><a href="#TIME-indication" data-heading="TIME-indication">TIME.indication</a><a href="#6-3-Transaction-Identifier-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%BF%85%E8%A6%81" data-heading="6-3-Transaction-Identifier-为什么必要">6.3 Transaction Identifier 为什么必要</a><a href="#7-%E5%8F%AF%E9%80%89%E8%83%BD%E5%8A%9B%E4%B8%80%EF%BC%9AAlarm-Clock" data-heading="7-可选能力一：Alarm-Clock">7. 可选能力一：Alarm Clock</a><a href="#7-1-Alarm-Clock-%E8%A7%A3%E5%86%B3%E4%BB%80%E4%B9%88%E9%97%AE%E9%A2%98" data-heading="7-1-Alarm-Clock-解决什么问题">7.1 Alarm Clock 解决什么问题</a><a href="#7-2-Alarm-%E7%9A%84%E6%B3%A8%E5%86%8C%E3%80%81%E8%A7%A6%E5%8F%91%E5%92%8C%E5%8F%96%E6%B6%88" data-heading="7-2-Alarm-的注册、触发和取消">7.2 Alarm 的注册、触发和取消</a><a href="#7-3-Alarm-%E7%9A%84%E5%85%B8%E5%9E%8B%E5%BA%94%E7%94%A8" data-heading="7-3-Alarm-的典型应用">7.3 Alarm 的典型应用</a><a href="#8-%E5%8F%AF%E9%80%89%E8%83%BD%E5%8A%9B%E4%BA%8C%EF%BC%9AMetronome" data-heading="8-可选能力二：Metronome">8. 可选能力二：Metronome</a><a href="#8-1-Metronome-%E6%98%AF%E4%BB%80%E4%B9%88" data-heading="8-1-Metronome-是什么">8.1 Metronome 是什么</a><a href="#8-2-Metronome-%E7%9A%84%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0" data-heading="8-2-Metronome-的请求参数">8.2 Metronome 的请求参数</a><a href="#8-3-Metronome-%E4%B8%8D%E7%AD%89%E4%BA%8E-RTOS-%E5%91%A8%E6%9C%9F%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6%E5%99%A8" data-heading="8-3-Metronome-不等于-RTOS-周期任务调度器">8.3 Metronome 不等于 RTOS 周期任务调度器</a><a href="#9-%E6%9C%8D%E5%8A%A1%E5%8F%82%E6%95%B0%E3%80%81%E7%AE%A1%E7%90%86%E4%BF%A1%E6%81%AF%E5%92%8C%E6%97%B6%E9%97%B4%E6%A0%A1%E6%AD%A3" data-heading="9-服务参数、管理信息和时间校正">9. 服务参数、管理信息和时间校正</a><a href="#9-1-TAS-%E7%9A%84%E6%9C%8D%E5%8A%A1%E5%8F%82%E6%95%B0" data-heading="9-1-TAS-的服务参数">9.1 TAS 的服务参数</a><a href="#9-2-TAS-%E7%9A%84-MIB-%E5%B9%B6%E6%B2%A1%E6%9C%89%E8%A2%AB%E7%BB%9F%E4%B8%80%E5%AE%9A%E4%B9%89%E6%88%90%E5%9B%BA%E5%AE%9A%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84" data-heading="9-2-TAS-的-MIB-并没有被统一定义成固定数据结构">9.2 TAS 的 MIB 并没有被统一定义成固定数据结构</a><a href="#Frequency" data-heading="Frequency">Frequency</a><a href="#Drift" data-heading="Drift">Drift</a><a href="#Maximum-Adjustment" data-heading="Maximum-Adjustment">Maximum Adjustment</a><a href="#9-3-%E6%97%B6%E9%97%B4%E8%B7%B3%E5%8F%98%E3%80%81%E5%8D%95%E8%B0%83%E6%80%A7%E5%92%8C%E5%BA%94%E7%94%A8%E5%BD%B1%E5%93%8D" data-heading="9-3-时间跳变、单调性和应用影响">9.3 时间跳变、单调性和应用影响</a><a href="#10-%E6%9C%8D%E5%8A%A1%E6%80%A7%E8%83%BD%EF%BC%9A%E8%BF%94%E5%9B%9E%E6%97%B6%E9%97%B4%E6%AD%A3%E7%A1%AE%EF%BC%8C%E4%B8%8D%E4%BB%A3%E8%A1%A8%E8%AE%BF%E9%97%AE%E8%BF%87%E7%A8%8B%E6%B2%A1%E6%9C%89%E5%BB%B6%E8%BF%9F" data-heading="10-服务性能：返回时间正确，不代表访问过程没有延迟">10. 服务性能：返回时间正确，不代表访问过程没有延迟</a><a href="#10-1-%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E6%9C%8D%E5%8A%A1%E6%9C%AC%E8%BA%AB%E4%B9%9F%E6%9C%89%E5%BB%B6%E8%BF%9F" data-heading="10-1-时间访问服务本身也有延迟">10.1 时间访问服务本身也有延迟</a><a href="#10-2-%E5%BF%85%E9%A1%BB%E5%8C%BA%E5%88%86%E6%97%B6%E9%97%B4%E8%AF%AF%E5%B7%AE%E5%92%8C%E6%9C%8D%E5%8A%A1%E8%AE%BF%E9%97%AE%E5%BB%B6%E8%BF%9F" data-heading="10-2-必须区分时间误差和服务访问延迟">10.2 必须区分时间误差和服务访问延迟</a><a href="#10-3-%E9%99%84%E5%BD%95-D-%E5%BB%BA%E8%AE%AE%E6%B5%8B%E9%87%8F%E7%9A%84%E4%B8%A4%E7%B1%BB%E5%BB%B6%E8%BF%9F" data-heading="10-3-附录-D-建议测量的两类延迟">10.3 附录 D 建议测量的两类延迟</a><a href="#11-POSIX-API-%E4%B8%8E-Time-Access-Service-%E7%9A%84%E5%85%B3%E7%B3%BB" data-heading="11-POSIX-API-与-Time-Access-Service-的关系">11. POSIX API 与 Time Access Service 的关系</a><a href="#%E4%BB%8E-Linux-%E7%9A%84-cFE-%E6%97%B6%E9%97%B4%E9%80%82%E9%85%8D%E7%9C%8B%E6%8E%A5%E5%8F%A3%E8%BE%B9%E7%95%8C" data-heading="从-Linux-的-cFE-时间适配看接口边界">从 Linux 的 cFE 时间适配看接口边界</a><a href="#12-CCSDS-853-0-M-1%EF%BC%9A%E4%B8%8E%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E6%9C%8D%E5%8A%A1%E9%85%8D%E5%A5%97%E7%9A%84%E5%AD%90%E7%BD%91%E5%90%8C%E6%AD%A5%E6%9C%8D%E5%8A%A1" data-heading="12-CCSDS-853-0-M-1：与时间访问服务配套的子网同步服务">12. CCSDS 853.0-M-1：与时间访问服务配套的子网同步服务</a><a href="#12-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%98%E9%9C%80%E8%A6%81-Subnetwork-Synchronisation-Service" data-heading="12-1-为什么还需要-Subnetwork-Synchronisation-Service">12.1 为什么还需要 Subnetwork Synchronisation Service</a><a href="#12-2-853-%E4%B8%8E-872-%E7%9A%84%E8%81%8C%E8%B4%A3%E5%8C%BA%E5%88%AB" data-heading="12-2-853-与-872-的职责区别">12.2 853 与 872 的职责区别</a><a href="#12-3-853-%E7%9A%84%E6%97%B6%E9%97%B4%E5%8E%9F%E8%AF%AD" data-heading="12-3-853-的时间原语">12.3 853 的时间原语</a><a href="#12-4-853-%E8%BF%98%E5%8C%85%E5%90%AB-Event-%E9%80%9A%E7%9F%A5%E8%83%BD%E5%8A%9B" data-heading="12-4-853-还包含-Event-通知能力">12.4 853 还包含 Event 通知能力</a><a href="#12-5-853-%E7%9A%84-Best-effort-%E6%9C%8D%E5%8A%A1%E8%B4%A8%E9%87%8F%E9%9D%9E%E5%B8%B8%E9%87%8D%E8%A6%81" data-heading="12-5-853-的-Best-effort-服务质量非常重要">12.5 853 的 Best-effort 服务质量非常重要</a><a href="#12-6-853-%E5%90%8C%E6%A0%B7%E6%B2%A1%E6%9C%89%E8%A7%84%E5%AE%9A%E5%94%AF%E4%B8%80%E7%9A%84%E5%BA%95%E5%B1%82%E5%8D%8F%E8%AE%AE" data-heading="12-6-853-同样没有规定唯一的底层协议">12.6 853 同样没有规定唯一的底层协议</a><a href="#13-CCSDS-301-0-B-4%EF%BC%9A%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E6%9C%8D%E5%8A%A1%E8%BF%94%E5%9B%9E%E7%9A%84%E6%97%B6%E9%97%B4%E5%A6%82%E4%BD%95%E7%BC%96%E7%A0%81" data-heading="13-CCSDS-301-0-B-4：时间访问服务返回的时间如何编码">13. CCSDS 301.0-B-4：时间访问服务返回的时间如何编码</a><a href="#13-1-%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E4%B8%8E%E6%97%B6%E9%97%B4%E7%BC%96%E7%A0%81%E6%98%AF%E4%B8%A4%E4%B8%AA%E9%97%AE%E9%A2%98" data-heading="13-1-时间访问与时间编码是两个问题">13.1 时间访问与时间编码是两个问题</a><a href="#13-2-CCSDS-%E6%97%B6%E9%97%B4%E7%A0%81%E6%A0%BC%E5%BC%8F" data-heading="13-2-CCSDS-时间码格式">13.2 CCSDS 时间码格式</a><a href="#13-3-CUC-%E7%9A%84-P-Field-%E5%92%8C-T-Field" data-heading="13-3-CUC-的-P-Field-和-T-Field">13.3 CUC 的 P-Field 和 T-Field</a><a href="#13-4-CUC-%E7%9A%84-Epoch-%E5%92%8C%E6%97%B6%E9%97%B4%E5%B0%BA%E5%BA%A6" data-heading="13-4-CUC-的-Epoch-和时间尺度">13.4 CUC 的 Epoch 和时间尺度</a><a href="#%E4%B8%80%E4%B8%AA-CUC-4-2-%E5%AD%97%E8%8A%82%E7%9A%84%E5%AF%B9%E7%85%A7%E7%89%87%E6%AE%B5" data-heading="一个-CUC-4-2-字节的对照片段">一个 CUC 4+2 字节的对照片段</a><a href="#13-5-301-%E6%A0%87%E5%87%86%E4%B8%8D%E8%B4%9F%E8%B4%A3%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5" data-heading="13-5-301-标准不负责时间同步">13.5 301 标准不负责时间同步</a><a href="#14-PTP%E3%80%81TSN-%E5%BA%94%E8%AF%A5%E6%94%BE%E5%9C%A8%E4%BB%80%E4%B9%88%E4%BD%8D%E7%BD%AE%E7%90%86%E8%A7%A3" data-heading="14-PTP、TSN-应该放在什么位置理解">14. PTP、TSN 应该放在什么位置理解</a><a href="#15-%E9%9D%A2%E5%90%91%E5%B7%A5%E7%A8%8B%E5%AE%9E%E7%8E%B0%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E9%AA%8C%E8%AF%81%E8%A6%81%E7%82%B9" data-heading="15-面向工程实现的设计与验证要点">15. 面向工程实现的设计与验证要点</a><a href="#15-1-%E6%97%B6%E9%97%B4%E8%AE%BF%E9%97%AE%E6%9C%8D%E5%8A%A1%E7%9A%84%E5%BB%BA%E8%AE%AE%E6%A8%A1%E5%9D%97%E8%BE%B9%E7%95%8C" data-heading="15-1-时间访问服务的建议模块边界">15.1 时间访问服务的建议模块边界</a><a href="#15-2-%E9%9C%80%E8%A6%81%E6%98%8E%E7%A1%AE%E7%9A%84%E6%97%B6%E9%97%B4%E6%8E%A5%E5%8F%A3%E5%A5%91%E7%BA%A6" data-heading="15-2-需要明确的时间接口契约">15.2 需要明确的时间接口契约</a><a href="#15-3-%E5%BB%BA%E8%AE%AE%E7%9A%84%E9%AA%8C%E8%AF%81%E9%A1%B9%E7%9B%AE" data-heading="15-3-建议的验证项目">15.3 建议的验证项目</a><a href="#15-4-%E6%9C%80%E5%AE%B9%E6%98%93%E8%A2%AB%E5%BF%BD%E7%95%A5%E7%9A%84%E5%9B%9B%E9%A1%B9%E9%AA%8C%E8%AF%81" data-heading="15-4-最容易被忽略的四项验证">15.4 最容易被忽略的四项验证</a><a href="#16-%E5%85%B3%E9%94%AE%E7%BB%93%E8%AE%BA" data-heading="16-关键结论">16. 关键结论</a><a href="#17-%E5%8E%9F%E5%A7%8B%E6%A0%87%E5%87%86%E3%80%81%E5%AE%98%E6%96%B9%E8%B5%84%E6%96%99%E4%B8%8E%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB" data-heading="17-原始标准、官方资料与延伸阅读">17. 原始标准、官方资料与延伸阅读</a><a href="#17-1-%E6%A0%B8%E5%BF%83%E6%A0%87%E5%87%86" data-heading="17-1-核心标准">17.1 核心标准</a><a href="#17-2-SOIS-%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84" data-heading="17-2-SOIS-总体架构">17.2 SOIS 总体架构</a><a href="#17-3-ISO-%E5%AF%B9%E5%BA%94%E6%96%87%E4%BB%B6%E5%8F%8A%E7%8A%B6%E6%80%81" data-heading="17-3-ISO-对应文件及状态">17.3 ISO 对应文件及状态</a><a href="#17-4-%E5%BA%95%E5%B1%82%E6%97%B6%E9%97%B4%E5%90%8C%E6%AD%A5%E6%8A%80%E6%9C%AF" data-heading="17-4-底层时间同步技术">17.4 底层时间同步技术</a><a href="#17-5-%E6%8E%A8%E8%8D%90%E4%B9%A6%E7%B1%8D" data-heading="17-5-推荐书籍">17.5 推荐书籍</a><a href="#%E5%BB%BA%E8%AE%AE%E9%98%85%E8%AF%BB%E9%A1%BA%E5%BA%8F" data-heading="建议阅读顺序">建议阅读顺序</a></nav></details></div><div class="content"><p>在由多个处理器、数据系统和星载设备组成的航天器中，时间不仅用于显示日期或记录日志，更是任务调度、遥测时间标记、载荷数据关联和分布式协同的基础。各处理节点通常拥有独立的本地时钟；如果没有统一的时间关联机制，不同节点对同一事件的时间认知就可能出现偏差。</p>
+<p>CCSDS SOIS（Spacecraft Onboard Interface Services）提出的 <strong>Time Access<br>Service（TAS，时间访问服务）</strong>，其核心目标不是规定某种具体时钟硬件或同步协议，而是为星载应用提供统一的本地时间访问接口，使应用不必直接操作处理器上的计数器寄存器，也不必了解底层时间源的硬件实现。</p>
+<p>本文以 CCSDS 872.0-M-1《Spacecraft Onboard Interface Services—Time<br>Access Service》为主要依据，结合其明确引用的 CCSDS 853.0-M-1《Subnetwork<br>Synchronisation Service》和 CCSDS 301.0-B-4《Time Code<br>Formats》，讨论星上时间体系的分层关系、本地时间源与主时间源、PPS<br>加时间消息的典型关联机制、TAS<br>服务原语、可选闹钟与节拍器能力、管理参数、服务性能表征，以及 CUC<br>时间码在数据交换中的位置。</p>
+<p>本文特别强调三个边界：</p>
+<ul>
+<li><strong>时间访问</strong>：应用如何读取和使用本节点的时间，由 Time Access Service<br>抽象。</li>
+<li><strong>时间关联与分发</strong>：多个节点如何获得共同的时间认知，由底层同步机制和相关服务承担。</li>
+<li><strong>时间编码</strong>：时间如何被表示并装入遥测或其他数据结构，由 CCSDS<br>时间码格式等规范定义。</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="1-标准依据与适用状态"><a href="#1-标准依据与适用状态" class="headerlink" title="1. 标准依据与适用状态"></a>1. 标准依据与适用状态</h2><h3 id="1-1-三份文件分别规定什么"><a href="#1-1-三份文件分别规定什么" class="headerlink" title="1.1 三份文件分别规定什么"></a>1.1 三份文件分别规定什么</h3><p>本文涉及的三份 CCSDS 文件处于不同的技术层次。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>文件类别</th>
+<th>业务范围</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>872.0-M-1</td>
+<td>原 Magenta Book，现归档</td>
+<td>应用怎样访问本地星上时间</td>
+</tr>
+<tr>
+<td>853.0-M-1</td>
+<td>Magenta Book</td>
+<td>子网时间信息与事件通知</td>
+</tr>
+<tr>
+<td>301.0-B-4</td>
+<td>Blue Book</td>
+<td>CUC、CDS、CCS 和 ASCII 时间码</td>
+</tr>
+</tbody></table>
+<p>其中，<strong>872.0-M-1<br>才是名称和内容都直接对应”卫星时间访问服务”的文件</strong>。301.0-B-4<br>是时间码格式标准，不是时间访问服务规范。</p>
+<h3 id="1-2-必须注意的版本和状态问题"><a href="#1-2-必须注意的版本和状态问题" class="headerlink" title="1.2 必须注意的版本和状态问题"></a>1.2 必须注意的版本和状态问题</h3><p>CCSDS 872.0-M-1 于 2011 年 1 月发布，属于 Magenta Book，即 Recommended<br>Practice（推荐实践）。CCSDS 提供的归档 PDF 明确标注为<br><code>CCSDS Historical Document</code>；CCSDS 官方 Silver Books 页面也将其列入<br>Historical—Obsolete 类别。其对应的 ISO 17214:2011 也已被 ISO 标记为<br>Withdrawn（撤销）。</p>
+<p>这意味着：</p>
+<ol>
+<li>872.0-M-1 仍然是理解 SOIS<br>时间访问服务设计思想和接口模型的重要原始资料；</li>
+<li>不能仅凭它曾经是 CCSDS 文件，就把它称为当前有效的强制性标准；</li>
+<li>如果某个项目或客户明确采用该文件，应进一步核对项目基线、接口控制文件（ICD）、符合性要求及客户指定的文件版本；</li>
+<li>历史文件被归档，并不自动意味着既有工程实现失效，但新项目不能忽略文件状态和项目适用性审查。</li>
+</ol>
+<p>CCSDS 853.0-M-1 于 2009 年 12 月发布，官方 SOIS 出版物目录仍将其列在<br>SOIS 推荐实践出版物中。它是理解 872.0-M-1<br>所依赖的子网时间同步服务的重要配套资料。</p>
+<p>CCSDS 301.0-B-4 于 2010 年 11 月发布，属于 Blue Book 推荐标准。CCSDS<br>官方目录将该版本列为时间码格式推荐标准。对应的 ISO<br>11104:2011 在 ISO 页面上显示于 2023<br>年复审确认后继续有效。需要注意，时间码格式标准仍然不负责规定时钟同步性能。</p>
+<blockquote>
+<p><strong>术语说明：</strong> CCSDS 的 Magenta Book 是 Recommended Practice，Blue<br>Book 是 Recommended<br>Standard。二者文件类别不同。推荐实践本身并不自动成为某个项目的强制要求；是否具有项目约束力，仍取决于任务规范、合同、ICD<br>或适用的上层标准。</p>
+</blockquote>
+<h2 id="2-为什么航天器需要时间访问服务"><a href="#2-为什么航天器需要时间访问服务" class="headerlink" title="2. 为什么航天器需要时间访问服务"></a>2. 为什么航天器需要时间访问服务</h2><h3 id="2-1-多处理节点会产生多个本地时间源"><a href="#2-1-多处理节点会产生多个本地时间源" class="headerlink" title="2.1 多处理节点会产生多个本地时间源"></a>2.1 多处理节点会产生多个本地时间源</h3><p>现代航天器通常不是只有一个处理器。不同数据系统可能分别承担姿态控制、载荷管理、数据处理、通信管理、遥测采集等任务。</p>
+<p>每个处理节点都可能拥有自己的硬件计数器和本地振荡器。即使这些计数器具有相同的位宽和名义频率，它们也不一定在同一时刻启动，也不一定具有完全相同的实际频率。</p>
+<p>例如：</p>
+<table>
+<thead>
+<tr>
+<th>节点</th>
+<th>上电时刻</th>
+<th>本地计时器初值</th>
+<th>振荡器实际频率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>处理器 A</td>
+<td>任务时刻 0 s</td>
+<td>0</td>
+<td>10 MHz + 偏差 A</td>
+</tr>
+<tr>
+<td>处理器 B</td>
+<td>任务时刻 2 s</td>
+<td>0</td>
+<td>10 MHz + 偏差 B</td>
+</tr>
+<tr>
+<td>处理器 C</td>
+<td>任务时刻 5 s</td>
+<td>0</td>
+<td>10 MHz + 偏差 C</td>
+</tr>
+<tr>
+<td>如果每个节点只读取自己的计数器：</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<ul>
+<li>A 的计数值 1000 s；</li>
+<li>B 的计数值 998 s；</li>
+<li>C 的计数值 995 s；</li>
+</ul>
+<p>那么这些数字并不代表同一个任务时间坐标。它们只是各自从不同上电时刻开始累计的本地时间。</p>
+<p>此外，晶体振荡器存在频率误差和长期漂移。即使节点在某个时刻被校准到相同时间，运行一段时间后也可能再次出现偏差。</p>
+<h3 id="2-2-主星上时间源与本地时间源"><a href="#2-2-主星上时间源与本地时间源" class="headerlink" title="2.2 主星上时间源与本地时间源"></a>2.2 主星上时间源与本地时间源</h3><p>CCSDS 872.0-M-1 给出的典型架构包含：</p>
+<ul>
+<li>一个集中维护的 <strong>Master Onboard Time Source（主星上时间源）</strong>；</li>
+<li>分布在各数据系统中的 <strong>Local Time Source（本地时间源）</strong>；</li>
+<li>每个节点上的 Time Access Service；</li>
+<li>使用时间服务的任务应用。</li>
+</ul>
+<p>主星上时间源是星上任务运行所采用的时间参考。本地时间源则位于各处理节点，用于让本节点应用能够直接、低开销地读取时间。</p>
+<p>典型本地时间源可以是由本地晶体振荡器驱动的自由运行硬件计数器，累计秒和亚秒。主时间源也通常采用类似计数器，但其振荡器具有更好的绝对频率准确度和稳定性。</p>
+<p>主时间源提供的时间在这份历史文档中列出两个称呼：</p>
+<ul>
+<li>MET（Mission Elapsed Time，任务经过时间）；</li>
+<li>或 SCET（Spacecraft Elapsed Time，航天器经过时间）。</li>
+</ul>
+<p>本文沿用 872.0-M-1 §2.3 的术语。其他任务和资料也可能用 SCET 表示 Spacecraft Event Time。字段的时间尺度、纪元和含义要以任务 ICD 为准。</p>
+<h3 id="2-3-Time-Access-Service-的核心价值"><a href="#2-3-Time-Access-Service-的核心价值" class="headerlink" title="2.3 Time Access Service 的核心价值"></a>2.3 Time Access Service 的核心价值</h3><p>如果每个应用都直接读取硬件寄存器，会带来几个问题：</p>
+<ol>
+<li>应用必须知道硬件计数器地址、位宽、计数格式和访问方法；</li>
+<li>不同处理器上的应用可能使用不同的时间读取代码；</li>
+<li>硬件更换或处理器迁移时，应用可能需要修改；</li>
+<li>多个应用直接访问共享硬件资源，会增加平台管理和验证难度；</li>
+<li>应用容易把本地计数器误认为已经与全星统一时间关联。</li>
+</ol>
+<p>TAS 的设计目标是把硬件时间访问封装起来，向应用提供统一服务接口。</p>
+<p>应用只需要知道如何请求时间、如何接收时间结果，而不必了解本地时间源是<br>FPGA 计数器、SoC 定时器、RTC 还是其他硬件实现。</p>
+<h2 id="3-Time-Access-Service-在-SOIS-架构中的位置"><a href="#3-Time-Access-Service-在-SOIS-架构中的位置" class="headerlink" title="3. Time Access Service 在 SOIS 架构中的位置"></a>3. Time Access Service 在 SOIS 架构中的位置</h2><h3 id="3-1-TAS-位于-Application-Support-Layer"><a href="#3-1-TAS-位于-Application-Support-Layer" class="headerlink" title="3.1 TAS 位于 Application Support Layer"></a>3.1 TAS 位于 Application Support Layer</h3><p>SOIS 将 Time Access Service 放在 Application Support<br>Layer（应用支持层）。它面向上层任务应用，向应用提供访问本地时间源的服务。</p>
+<p>与它相邻的还有消息传输、命令与数据采集、文件与包存储等服务。SOIS<br>的目标之一，是让飞行软件通过统一服务接口使用底层设备和子网能力，减少应用与具体硬件、链路的耦合。</p>
+<p>从职责上看，可以把典型时间体系理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">主星上时间源<br>    ↓ 子网同步或时间关联<br>各节点的本地时钟<br>    ↓ 本节点 TAS<br>任务应用<br></code></pre></td></tr></table></figure>
+
+<p>这张图表达的是逻辑职责关系：</p>
+<ul>
+<li>主时间源提供任务采用的参考时间；</li>
+<li>子网同步机制使各节点的本地时间源与共同参考保持关联；</li>
+<li>各节点 TAS 访问本节点的本地时间源；</li>
+<li>应用通过 TAS 获取时间。</li>
+</ul>
+<p>它不是说应用每次读取时间时，都要通过网络向主时间源发起一次远程查询。恰恰相反，典型架构是在每个节点维护本地时间源，由同步机制周期性地进行时间关联，应用读取本地时间即可。</p>
+<h3 id="3-2-TAS-不负责产生时间，也不负责同步时间"><a href="#3-2-TAS-不负责产生时间，也不负责同步时间" class="headerlink" title="3.2 TAS 不负责产生时间，也不负责同步时间"></a>3.2 TAS 不负责产生时间，也不负责同步时间</h3><p>这是理解 872.0-M-1 最关键的一点。</p>
+<p>该文件明确限定了 TAS 的范围：</p>
+<ul>
+<li>它定义应用与本地时间源之间的服务接口；</li>
+<li>它不规定主时间源和本地时间源具体由什么硬件实现；</li>
+<li>它不规定各时间源之间采用什么算法进行关联；</li>
+<li>它不规定通过哪一种总线或网络传递时间；</li>
+<li>时间源之间的关联机制由相关底层同步服务处理。</li>
+</ul>
+<p>因此，以下几个概念必须分开：</p>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>主要职责</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>时间源</td>
+<td>产生计数</td>
+<td>振荡器、硬件计数器、RTC</td>
+</tr>
+<tr>
+<td>时间关联</td>
+<td>将本地时间关联到共同参考</td>
+<td>PPS 与时间消息、PTP</td>
+</tr>
+<tr>
+<td>时间访问</td>
+<td>向应用提供统一接口</td>
+<td>SOIS TAS、平台时间 API</td>
+</tr>
+<tr>
+<td>时间编码</td>
+<td>序列化时间值</td>
+<td>CUC、CDS、CCS</td>
+</tr>
+</tbody></table>
+<p>如果把这四层混在一起，就容易出现”有了时间访问 API<br>就已经完成多处理器同步”这样的错误理解。</p>
+<h2 id="4-本地时间源的硬件实现与时间关联"><a href="#4-本地时间源的硬件实现与时间关联" class="headerlink" title="4. 本地时间源的硬件实现与时间关联"></a>4. 本地时间源的硬件实现与时间关联</h2><h3 id="4-1-自由运行计数器"><a href="#4-1-自由运行计数器" class="headerlink" title="4.1 自由运行计数器"></a>4.1 自由运行计数器</h3><p>872.0-M-1 的附录 B<br>给出了典型本地时间源实现方式：使用本地晶体振荡器驱动自由运行计数器。</p>
+<p>计数器可以分成：</p>
+<ul>
+<li>Seconds：整秒计数；</li>
+<li>Sub-seconds：秒以下计数。</li>
+</ul>
+<p>一个简化表示为：</p>
+<p><code>T = S + F</code></p>
+<p>其中：</p>
+<ul>
+<li><code>S</code> 表示整秒；</li>
+<li><code>F</code> 表示当前秒内的分数部分。</li>
+</ul>
+<p>假设本地时钟频率为 10 MHz，那么每秒会产生约 10,000,000<br>次计数。硬件可以根据计数器配置，把计数值换算成秒和亚秒。</p>
+<p>自由运行计数器的优点是：硬件持续计时，不需要软件每隔很短时间主动更新一次时间值。</p>
+<p>但自由运行不代表准确。计数器的实际走时取决于振荡器频率，而不同节点的振荡器频率和稳定性可能存在差异。</p>
+<h3 id="4-2-872-文档中的-32-位计数器示例"><a href="#4-2-872-文档中的-32-位计数器示例" class="headerlink" title="4.2 872 文档中的 32 位计数器示例"></a>4.2 872 文档中的 32 位计数器示例</h3><p>872.0-M-1 附录 B 给出一个便于理解的示例：</p>
+<ul>
+<li>总计数宽度：32 bit；</li>
+<li>整秒部分：24 bit；</li>
+<li>亚秒部分：8 bit。</li>
+</ul>
+<p>8 bit 亚秒部分可以表示一秒内的 256 个分数单位：</p>
+<p>亚秒分辨率为 <code>1 s / 2⁸ = 3.90625 ms</code>。</p>
+<p>因此，其时间分辨率略小于 4 ms。</p>
+<p>24 bit 秒计数的回绕周期为：</p>
+<p>回绕周期为 <code>2²⁴ s = 16,777,216 s ≈ 194.18 天</code>。</p>
+<p>这只是文档给出的典型实现示例，不是 TAS 强制要求所有设备都使用 32<br>位计数器，也不是对所有任务的精度要求。</p>
+<p>这个例子说明：时间计数器的位宽、秒字段和亚秒字段长度，直接决定时间表示的分辨率和回绕周期。</p>
+<h3 id="4-3-为什么需要一个主时间源"><a href="#4-3-为什么需要一个主时间源" class="headerlink" title="4.3 为什么需要一个主时间源"></a>4.3 为什么需要一个主时间源</h3><p>假设三个处理器都使用 10 MHz 计数器：</p>
+<ul>
+<li>A 的实际频率略快；</li>
+<li>B 的实际频率略慢；</li>
+<li>C 的启动时间晚于 A 和 B。</li>
+</ul>
+<p>如果没有统一参考，各节点即使在某一时刻计数值相同，也不能保证之后仍然一致。</p>
+<p>因此，需要选择一个主星上时间源作为任务时间参考，并建立机制使各节点的本地时间源与其关联。</p>
+<p>872.0-M-1 将这种过程称为 Time<br>Correlation（时间关联）：维护主时间源与各本地时间源之间的一致性，使各时间源在规定的不确定度范围内给出相同的时间值。</p>
+<p>这里的”相同”不是数学意义上的绝对相等，而是满足任务规定的误差范围。</p>
+<h2 id="5-PPS-加时间消息：872-附录-B-给出的典型方案"><a href="#5-PPS-加时间消息：872-附录-B-给出的典型方案" class="headerlink" title="5. PPS 加时间消息：872 附录 B 给出的典型方案"></a>5. PPS 加时间消息：872 附录 B 给出的典型方案</h2><h3 id="5-1-为什么要同时有时间消息和-PPS"><a href="#5-1-为什么要同时有时间消息和-PPS" class="headerlink" title="5.1 为什么要同时有时间消息和 PPS"></a>5.1 为什么要同时有时间消息和 PPS</h3><p>PPS（Pulse Per<br>Second，秒脉冲）是每秒产生一次的硬件脉冲信号。它提供一个精确的整秒边界，但单独的<br>PPS 不包含”当前是第几秒”这样的完整时间信息。</p>
+<p>因此，典型方案需要两种信息：</p>
+<ol>
+<li><strong>时间消息</strong>：告诉各节点下一次有效脉冲对应的整秒数值；</li>
+<li><strong>PPS 信号</strong>：告诉各节点这个时间值从哪个准确的物理时刻开始生效。</li>
+</ol>
+<p>872.0-M-1 附录 B 给出的例子是：</p>
+<ul>
+<li>主时间源通过航天器数据处理总线广播参考 MET 的整秒值；</li>
+<li>一个专用 PPS 信号分发到各节点；</li>
+<li>文档举例使用 MIL-STD-1553B 总线广播整秒值。</li>
+</ul>
+<p>这是一种典型实现示例，不代表标准强制所有任务使用<br>MIL-STD-1553B，也不代表所有星载系统必须使用相同的脉冲电气接口。</p>
+<h3 id="5-2-从时间消息到本地计数器更新"><a href="#5-2-从时间消息到本地计数器更新" class="headerlink" title="5.2 从时间消息到本地计数器更新"></a>5.2 从时间消息到本地计数器更新</h3><p>本地时间源通常包含：</p>
+<ul>
+<li>Local Time Counter：本地时间计数器；</li>
+<li>Datation Register：定时装载寄存器；</li>
+<li>Local Crystal Oscillator：本地晶体振荡器；</li>
+<li>PPS Input：秒脉冲输入。</li>
+</ul>
+<p>处理过程如下：</p>
+<ol>
+<li>主节点广播参考时间的整秒值；</li>
+<li>从节点接收该时间值，将其写入 Datation Register；</li>
+<li>PPS 有效边沿到来；</li>
+<li>本地时间源把 Datation Register 中的整秒值装入本地计数器的 Seconds<br>部分；</li>
+<li>同一时刻清零 Sub-seconds 部分；</li>
+<li>本地晶体振荡器继续驱动计数器运行；</li>
+<li>下一次 PPS 到来时再次进行关联。</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">时间消息 ──→ Datation Register ──┐<br>PPS 有效边沿 ────────────────────┴──→ 装载整秒、清零亚秒 → 本地振荡器继续计时<br></code></pre></td></tr></table></figure>
+
+<p>可以用一个例子理解：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs text">主节点广播：next_seconds = 101<br><br>从节点收到后：<br>    Datation Register = 101<br><br>PPS 边沿到来：<br>    Local Seconds     = 101<br>    Local Sub-seconds = 0<br><br>随后本地计数器继续运行：<br>    101.000 s<br>    101.100 s<br>    101.200 s<br>    ...<br></code></pre></td></tr></table></figure>
+
+<p>注意：时间消息必须与对应的 PPS<br>边沿正确关联。若消息和脉冲没有明确的对应关系，就可能产生整秒错位。</p>
+<h3 id="5-3-为什么不能在收到软件消息时直接清零"><a href="#5-3-为什么不能在收到软件消息时直接清零" class="headerlink" title="5.3 为什么不能在收到软件消息时直接清零"></a>5.3 为什么不能在收到软件消息时直接清零</h3><p>如果只通过普通总线消息传递”当前时间是 101<br>秒”，然后各节点在各自收到消息的瞬间清零计数器，那么不同节点的清零时刻会受到总线传输延迟、仲裁、驱动处理和任务调度影响。</p>
+<p>例如：</p>
+<table>
+<thead>
+<tr>
+<th>节点</th>
+<th>收到时间消息的时刻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>100.0002 s</td>
+</tr>
+<tr>
+<td>B</td>
+<td>100.0010 s</td>
+</tr>
+<tr>
+<td>C</td>
+<td>100.0025 s</td>
+</tr>
+<tr>
+<td>如果各节点在收到消息时立即清零，它们的本地秒边界就不一致。</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>PPS<br>的作用就是提供共同的物理边沿，使节点能够在同一同步事件上装载整秒值并清零亚秒计数。</p>
+<h3 id="5-4-两次-PPS-之间仍然存在漂移"><a href="#5-4-两次-PPS-之间仍然存在漂移" class="headerlink" title="5.4 两次 PPS 之间仍然存在漂移"></a>5.4 两次 PPS 之间仍然存在漂移</h3><p>PPS 并不会让本地振荡器变得完全准确。</p>
+<p>在两次 PPS<br>之间，本地计数器仍由自己的晶体振荡器驱动。由于振荡器存在频率误差，本地时间会逐渐偏离主参考。</p>
+<p>下一次 PPS 到来时，再次进行时间关联。</p>
+<p>因此：</p>
+<ul>
+<li>PPS 间隔越长，振荡器误差积累的时间通常越长；</li>
+<li>振荡器稳定性越好，两次同步之间的时间漂移通常越小；</li>
+<li>实际最大偏差需要通过硬件指标、温度范围和任务要求计算或测试。</li>
+</ul>
+<p>872.0-M-1<br>还指出，较完善的本地时间源可以检测漏掉的时间关联步骤，并设计成关联过程不会让对外报告的时间倒退。但这些技术超出了该附录的简要实现说明范围。</p>
+<h2 id="6-Time-Access-Service-的服务模型"><a href="#6-Time-Access-Service-的服务模型" class="headerlink" title="6. Time Access Service 的服务模型"></a>6. Time Access Service 的服务模型</h2><h3 id="6-1-Service-User-与-Service-Provider"><a href="#6-1-Service-User-与-Service-Provider" class="headerlink" title="6.1 Service User 与 Service Provider"></a>6.1 Service User 与 Service Provider</h3><p>TAS 采用服务用户和服务提供者之间的请求&#x2F;指示模型：</p>
+<ul>
+<li><strong>Service User</strong>：请求访问时间的上层应用；</li>
+<li><strong>Service Provider</strong>：实现 Time Access Service 的软件实体；</li>
+<li><strong>TASAP</strong>：Time Access Service Access Point，时间访问服务接入点。</li>
+</ul>
+<p>TASAP Address 用于标识希望调用时间访问服务的用户实体。</p>
+<p>这里的 Service<br>Primitive（服务原语）是服务接口层面的抽象描述。它规定用户和提供者之间交换什么操作、参数和结果，并不意味着每个原语都必须被实现成一条独立的网络报文。</p>
+<h3 id="6-2-必选能力：Wall-Clock"><a href="#6-2-必选能力：Wall-Clock" class="headerlink" title="6.2 必选能力：Wall Clock"></a>6.2 必选能力：Wall Clock</h3><p>872.0-M-1 规定，Time Access Service 必须实现 Wall Clock Capability。</p>
+<p>Wall Clock<br>在这里表示按需读取本地星上时间的能力。它不意味着返回值一定是人类日常使用的<br>UTC 日历时间；底层时间源也可以是从任务 Epoch 开始累计的经过时间。</p>
+<p>基本交互为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">应用 ── TIME.request ──→ TAS ──→ 读取本地时间源<br>应用 ←── TIME.indication ── TAS ←── 时间值与相关状态<br></code></pre></td></tr></table></figure>
+
+<h4 id="TIME-request"><a href="#TIME-request" class="headerlink" title="TIME.request"></a>TIME.request</h4><p>功能：请求服务提供者读取当前时间。</p>
+<p>参数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">TIME.request(<br>    TASAP Address,<br>    Transaction Identifier<br>)<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>TASAP Address：标识请求服务的用户接入点；</li>
+<li>Transaction Identifier：由用户分配，用于关联请求和后续响应。</li>
+</ul>
+<p>服务提供者收到请求后，确定当前时间。</p>
+<h4 id="TIME-indication"><a href="#TIME-indication" class="headerlink" title="TIME.indication"></a>TIME.indication</h4><p>功能：向用户返回当前时间。</p>
+<p>参数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">TIME.indication(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Current Time,<br>    Current Time Error Specification,<br>    Result Metadata<br>)<br></code></pre></td></tr></table></figure>
+
+<p>这五项信息不能只看成”返回一个时间值”。</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TASAP Address</td>
+<td>标识服务用户</td>
+</tr>
+<tr>
+<td>Transaction Identifier</td>
+<td>关联结果与原请求</td>
+</tr>
+<tr>
+<td>Current Time</td>
+<td>服务提供者给出的当前星上时间</td>
+</tr>
+<tr>
+<td>Current Time Error Specification</td>
+<td>服务提供者给出的时间误差说明</td>
+</tr>
+<tr>
+<td>Result Metadata</td>
+<td>表达请求成功、失败或异常</td>
+</tr>
+</tbody></table>
+<p>其中，<code>Current Time Error Specification</code> 尤其值得注意。</p>
+<p>它说明时间访问服务不应只向应用返回一个数字，还应能表达这个时间值的误差情况。否则，应用虽然拿到了时间，却无法判断其可信程度。</p>
+<p><code>Result Metadata</code><br>则用于表达操作结果。文档举例包括：请求没有在规定的管理超时内完成，或者<br>Time Access Service 本身工作异常。</p>
+<p>872.0-M-1<br>没有把所有项目的误差字段编码格式、单位和内部数据结构统一规定成一个具体二进制结构。具体协议或实现需要定义这些细节，并与项目时间要求保持一致。</p>
+<h3 id="6-3-Transaction-Identifier-为什么必要"><a href="#6-3-Transaction-Identifier-为什么必要" class="headerlink" title="6.3 Transaction Identifier 为什么必要"></a>6.3 Transaction Identifier 为什么必要</h3><p>Transaction Identifier 由服务用户分配，用于把后续的 indication 与原始<br>request 关联起来。</p>
+<p>标准要求：</p>
+<ul>
+<li>Transaction Identifier 在同一个用户实体内唯一；</li>
+<li>同一服务提供者用 <code>(TASAP Address, Transaction Identifier)</code> 区分不同用户的请求。</li>
+</ul>
+<p>例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">应用 A：<br>    TASAP = A<br>    Transaction ID = 1<br><br>应用 B：<br>    TASAP = B<br>    Transaction ID = 1<br></code></pre></td></tr></table></figure>
+
+<p>虽然两个应用都使用 Transaction ID 1，但它们的 TASAP Address<br>不同，因此在服务提供者一侧可以区分。</p>
+<p>这与常见 RPC 请求中的事务 ID 或请求 ID<br>思想相似：请求发出后，响应必须能够准确匹配到原请求。</p>
+<h2 id="7-可选能力一：Alarm-Clock"><a href="#7-可选能力一：Alarm-Clock" class="headerlink" title="7. 可选能力一：Alarm Clock"></a>7. 可选能力一：Alarm Clock</h2><h3 id="7-1-Alarm-Clock-解决什么问题"><a href="#7-1-Alarm-Clock-解决什么问题" class="headerlink" title="7.1 Alarm Clock 解决什么问题"></a>7.1 Alarm Clock 解决什么问题</h3><p>Alarm<br>Clock（闹钟能力）允许应用注册一个未来时刻，并在该时刻获得一次时间通知。</p>
+<p>它不是简单地让应用反复调用 <code>GetTime()</code><br>判断是否到达目标时间，而是把”在指定时刻通知我”交给时间访问服务处理。</p>
+<p>872.0-M-1 允许 Alarm-At Time 使用绝对时间或相对时间。</p>
+<p>例如：</p>
+<ul>
+<li>绝对时间：在任务时间 1200 s 时通知；</li>
+<li>相对时间：在当前时间之后 10 s 通知。</li>
+</ul>
+<h3 id="7-2-Alarm-的注册、触发和取消"><a href="#7-2-Alarm-的注册、触发和取消" class="headerlink" title="7.2 Alarm 的注册、触发和取消"></a>7.2 Alarm 的注册、触发和取消</h3><p>注册过程：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">ALARM.request(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Alarm-At Time<br>)<br></code></pre></td></tr></table></figure>
+
+<p>服务提供者收到请求后创建一次性闹钟，并立即返回注册结果：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">ALARM.indication(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Alarm Identifier,<br>    Result Metadata<br>)<br></code></pre></td></tr></table></figure>
+
+<p>其中 Alarm Identifier 由服务提供者分配，在该服务提供者范围内唯一。</p>
+<p><strong>需要区分两个时间点：</strong></p>
+<ol>
+<li><code>ALARM.indication</code>：告诉应用”闹钟是否成功注册”；</li>
+<li>到达目标时刻后发出的 <code>TIME.indication</code>：告诉应用”闹钟时间已经到达”。</li>
+</ol>
+<p>也就是说，注册成功的确认并不等于闹钟已经触发。</p>
+<p>取消操作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CANCEL_ALARM.request(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Alarm Identifier<br>)<br></code></pre></td></tr></table></figure>
+
+<p>服务提供者取消之前注册的闹钟，并删除与该闹钟相关的状态，随后通过<br><code>CANCEL_ALARM.indication</code> 返回取消结果。</p>
+<h3 id="7-3-Alarm-的典型应用"><a href="#7-3-Alarm-的典型应用" class="headerlink" title="7.3 Alarm 的典型应用"></a>7.3 Alarm 的典型应用</h3><ul>
+<li>在指定任务时刻开始载荷图像采集；</li>
+<li>在指定时间启动某个星上操作；</li>
+<li>在指定时刻执行一次状态采样；</li>
+<li>在某个任务时间点触发一次应用级动作。</li>
+</ul>
+<p>但需要注意：TAS 的 Alarm 是服务接口能力，底层究竟使用 RTOS<br>定时器、硬件比较寄存器还是其他机制，由具体实现决定。</p>
+<h2 id="8-可选能力二：Metronome"><a href="#8-可选能力二：Metronome" class="headerlink" title="8. 可选能力二：Metronome"></a>8. 可选能力二：Metronome</h2><h3 id="8-1-Metronome-是什么"><a href="#8-1-Metronome-是什么" class="headerlink" title="8.1 Metronome 是什么"></a>8.1 Metronome 是什么</h3><p>Metronome（节拍器能力）用于注册一个周期性时间通知。</p>
+<p>它与 Alarm 的区别在于：</p>
+<ul>
+<li>Alarm：指定一个未来时刻，触发一次；</li>
+<li>Metronome：指定首次通知时刻和后续间隔，周期性触发。</li>
+</ul>
+<p>例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">首次通知：100 s<br>周期：     10 s<br></code></pre></td></tr></table></figure>
+
+<p>则期望得到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">100 s<br>110 s<br>120 s<br>130 s<br>140 s<br>...<br></code></pre></td></tr></table></figure>
+
+<h3 id="8-2-Metronome-的请求参数"><a href="#8-2-Metronome-的请求参数" class="headerlink" title="8.2 Metronome 的请求参数"></a>8.2 Metronome 的请求参数</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">METRONOME.request(<br>    TASAP Address,<br>    Transaction Identifier,<br>    First Alarm Time,<br>    Inter-Alarm Interval<br>)<br></code></pre></td></tr></table></figure>
+
+<p>参数含义：</p>
+<ul>
+<li><code>First Alarm Time</code>：第一次周期通知发生的时间；</li>
+<li><code>Inter-Alarm Interval</code>：相邻两次通知之间的时间间隔。</li>
+</ul>
+<p>服务提供者收到请求后创建 Metronome，并立即返回：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">METRONOME.indication(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Metronome Identifier,<br>    Result Metadata<br>)<br></code></pre></td></tr></table></figure>
+
+<p>注册成功后，服务提供者按照指定的首次时间和周期，持续产生<br><code>TIME.indication</code>。</p>
+<p>取消操作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CANCEL_METRONOME.request(<br>    TASAP Address,<br>    Transaction Identifier,<br>    Metronome Identifier<br>)<br></code></pre></td></tr></table></figure>
+
+<p>服务提供者停止该周期通知，清除相关状态，并返回<br><code>CANCEL_METRONOME.indication</code>。</p>
+<h3 id="8-3-Metronome-不等于-RTOS-周期任务调度器"><a href="#8-3-Metronome-不等于-RTOS-周期任务调度器" class="headerlink" title="8.3 Metronome 不等于 RTOS 周期任务调度器"></a>8.3 Metronome 不等于 RTOS 周期任务调度器</h3><p>这是工程实现中必须注意的边界。</p>
+<p>Metronome<br>是时间访问服务提供的周期性时间通知能力。它可以帮助应用在任务时间轴上获得周期通知，但它不是通用<br>RTOS 调度器，也不负责保证应用线程一定在某个硬实时截止时间之前完成执行。</p>
+<p>实际任务执行仍然受到：</p>
+<ul>
+<li>RTOS 调度策略；</li>
+<li>中断响应时间；</li>
+<li>任务优先级；</li>
+<li>处理器负载；</li>
+<li>锁竞争；</li>
+<li>驱动执行时间；</li>
+<li>硬件定时器精度；</li>
+</ul>
+<p>等因素影响。</p>
+<h2 id="9-服务参数、管理信息和时间校正"><a href="#9-服务参数、管理信息和时间校正" class="headerlink" title="9. 服务参数、管理信息和时间校正"></a>9. 服务参数、管理信息和时间校正</h2><h3 id="9-1-TAS-的服务参数"><a href="#9-1-TAS-的服务参数" class="headerlink" title="9.1 TAS 的服务参数"></a>9.1 TAS 的服务参数</h3><p>872.0-M-1 第 3.3 节定义了 Time Access Service 使用的参数。</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TASAP Address</td>
+<td>标识服务用户</td>
+</tr>
+<tr>
+<td>Transaction Identifier</td>
+<td>关联请求与响应</td>
+</tr>
+<tr>
+<td>Alarm Identifier</td>
+<td>标识已创建的一次性闹钟</td>
+</tr>
+<tr>
+<td>Metronome Identifier</td>
+<td>标识已创建的周期通知</td>
+</tr>
+<tr>
+<td>Result Metadata</td>
+<td>描述服务操作结果</td>
+</tr>
+<tr>
+<td>Current Time</td>
+<td>服务提供者确定的当前星上时间</td>
+</tr>
+<tr>
+<td>Current Time Error Specification</td>
+<td>当前时间值的误差说明</td>
+</tr>
+<tr>
+<td>Alarm-At Time</td>
+<td>一次性闹钟目标时间</td>
+</tr>
+<tr>
+<td>First Alarm Time</td>
+<td>周期通知的首次时间</td>
+</tr>
+<tr>
+<td>Inter-Alarm Interval</td>
+<td>周期通知间隔</td>
+</tr>
+<tr>
+<td>这些参数体现了 TAS</td>
+<td></td>
+</tr>
+<tr>
+<td>不只是一个读取秒计数的接口，还包含请求管理、结果反馈和时间误差表达。</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="9-2-TAS-的-MIB-并没有被统一定义成固定数据结构"><a href="#9-2-TAS-的-MIB-并没有被统一定义成固定数据结构" class="headerlink" title="9.2 TAS 的 MIB 并没有被统一定义成固定数据结构"></a>9.2 TAS 的 MIB 并没有被统一定义成固定数据结构</h3><p>872.0-M-1 第 4 节有一个容易忽略的说明：</p>
+<p>该服务本身目前没有单独定义一套完整的 Management Information<br>Base（MIB）。如果某个协议声称以 SOIS 兼容方式提供 Time Access<br>Service，那么提供该服务的协议应在自己的协议规范中发布相应 MIB。</p>
+<p>872 文档给出的 MIB 设计指导包括三个方面：</p>
+<ol>
+<li>Frequency；</li>
+<li>Drift；</li>
+<li>Maximum Adjustment。</li>
+</ol>
+<p>它们的含义如下。</p>
+<h4 id="Frequency"><a href="#Frequency" class="headerlink" title="Frequency"></a>Frequency</h4><p>Frequency 表示 Time Access Service 更新或采样本地时间源的频率。</p>
+<p>特别注意：这里的 Frequency <strong>不是本地硬件晶体振荡器的频率</strong>。</p>
+<p>例如：</p>
+<ul>
+<li>本地硬件时钟频率：10 MHz；</li>
+<li>TAS 每秒采样或更新服务数据：100 次。</li>
+</ul>
+<p>这里 10 MHz 是硬件计数器时钟频率；100 Hz<br>才是该服务参数所描述的更新频率。</p>
+<h4 id="Drift"><a href="#Drift" class="headerlink" title="Drift"></a>Drift</h4><p>Drift 表示本地时钟所使用振荡器的稳定性。</p>
+<p>振荡器存在频率误差，时间运行一段时间后就会产生累积偏差。MIB<br>应能够提供相关漂移信息；文档还指出，管理实体可以更新该参数，以补偿时钟老化带来的影响。</p>
+<h4 id="Maximum-Adjustment"><a href="#Maximum-Adjustment" class="headerlink" title="Maximum Adjustment"></a>Maximum Adjustment</h4><p>Maximum Adjustment<br>表示允许对本地时间源进行的最大时间调整量，可以向前调整，也可以向后调整。</p>
+<p>为什么要限制调整量？</p>
+<p>假设本地时间当前为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">1000.000 s<br></code></pre></td></tr></table></figure>
+
+<p>同步机制发现它比主时间快了 100 ms。</p>
+<p>如果直接把本地时间从 1000.000 s 调整到 999.900<br>s，就会出现时间倒退。依赖时间戳、超时或绝对时间比较的应用可能受到影响。</p>
+<p>因此，时间调整需要受到管理约束，不能不加控制地改变应用可见的时间。</p>
+<h3 id="9-3-时间跳变、单调性和应用影响"><a href="#9-3-时间跳变、单调性和应用影响" class="headerlink" title="9.3 时间跳变、单调性和应用影响"></a>9.3 时间跳变、单调性和应用影响</h3><p>本地时间源通常希望表现为持续向前的时间计数，但 872.0-M-1<br>也明确指出，底层本地时钟可能因为校正而被向后调整。</p>
+<p>工程上至少要区分：</p>
+<ul>
+<li><strong>时间值</strong>：当前本地时钟给出的时间；</li>
+<li><strong>时间偏差</strong>：本地时间与主时间参考之间的差异；</li>
+<li><strong>频率偏差</strong>：本地时钟走快或走慢的程度；</li>
+<li><strong>时间调整</strong>：为了修正偏差而对本地时钟进行的操作。</li>
+</ul>
+<p>如果应用使用时间值计算两个事件之间的间隔，就必须考虑时间调整是否可能造成倒退或跳变。</p>
+<p>因此，工程设计通常还需要明确：</p>
+<ul>
+<li>哪些时间 API 返回任务统一时间；</li>
+<li>哪些 API 用于测量本地时间间隔；</li>
+<li>是否允许运行期间向后校时；</li>
+<li>最大调整量是多少；</li>
+<li>应用如何识别时间无效或时间误差超限。</li>
+</ul>
+<p>这些具体策略需要由任务和平台实现确定，不能仅靠 872<br>文档中的抽象接口自动获得。</p>
+<h2 id="10-服务性能：返回时间正确，不代表访问过程没有延迟"><a href="#10-服务性能：返回时间正确，不代表访问过程没有延迟" class="headerlink" title="10. 服务性能：返回时间正确，不代表访问过程没有延迟"></a>10. 服务性能：返回时间正确，不代表访问过程没有延迟</h2><h3 id="10-1-时间访问服务本身也有延迟"><a href="#10-1-时间访问服务本身也有延迟" class="headerlink" title="10.1 时间访问服务本身也有延迟"></a>10.1 时间访问服务本身也有延迟</h3><p>872.0-M-1 附录 D 专门讨论了 Service Characterization（服务性能表征）。</p>
+<p>它指出，时间访问服务返回的时间值与这个值实际交付给应用的时刻之间存在时间关系。</p>
+<p>理想情况下，应用发出请求后，服务能够像直接读取硬件计数器一样立即得到时间；但真实系统中，时间访问过程会经过：</p>
+<ul>
+<li>应用调用；</li>
+<li>服务接口处理；</li>
+<li>RTOS 或基础软件；</li>
+<li>硬件计数器读取；</li>
+<li>结果返回和应用调度。</li>
+</ul>
+<p>因此，从实际时间事件发生到应用收到 <code>TIME.indication</code><br>之间必然存在一定延迟。</p>
+<h3 id="10-2-必须区分时间误差和服务访问延迟"><a href="#10-2-必须区分时间误差和服务访问延迟" class="headerlink" title="10.2 必须区分时间误差和服务访问延迟"></a>10.2 必须区分时间误差和服务访问延迟</h3><table>
+<thead>
+<tr>
+<th>指标</th>
+<th>测量对象</th>
+<th>主要影响因素</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>时间源误差</td>
+<td>本地时间与主参考的差值</td>
+<td>振荡器、温度、校准和同步周期</td>
+</tr>
+<tr>
+<td>时间分辨率</td>
+<td>时间值能表示的最小单位</td>
+<td>计数器与亚秒字段</td>
+</tr>
+<tr>
+<td>时间访问延迟</td>
+<td>请求发出到结果送达</td>
+<td>调度、负载与服务实现</td>
+</tr>
+<tr>
+<td>Alarm 通知延迟</td>
+<td>事件发生到通知送达</td>
+<td>定时器、中断与调度</td>
+</tr>
+<tr>
+<td>Metronome 周期误差</td>
+<td>实际间隔与请求间隔的差值</td>
+<td>时钟、定时器与调度抖动</td>
+</tr>
+</tbody></table>
+<p>一个系统即使具有高精度硬件时钟，也可能因为服务调用和任务调度延迟，使应用收到时间结果时已经过去了一段时间。</p>
+<p>反过来，服务响应很快，也不代表底层时间源本身足够准确。</p>
+<h3 id="10-3-附录-D-建议测量的两类延迟"><a href="#10-3-附录-D-建议测量的两类延迟" class="headerlink" title="10.3 附录 D 建议测量的两类延迟"></a>10.3 附录 D 建议测量的两类延迟</h3><p>附录 D 给出了至少应当考虑的两项测试：</p>
+<ol>
+<li><code>TIME.request</code> 到对应 <code>TIME.indication</code> 之间的最大时间；</li>
+<li>Alarm 或 Metronome 事件实际发生到用户通过 <code>TIME.indication</code><br>收到通知之间的最大时间。</li>
+</ol>
+<p>这些测试结果应与真实系统的性能需求进行比较。</p>
+<p>因此，时间访问服务的验证不能只测”返回的秒数对不对”，还要测：</p>
+<ul>
+<li>请求到响应的最大延迟；</li>
+<li>闹钟触发到通知的最大延迟；</li>
+<li>周期通知的实际间隔；</li>
+<li>不同 CPU 负载下的性能变化；</li>
+<li>RTOS 调度和中断对服务延迟的影响。</li>
+</ul>
+<h2 id="11-POSIX-API-与-Time-Access-Service-的关系"><a href="#11-POSIX-API-与-Time-Access-Service-的关系" class="headerlink" title="11. POSIX API 与 Time Access Service 的关系"></a>11. POSIX API 与 Time Access Service 的关系</h2><p>872.0-M-1 的附录 C 给出了一个典型 POSIX API 映射示例。</p>
+<p>这部分很有工程价值，因为它说明 Time Access Service<br>可以通过操作系统或基础软件提供的时间接口来实现，而不要求应用直接操作硬件计数器。</p>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>附录 C 的 POSIX 示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>读取 Wall Clock</td>
+<td><code>clock_gettime(CLOCK_REALTIME, …)</code>，不推荐只用 <code>time()</code></td>
+</tr>
+<tr>
+<td>阻塞式等待</td>
+<td><code>clock_nanosleep()</code> 或 <code>nanosleep()</code></td>
+</tr>
+<tr>
+<td>异步定时与取消</td>
+<td><code>timer_create()</code>、<code>timer_settime()</code>、<code>timer_delete()</code></td>
+</tr>
+<tr>
+<td>Metronome</td>
+<td>附录 C 的示例未给出映射</td>
+</tr>
+</tbody></table>
+<p>需要注意：</p>
+<ol>
+<li>这是 872.0-M-1 附录中的典型 API 映射，不是规定所有 TAS 实现必须使用<br>POSIX；</li>
+<li>附录 C 是 informative（信息性）内容，不是服务接口的强制实现方式；</li>
+<li>不同 RTOS 对 POSIX API 的支持范围和语义可能不同；</li>
+<li><code>CLOCK_REALTIME</code><br>与单调时钟的用途不同，工程实现必须明确所访问的时间基准。</li>
+</ol>
+<p>尤其不能因为 TAS 有 Alarm 或 Metronome，就认为它可以替代 RTOS<br>的全部定时器和周期任务机制。</p>
+<h3 id="从-Linux-的-cFE-时间适配看接口边界"><a href="#从-Linux-的-cFE-时间适配看接口边界" class="headerlink" title="从 Linux 的 cFE 时间适配看接口边界"></a>从 Linux 的 cFE 时间适配看接口边界</h3><p>本地 Linux 移植中，<code>cfe_time_port.c</code> 用 <code>clock_gettime(CLOCK_REALTIME, &amp;ts)</code> 取得时间，再填充 cFE 的整秒和二进制亚秒字段。忽略错误处理，转换只有两行。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">t.Seconds    = (uint32)ts.tv_sec;<br>t.Subseconds = (uint32)(((uint64)ts.tv_nsec * <span class="hljs-number">0x100000000U</span>LL) / <span class="hljs-number">1000000000ULL</span>);<br></code></pre></td></tr></table></figure>
+
+<p>纳秒乘以 2³² 再除以 10⁹，把十进制纳秒换成以 2⁻³² 秒为单位的值。例如 500,000,000 ns 对应 <code>0x80000000</code>。这段适配沿用主机时钟纪元，读取失败时用零填充，因此调用者无法仅凭返回结构区分失败。TAS 的时间误差与结果元数据也需要由服务层另外取得和传递。进程内测超时和耗时应选用平台提供的单调时钟，避免墙上时钟校正影响间隔计算。<a href="/post/cfs-sb-07-linux-port.html">cFS&#x2F;SB 的 Linux 移植记录</a></p>
+<h2 id="12-CCSDS-853-0-M-1：与时间访问服务配套的子网同步服务"><a href="#12-CCSDS-853-0-M-1：与时间访问服务配套的子网同步服务" class="headerlink" title="12. CCSDS 853.0-M-1：与时间访问服务配套的子网同步服务"></a>12. CCSDS 853.0-M-1：与时间访问服务配套的子网同步服务</h2><h3 id="12-1-为什么还需要-Subnetwork-Synchronisation-Service"><a href="#12-1-为什么还需要-Subnetwork-Synchronisation-Service" class="headerlink" title="12.1 为什么还需要 Subnetwork Synchronisation Service"></a>12.1 为什么还需要 Subnetwork Synchronisation Service</h3><p>前面已经说明，872.0-M-1<br>只定义应用访问本地时间源的接口，并不负责把不同处理器的时间关联起来。</p>
+<p>因此还需要底层的时间同步&#x2F;关联机制。</p>
+<p>CCSDS 853.0-M-1《Spacecraft Onboard Interface Services—Subnetwork<br>Synchronisation Service》定义了 SOIS 子网同步服务。</p>
+<p>它的核心功能是：</p>
+<blockquote>
+<p>为用户实体提供一种机制，使其能够维护在同一子网中各数据系统之间共同的时间认知。</p>
+</blockquote>
+<p>该服务通过子网使用的数据链路传递时间数据和控制信息。具体采用哪种数据链路和传输协议，不属于<br>853.0-M-1 本身规定的实现范围。</p>
+<h3 id="12-2-853-与-872-的职责区别"><a href="#12-2-853-与-872-的职责区别" class="headerlink" title="12.2 853 与 872 的职责区别"></a>12.2 853 与 872 的职责区别</h3><p>这两个文件都出现 <code>TIME.request</code> 和<br><code>TIME.indication</code>，但它们属于不同服务层次，不能因为名字相同就认为语义完全相同。</p>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>872.0-M-1 TAS</th>
+<th>853.0-M-1 Subnetwork Synchronisation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>所在层次</td>
+<td>应用支持层</td>
+<td>子网层</td>
+</tr>
+<tr>
+<td>服务接入点</td>
+<td>TASAP</td>
+<td>SYNCSAP</td>
+</tr>
+<tr>
+<td>时间请求</td>
+<td><code>TIME.request(TASAP, Transaction ID)</code></td>
+<td><code>TIME.request(SYNCSAP)</code></td>
+</tr>
+<tr>
+<td>时间指示</td>
+<td>本地时间、误差和结果</td>
+<td>子网时间数据，可主动指示</td>
+</tr>
+<tr>
+<td>其他能力</td>
+<td>可选 Alarm 和 Metronome</td>
+<td>Event 请求和事件通知</td>
+</tr>
+</tbody></table>
+<p>可以把二者理解为：</p>
+<ul>
+<li>853 解决”子网中的节点如何获得共同时间信息”；</li>
+<li>872 解决”节点上的应用如何统一访问本地时间”。</li>
+</ul>
+<h3 id="12-3-853-的时间原语"><a href="#12-3-853-的时间原语" class="headerlink" title="12.3 853 的时间原语"></a>12.3 853 的时间原语</h3><p>853.0-M-1 定义了两个时间原语：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">TIME.request(SYNCSAP Address)<br></code></pre></td></tr></table></figure>
+
+<p>用户请求子网同步服务获取时间数据。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">TIME.indication(SYNCSAP Address, Time)<br></code></pre></td></tr></table></figure>
+
+<p>服务提供者向用户传递时间数据。</p>
+<p>其中，<code>TIME.indication</code> 不仅可以响应<br><code>TIME.request</code>，还可以在没有请求的情况下主动发出。例如，采用时间广播系统时，服务提供者可以周期性地向子网用户发布时间信息。</p>
+<h3 id="12-4-853-还包含-Event-通知能力"><a href="#12-4-853-还包含-Event-通知能力" class="headerlink" title="12.4 853 还包含 Event 通知能力"></a>12.4 853 还包含 Event 通知能力</h3><p>853 并不只有时间数据传递，还定义了子网事件通知：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">EVENT.request(<br>    SYNCSAP Address,<br>    Event ID,<br>    Start/Stop<br>)<br></code></pre></td></tr></table></figure>
+
+<p>用户可以请求开始或停止接收某个子网事件的通知。</p>
+<p>发生事件后，服务提供者通过：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">EVENT.indication(<br>    SYNCSAP Address,<br>    Event ID,<br>    Event Time,<br>    Event Data<br>)<br></code></pre></td></tr></table></figure>
+
+<p>通知用户。</p>
+<p>其中：</p>
+<ul>
+<li>Event ID：标识发生的事件；</li>
+<li>Event Time：表示事件发生的时间；</li>
+<li>Event Data：携带与事件有关的数据；</li>
+<li>Start&#x2F;Stop：控制是否开始或停止接收指定事件通知。</li>
+</ul>
+<p>这说明 SOIS Subnetwork Synchronisation Service<br>的设计并不局限于时间查询，也包括子网级事件通知。</p>
+<h3 id="12-5-853-的-Best-effort-服务质量非常重要"><a href="#12-5-853-的-Best-effort-服务质量非常重要" class="headerlink" title="12.5 853 的 Best-effort 服务质量非常重要"></a>12.5 853 的 Best-effort 服务质量非常重要</h3><p>853.0-M-1 明确规定，该同步服务采用单一 Best-effort QoS。</p>
+<p>这意味着服务只尝试提供所请求的能力，<strong>不能保证一定成功完成</strong>。</p>
+<p>它没有在服务原语中提供独立的 Channel 和 Priority<br>参数。若具体子网需要优先级、资源预留或信道管理，应由相应子网管理信息和协议实现处理。</p>
+<p>因此，不能仅仅因为采用了 853<br>的同步服务接口，就推断时间消息必然可靠到达，也不能推断其传输时延具有确定上界。</p>
+<p>如果任务对时间同步的可靠性和精度有严格要求，具体链路协议、硬件实现、错误检测和恢复机制必须进一步定义和验证。</p>
+<h3 id="12-6-853-同样没有规定唯一的底层协议"><a href="#12-6-853-同样没有规定唯一的底层协议" class="headerlink" title="12.6 853 同样没有规定唯一的底层协议"></a>12.6 853 同样没有规定唯一的底层协议</h3><p>853.0-M-1 的范围是服务及其服务接口，不规定不同数据链路上如何实现该服务。</p>
+<p>它要求具体协议如果声称以 SOIS<br>兼容方式提供同步服务，就应在协议规范中发布相应 MIB。</p>
+<p>MIB 指导内容包括：</p>
+<ul>
+<li>通道资源分配；</li>
+<li>Time 的语义；</li>
+<li>Event Time 的语义；</li>
+<li>Event ID 和 Event Data 的语义；</li>
+<li>同步 PDU 的优先级和信道分配；</li>
+<li>主动发送 TIME.indication 的周期或触发条件。</li>
+</ul>
+<p>所以，853 是一个服务抽象和接口规范，不是一个可以直接替代<br>1553、SpaceWire、CAN 或以太网协议的具体传输协议。</p>
+<h2 id="13-CCSDS-301-0-B-4：时间访问服务返回的时间如何编码"><a href="#13-CCSDS-301-0-B-4：时间访问服务返回的时间如何编码" class="headerlink" title="13. CCSDS 301.0-B-4：时间访问服务返回的时间如何编码"></a>13. CCSDS 301.0-B-4：时间访问服务返回的时间如何编码</h2><h3 id="13-1-时间访问与时间编码是两个问题"><a href="#13-1-时间访问与时间编码是两个问题" class="headerlink" title="13.1 时间访问与时间编码是两个问题"></a>13.1 时间访问与时间编码是两个问题</h3><p>时间访问服务返回的是一个时间值。</p>
+<p>但当这个时间值需要放入遥测包、记录文件或通过链路发送时，就必须规定：</p>
+<ul>
+<li>时间字段占多少字节；</li>
+<li>秒和亚秒如何编码；</li>
+<li>时间从哪个 Epoch 开始；</li>
+<li>使用什么时间尺度；</li>
+<li>接收方如何识别时间码格式。</li>
+</ul>
+<p>CCSDS 301.0-B-4《Time Code<br>Formats》就是为时间数据交换提供统一编码格式的标准。</p>
+<p>它明确指出，时间码是时间信息的数字表示；该标准不负责规定时间稳定性、精度和准确度等性能指标。</p>
+<h3 id="13-2-CCSDS-时间码格式"><a href="#13-2-CCSDS-时间码格式" class="headerlink" title="13.2 CCSDS 时间码格式"></a>13.2 CCSDS 时间码格式</h3><p>301.0-B-4 描述了四类推荐时间码：</p>
+<table>
+<thead>
+<tr>
+<th>时间码</th>
+<th>表示方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CUC</td>
+<td>二进制连续计数</td>
+</tr>
+<tr>
+<td>CDS</td>
+<td>按天和日内时间分段</td>
+</tr>
+<tr>
+<td>CCS</td>
+<td>二进制日历字段</td>
+</tr>
+<tr>
+<td>ASCII</td>
+<td>ASCII 日历字段</td>
+</tr>
+</tbody></table>
+<p>其中，CUC 在星载数据包时间标记中尤其常见。</p>
+<h3 id="13-3-CUC-的-P-Field-和-T-Field"><a href="#13-3-CUC-的-P-Field-和-T-Field" class="headerlink" title="13.3 CUC 的 P-Field 和 T-Field"></a>13.3 CUC 的 P-Field 和 T-Field</h3><p>CUC 主要由两个逻辑部分构成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">+-----------------------------+--------------------------------+<br>| P-Field                     | T-Field                        |<br>| 时间码格式描述/前导信息      | 实际时间数据                    |<br>+-----------------------------+--------------------------------+<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>P-Field：描述时间码格式及相关参数；</li>
+<li>T-Field：携带实际时间计数。</li>
+</ul>
+<p>P-Field 可以显式存在，也可以由外部元数据隐式提供。如果没有显式<br>P-Field，接收端必须通过其他约定知道 T-Field 的格式。</p>
+<p>CUC 的 T-Field 由连续字节组成，表示从指定 Epoch<br>开始累计的基本时间单位数量，并可以附加表示秒以下二进制分数的字节。</p>
+<p>可以将其理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">CUC T-Field<br>    |<br>    +---- Coarse Time：基本时间单位计数<br>    |<br>    +---- Fine Time：基本时间单位的二进制分数<br></code></pre></td></tr></table></figure>
+
+<p>这里的 Coarse&#x2F;Fine 是便于理解的描述，实际字段长度和解释必须依据 P-Field<br>或外部元数据确定。</p>
+<h3 id="13-4-CUC-的-Epoch-和时间尺度"><a href="#13-4-CUC-的-Epoch-和时间尺度" class="headerlink" title="13.4 CUC 的 Epoch 和时间尺度"></a>13.4 CUC 的 Epoch 和时间尺度</h3><p>301.0-B-4 推荐的 Level 1 CUC Epoch 为：</p>
+<p><strong>1958 年 1 月 1 日 TAI。</strong></p>
+<p>其推荐基本时间单位为秒。</p>
+<p>这个 CUC Level 1 时间码使用 TAI 作为参考时间尺度，不以 UTC<br>为基础，因此不需要在该时间码中进行闰秒修正。</p>
+<p>这点在工程中非常重要。</p>
+<p>如果发送端把时间理解为 UTC，接收端却把同一字段按 TAI<br>解释，那么双方可能产生秒级偏差。</p>
+<p>因此，时间码字段不能只约定”前 4 字节是秒、后 2 字节是亚秒”，还必须明确：</p>
+<ul>
+<li>Epoch；</li>
+<li>时间尺度；</li>
+<li>粗时间字段长度；</li>
+<li>精时间字段长度；</li>
+<li>P-Field 是否存在；</li>
+<li>字段字节序；</li>
+<li>任务是否采用 Agency-defined Epoch；</li>
+<li>相关元数据由哪里提供。</li>
+</ul>
+<h3 id="一个-CUC-4-2-字节的对照片段"><a href="#一个-CUC-4-2-字节的对照片段" class="headerlink" title="一个 CUC 4+2 字节的对照片段"></a>一个 CUC 4+2 字节的对照片段</h3><p>假定任务已声明基本单位为秒、P-Field 省略、粗时间 4 字节、细时间 2 字节。字节串 <code>00 00 00 05 80 00</code> 中，粗时间是 5，细时间整数是 <code>0x8000</code>。以 2¹⁶ 为分母得到 0.5 秒，整个字段表示距任务约定纪元 5.5 秒。两字节细时间的分辨率为 2⁻¹⁶ 秒，约 15.26 μs。这个数字描述编码能表达的最小步进，实际时间误差仍由时间源与同步结果决定。<a href="/post/eds-pus-03-ccsds-pus-service-type-17.html">PUS 遥测时间字段</a></p>
+<h3 id="13-5-301-标准不负责时间同步"><a href="#13-5-301-标准不负责时间同步" class="headerlink" title="13.5 301 标准不负责时间同步"></a>13.5 301 标准不负责时间同步</h3><p>这里必须再次强调：</p>
+<ul>
+<li>301 规定时间值如何编码；</li>
+<li>872 规定应用如何访问本地时间；</li>
+<li>853 规定子网同步服务如何提供共同时间信息。</li>
+</ul>
+<p>即使所有设备都使用相同的 CUC<br>格式，如果各设备的本地时间源没有正确同步或关联，它们编码出来的时间仍然可能不一致。</p>
+<p>统一编码不能替代统一时间基准。</p>
+<h2 id="14-PTP、TSN-应该放在什么位置理解"><a href="#14-PTP、TSN-应该放在什么位置理解" class="headerlink" title="14. PTP、TSN 应该放在什么位置理解"></a>14. PTP、TSN 应该放在什么位置理解</h2><p>IEEE 1588 PTP（Precision Time Protocol）和 TSN（Time-Sensitive<br>Networking）经常与星上时间同步一起讨论，但它们不是 CCSDS 872.0-M-1<br>所规定的强制实现方式。</p>
+<p>更准确的理解是：</p>
+<ol>
+<li>872 定义时间访问服务接口；</li>
+<li>853 定义子网同步服务接口；</li>
+<li>具体平台可以根据链路和硬件条件选择时间同步实现；</li>
+<li>如果采用以太网网络时间同步，可以进一步研究 IEEE 1588 PTP；</li>
+<li>如果需要时间敏感网络中的统一时钟和确定性流量调度，可以研究 IEEE<br>802.1AS&#x2F;gPTP 与 TSN 相关机制。</li>
+</ol>
+<p>PTP<br>的典型功能是通过网络时间戳交换估算设备间的时钟偏差和路径延迟；硬件时间戳可以降低软件协议栈和任务调度带来的时间戳不确定性。</p>
+<p>但需要注意：</p>
+<ul>
+<li>PTP 是同步协议，不是时间访问 API；</li>
+<li>硬件时间戳与 PTP 协议版本是不同维度；</li>
+<li>TSN 不只是时间同步，还包括时间感知流量调度等机制；</li>
+<li>采用 PTP 或 gPTP 并不自动意味着符合某个具体航天任务的 SOIS<br>时间服务接口要求。</li>
+</ul>
+<p>如果工程采用<br>PTP，需要把它放在底层时间同步&#x2F;关联实现层进行设计，而不是把它直接等同于<br>TAS。</p>
+<h2 id="15-面向工程实现的设计与验证要点"><a href="#15-面向工程实现的设计与验证要点" class="headerlink" title="15. 面向工程实现的设计与验证要点"></a>15. 面向工程实现的设计与验证要点</h2><h3 id="15-1-时间访问服务的建议模块边界"><a href="#15-1-时间访问服务的建议模块边界" class="headerlink" title="15.1 时间访问服务的建议模块边界"></a>15.1 时间访问服务的建议模块边界</h3><p>如果在星载软件中实现类似 TAS 的能力，可以将其划分为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs text">Time Access Service<br>    |<br>    +---- API / Service Interface<br>    |       +---- TIME.request<br>    |       +---- TIME.indication<br>    |       +---- ALARM.request / indication<br>    |       +---- METRONOME.request / indication<br>    |<br>    +---- Time Access Core<br>    |       +---- 请求关联<br>    |       +---- 时间读取<br>    |       +---- 误差与结果状态<br>    |       +---- Alarm 管理<br>    |       +---- Metronome 管理<br>    |<br>    +---- Local Time Source Adapter<br>    |       +---- 硬件计数器读取<br>    |       +---- 时间寄存器访问<br>    |       +---- 本地时间格式转换<br>    |<br>    +---- OS / Hardware Layer<br>            +---- RTOS 定时器<br>            +---- 硬件计数器<br>            +---- PPS 捕获/装载<br>            +---- 底层同步服务<br></code></pre></td></tr></table></figure>
+
+<p>这是工程上的一种建议性分层，不是 CCSDS 规定的源代码目录或固定模块名称。</p>
+<p>关键是把三个依赖隔离开：</p>
+<ul>
+<li>应用依赖服务接口；</li>
+<li>TAS 核心依赖本地时间源抽象；</li>
+<li>本地时间源适配层依赖具体 RTOS 和硬件。</li>
+</ul>
+<p>这样更换处理器或定时器硬件时，应用层不需要跟着修改。</p>
+<h3 id="15-2-需要明确的时间接口契约"><a href="#15-2-需要明确的时间接口契约" class="headerlink" title="15.2 需要明确的时间接口契约"></a>15.2 需要明确的时间接口契约</h3><p>实现前至少应当确定：</p>
+<table>
+<thead>
+<tr>
+<th>设计项</th>
+<th>必须明确的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>时间基准</td>
+<td>使用 MET、SCET、TAI、UTC，还是任务自定义时间？</td>
+</tr>
+<tr>
+<td>Epoch</td>
+<td>时间从什么起点开始累计？</td>
+</tr>
+<tr>
+<td>时间表示</td>
+<td>秒和亚秒分别使用多少位？</td>
+</tr>
+<tr>
+<td>误差表达</td>
+<td>Current Time Error Specification 使用什么单位和格式？</td>
+</tr>
+<tr>
+<td>时间有效性</td>
+<td>何时认为时间有效，失步后如何标记？</td>
+</tr>
+<tr>
+<td>时间调整</td>
+<td>是否允许向前或向后调整，最大调整量是多少？</td>
+</tr>
+<tr>
+<td>请求关联</td>
+<td>Transaction Identifier 如何分配和回收？</td>
+</tr>
+<tr>
+<td>Alarm</td>
+<td>绝对时间和相对时间如何解释？</td>
+</tr>
+<tr>
+<td>Metronome</td>
+<td>周期以绝对时间还是间隔方式维护？</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>最大访问延迟和通知延迟是多少？</td>
+</tr>
+<tr>
+<td>回绕</td>
+<td>秒计数器回绕时如何保持时间语义？</td>
+</tr>
+<tr>
+<td>重启</td>
+<td>处理器重启后，本地时间如何重新关联主时间？</td>
+</tr>
+<tr>
+<td>如果这些内容没有定义清楚，即使服务原语名称与 CCSDS</td>
+<td></td>
+</tr>
+<tr>
+<td>文件一致，也不能说明接口已经满足项目的时间需求。</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="15-3-建议的验证项目"><a href="#15-3-建议的验证项目" class="headerlink" title="15.3 建议的验证项目"></a>15.3 建议的验证项目</h3><table>
+<thead>
+<tr>
+<th>测试类别</th>
+<th>注入或操作</th>
+<th>观察内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基本读取</td>
+<td>发出时间请求</td>
+<td>时间、事务标识与结果状态</td>
+</tr>
+<tr>
+<td>误差报告</td>
+<td>引入可测时钟偏差</td>
+<td>报告的误差与测量值</td>
+</tr>
+<tr>
+<td>请求并发</td>
+<td>不同应用使用相同事务号</td>
+<td>TASAP 与事务号正确关联</td>
+</tr>
+<tr>
+<td>失败与超时</td>
+<td>模拟时间源读取失败或响应超时</td>
+<td>结果元数据能区分失败</td>
+</tr>
+<tr>
+<td>Alarm</td>
+<td>注册、触发、触发前取消</td>
+<td>注册结果、通知时刻与取消结果</td>
+</tr>
+<tr>
+<td>Metronome</td>
+<td>指定首次时间与周期，再取消</td>
+<td>周期、抖动与取消后的通知状态</td>
+</tr>
+<tr>
+<td>PPS 关联与丢失</td>
+<td>时间消息配合 PPS，随后模拟失步</td>
+<td>整秒边界、时间质量与恢复</td>
+</tr>
+<tr>
+<td>长期漂移与性能</td>
+<td>改变负载并持续测量</td>
+<td>时间偏差与请求、事件的最大通知延迟</td>
+</tr>
+</tbody></table>
+<h3 id="15-4-最容易被忽略的四项验证"><a href="#15-4-最容易被忽略的四项验证" class="headerlink" title="15.4 最容易被忽略的四项验证"></a>15.4 最容易被忽略的四项验证</h3><p><strong>第一，时间值和时间误差必须一起验证。</strong></p>
+<p>只检查 <code>Current Time</code><br>是否递增是不够的。还需要检查服务报告的时间误差是否与实际测量结果相符。</p>
+<p><strong>第二，服务响应延迟必须单独测量。</strong></p>
+<p>时间值可能是正确的，但应用收到它时已经过去了较长时间。特别是高负载下，RTOS<br>调度延迟可能明显增加。</p>
+<p><strong>第三，时间校正不能只验证”最终同步成功”。</strong></p>
+<p>还要检查时间是否发生倒退、跳变，以及应用是否能承受这些变化。</p>
+<p><strong>第四，必须验证失去同步后的行为。</strong></p>
+<p>PPS<br>丢失、主时间源失效或子网通信中断后，系统如何维持本地时间、如何报告时间质量、如何恢复同步，都应在任务级设计中明确。这里的<br>Holdover（守时）是工程上需要考虑的能力，不是 872.0-M-1<br>已经完整规定的一套状态机。</p>
+<h2 id="16-关键结论"><a href="#16-关键结论" class="headerlink" title="16. 关键结论"></a>16. 关键结论</h2><p>星上时间访问服务不是简单的”读取系统时间”函数，而是分布式星载软件体系中的一项基础服务。</p>
+<p>理解它时，需要始终保持以下职责边界：</p>
+<ol>
+<li><strong>主星上时间源</strong>定义任务采用的参考时间；</li>
+<li><strong>本地时间源</strong>在各处理节点维护本地计数；</li>
+<li><strong>时间同步&#x2F;关联机制</strong>使本地时间源与主时间源保持一致；</li>
+<li><strong>SOIS Time Access Service</strong>向应用提供统一的本地时间访问接口；</li>
+<li><strong>Alarm 和 Metronome</strong>为应用提供一次性和周期性时间通知；</li>
+<li><strong>管理信息和性能表征</strong>用于描述振荡器漂移、服务更新频率、最大校正量和服务延迟；</li>
+<li><strong>CCSDS 301 时间码</strong>负责把时间值编码进数据交换结构。</li>
+</ol>
+<p>其中最重要的关系是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">主时间源 → 子网同步/时间关联 → 各节点本地时间源 → SOIS TAS → 星载应用 → CUC/数据包<br></code></pre></td></tr></table></figure>
+
+<p><strong>TAS 的价值在于把”如何访问时间”从具体硬件实现中抽象出来。</strong></p>
+<p>应用不再需要知道本地计数器位于哪个寄存器、使用哪一种振荡器、通过什么总线与主时间关联。它只需要遵循统一的服务接口，就能访问本节点的时间。</p>
+<p>而真正决定星上多个节点能否保持时间一致的，是主时间源、本地时间源、底层同步机制及其性能验证。</p>
+<h2 id="17-原始标准、官方资料与延伸阅读"><a href="#17-原始标准、官方资料与延伸阅读" class="headerlink" title="17. 原始标准、官方资料与延伸阅读"></a>17. 原始标准、官方资料与延伸阅读</h2><p>以下链接优先采用 CCSDS、ISO 等标准组织的原始页面和出版物。阅读时建议以<br>PDF 的章节号为准。</p>
+<h3 id="17-1-核心标准"><a href="#17-1-核心标准" class="headerlink" title="17.1 核心标准"></a>17.1 核心标准</h3><p><strong>1. CCSDS 872.0-M-1 — Spacecraft Onboard Interface Services—Time<br>Access Service</strong></p>
+<p>本文的核心依据。</p>
+<p>重点阅读：</p>
+<ul>
+<li>§1：Purpose and Scope、Definitions；</li>
+<li>§2：Overview、Context、Purpose and Operation；</li>
+<li>§3：Provided Service、Service Parameters、Service Primitives；</li>
+<li>§4：MIB Guidance、Frequency、Drift、Maximum Adjustment；</li>
+<li>§5：Service Conformance Statement；</li>
+<li>Annex B：Typical Implementation；</li>
+<li>Annex C：Typical API – POSIX；</li>
+<li>Annex D：Service Characterization。</li>
+</ul>
+<p>原始 PDF：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/03/872x0m1s.pdf">https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/03/872x0m1s.pdf</a></p>
+<p>CCSDS 历史文档目录：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/publications/silverbooks/">https://ccsds.org/publications/silverbooks/</a></p>
+<p><strong>2. CCSDS 853.0-M-1 — Spacecraft Onboard Interface<br>Services—Subnetwork Synchronisation Service</strong></p>
+<p>872.0-M-1 明确引用的配套子网同步服务规范。</p>
+<p>重点阅读：</p>
+<ul>
+<li>§2：Function、Context、Assumptions、Quality of Service；</li>
+<li>§3：Service Parameters、TIME 原语、EVENT 原语；</li>
+<li>§4：MIB Guidance；</li>
+<li>§5：Service Conformance Statement。</li>
+</ul>
+<p>原始 PDF：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/01/853x0m1.pdf">https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/01/853x0m1.pdf</a></p>
+<p>CCSDS SOIS 出版物目录：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/publications/sois/">https://ccsds.org/publications/sois/</a></p>
+<p><strong>3. CCSDS 301.0-B-4 — Time Code Formats</strong></p>
+<p>时间码格式标准。</p>
+<p>重点阅读：</p>
+<ul>
+<li>§1：Purpose and Scope；</li>
+<li>§3.1：P-Field 和 T-Field；</li>
+<li>§3.2：CUC；</li>
+<li>§3.3：CDS；</li>
+<li>§3.4：CCS；</li>
+<li>§3.5：ASCII；</li>
+<li>Annex D：TAI 与 UTC 转换。</li>
+</ul>
+<p>原始 PDF：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/301x0b4e1.pdf">https://ccsds.org/Pubs/301x0b4e1.pdf</a></p>
+<p>CCSDS 官方出版物页面：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/view/bluebooks/entry/3147/">https://ccsds.org/view/bluebooks/entry/3147/</a></p>
+<h3 id="17-2-SOIS-总体架构"><a href="#17-2-SOIS-总体架构" class="headerlink" title="17.2 SOIS 总体架构"></a>17.2 SOIS 总体架构</h3><p><strong>4. CCSDS 850.0-G-2 — Spacecraft Onboard Interface Services</strong></p>
+<p>这是 SOIS 总体架构的 Green Book，适合在理解 TAS 和 Subnetwork<br>Synchronisation Service 后阅读。</p>
+<p>重点理解：</p>
+<ul>
+<li>SOIS 服务分层；</li>
+<li>Application Layer 与 Application Support Layer；</li>
+<li>Transfer Layer 与 Subnetwork Layer；</li>
+<li>服务接口抽象；</li>
+<li>通用服务如何降低应用对硬件和通信链路的依赖。</li>
+</ul>
+<p>原始 PDF：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/Pubs/850x0g2.pdf">https://ccsds.org/Pubs/850x0g2.pdf</a></p>
+<p>官方 SOIS 出版物目录：</p>
+<p><a target="_blank" rel="noopener" href="https://ccsds.org/publications/sois/">https://ccsds.org/publications/sois/</a></p>
+<h3 id="17-3-ISO-对应文件及状态"><a href="#17-3-ISO-对应文件及状态" class="headerlink" title="17.3 ISO 对应文件及状态"></a>17.3 ISO 对应文件及状态</h3><p><strong>5. ISO 17214:2011 — Space data and information transfer systems —<br>Spacecraft onboard interface services — Time access service</strong></p>
+<p>这是 CCSDS 872.0-M-1 对应的 ISO 时间访问服务文件。</p>
+<p>需要特别注意：ISO 官方页面将该文件标记为 Withdrawn。</p>
+<p><a target="_blank" rel="noopener" href="https://www.iso.org/standard/59416.html">https://www.iso.org/standard/59416.html</a></p>
+<p><strong>6. ISO 11104:2011 — Space data and information transfer systems —<br>Time code formats</strong></p>
+<p>与 CCSDS 301.0-B-4 对应的 ISO 时间码格式标准。</p>
+<p>ISO 官方页面显示该版本在 2023 年复审确认后仍为现行版本。</p>
+<p><a target="_blank" rel="noopener" href="https://www.iso.org/standard/59415.html">https://www.iso.org/standard/59415.html</a></p>
+<h3 id="17-4-底层时间同步技术"><a href="#17-4-底层时间同步技术" class="headerlink" title="17.4 底层时间同步技术"></a>17.4 底层时间同步技术</h3><p><strong>7. Linux Kernel PPS API</strong></p>
+<p>如果需要在 Linux 上理解 PPS 输入、脉冲捕获及时间同步，可以参考 Linux<br>内核文档。</p>
+<p><a target="_blank" rel="noopener" href="https://docs.kernel.org/driver-api/pps.html">https://docs.kernel.org/driver-api/pps.html</a></p>
+<p><strong>8. LinuxPTP</strong></p>
+<p>如果实际平台使用以太网和 IEEE 1588 PTP，可以研究 LinuxPTP 项目中的<br><code>ptp4l</code>、<code>phc2sys</code> 等工具。</p>
+<p><a target="_blank" rel="noopener" href="https://www.linuxptp.org/">https://www.linuxptp.org/</a></p>
+<p><strong>9. IEEE 1588 — Precision Time Protocol</strong></p>
+<p>网络精确时间同步协议的标准资料。</p>
+<p><a target="_blank" rel="noopener" href="https://standards.ieee.org/ieee/1588/6825/">https://standards.ieee.org/ieee/1588/6825/</a></p>
+<h3 id="17-5-推荐书籍"><a href="#17-5-推荐书籍" class="headerlink" title="17.5 推荐书籍"></a>17.5 推荐书籍</h3><p><strong>10. Hermann Kopetz、Wilfried Steiner — Real-Time Systems: Design<br>Principles for Distributed Embedded Applications, Third Edition</strong></p>
+<p>Springer 出版。</p>
+<p>推荐重点阅读：</p>
+<ul>
+<li>Global Time；</li>
+<li>Temporal Relations；</li>
+<li>Real-Time Communication；</li>
+<li>Time-Triggered Architecture；</li>
+<li>Dependability。</li>
+</ul>
+<p>这本书能够从分布式嵌入式实时系统的角度解释全局时间、时钟同步、时间触发通信和系统可靠性，有助于从体系结构层面理解星上多处理器时间一致性问题。</p>
+<p><a target="_blank" rel="noopener" href="https://link.springer.com/book/10.1007/978-3-031-11992-7">https://link.springer.com/book/10.1007/978-3-031-11992-7</a></p>
+<h2 id="建议阅读顺序"><a href="#建议阅读顺序" class="headerlink" title="建议阅读顺序"></a>建议阅读顺序</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">850.0-G-2（SOIS 架构） → 872.0-M-1（TAS；重点读 Annex B/C/D）<br>                         → 853.0-M-1（子网同步）<br>                         → 301.0-B-4（时间码/CUC）<br>                         → Linux PPS / LinuxPTP / IEEE 1588（实现参考）<br></code></pre></td></tr></table></figure>
+
+<p>阅读这几份文件时，建议始终围绕一个问题：</p>
+<p><strong>一个星载应用调用时间访问接口时，拿到的时间究竟来自哪里、如何与全星统一时间关联、误差如何描述、服务延迟如何测量？</strong></p>
+<p>只要能够把这几个问题讲清楚，就真正掌握了星上时间访问服务的核心设计思想。</p>
+</div><div class="article-licensing box"><div class="licensing-title"><p>星上时间访问服务（SOIS TAS）：时间关联、服务原语与时间编码</p><p><a href="https://goko-son626.github.io/post/sois-time-access-service.html">https://goko-son626.github.io/post/sois-time-access-service.html</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><a href="https://GoKo-Son626.github.io"><p>GoKo Mell</p></a></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2026-11-17</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2026-11-18</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icon" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a><a class="icon" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a><a class="icon" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="recommend-area"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/css/share.min.css"><div class="social-share"></div><script src="https://cdnjs.loli.net/ajax/libs/social-share.js/1.0.16/js/social-share.min.js"></script></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">喜欢这篇文章？打赏一下作者吧</h3><div class="buttons is-centered"><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>支付宝</span><span class="qrcode"><img src="/img/zfb.png" alt="支付宝"></span></a><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>微信</span><span class="qrcode"><img src="/img/vx.png" alt="微信"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/post/mts-00-roadmap.html"><i class="level-item fas fa-chevron-left"></i><span class="level-item">MTS实践导读：从本地软件总线到遥控遥测链路</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/post/cfs-sb-07-linux-port.html"><span class="level-item">cFS与SB学习记录（八）：把EDS模式的SB单独放到Linux下运行</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--><div class="card"><div class="card-content"><div class="title is-5">评论</div><div id="comment-container"></div><link rel="stylesheet" href="https://cdnjs.loli.net/ajax/libs/gitalk/1.6.0/gitalk.css"><script> $.getScript('/js/gitalk.min.js', function () { 
+            var gitalk = new Gitalk({
+            language:'zh-CN',
+            id: '6ff87bec0d21418cdc65d33ffa1c574d',
+            repo: 'blog_comment',
+            owner: 'GoKo-Son626',
+            clientID: 'Ov23liQkUSIVMH77fBvF',
+            clientSecret: '7944864208d7577569d1f323e727967d4bdc5e79',
+            admin: ["Goko-Son626"],
+            createIssueManually: false,
+            distractionFreeMode: false,
+            perPage: 10,
+            pagerDirection: 'last',
+            proxy: 'https://cors-anywhere.azm.workers.dev/https://github.com/login/oauth/access_token',
+            
+            enableHotKey: true,
+            isLocked: false
+        })
+        gitalk.render('comment-container')});</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><!--!--><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/logo.png" alt="GoKo Mell"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">GoKo Mell</p><p class="is-size-6 is-block">尚未执佩剑，转眼即江湖</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>中国</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives/"><p class="title">53</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories/"><p class="title">32</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags/"><p class="title">85</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/GoKo-Son626" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Email" href="mailto:goku.sonxin626@gmail.com"><i class="fa fa-envelope"></i></a></div><div><hr><p id="hitokoto">:D 一言句子获取中...</p><script type="text/javascript" defer>function getYiyan(){
+                                $.getJSON("https://v1.hitokoto.cn/", function (data) {
+                                if(data){
+                                    $('#hitokoto').html("");
+                                    $('#hitokoto').append("<strong style='color: #3273dc;'>"+data.hitokoto+"</strong>"+
+                                    "<p>"+"来源《"+data.from+"》</p><p>提供者-"+data.creator+"</p>");
+                                }});}
+                                $(function (){getYiyan();$('#hitokoto').click(function(){getYiyan();})});</script></div></div></div><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li></ul></div></div></div><div class="card widget"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-11-17T01:50:00.000Z">2026-11-17</time></p><p class="title"><a href="/post/mts-05-ground-tools.html">MTS实践（五）：根据任务数据库构造命令和识别遥测</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/MTS/">MTS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-11-17T01:40:00.000Z">2026-11-17</time></p><p class="title"><a href="/post/mts-04-ci-to.html">MTS实践（四）：用CI和TO连接地面命令与软件总线</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/MTS/">MTS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-11-17T01:30:00.000Z">2026-11-17</time></p><p class="title"><a href="/post/mts-03-sbn.html">MTS实践（三）：用SBN连接两个节点的软件总线</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/MTS/">MTS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-11-17T01:20:00.000Z">2026-11-17</time></p><p class="title"><a href="/post/mts-02-request-reply.html">MTS实践（二）：基于SB组织请求、回复、超时与迟到消息</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/MTS/">MTS</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2026-11-17T01:10:00.000Z">2026-11-17</time></p><p class="title"><a href="/post/mts-01-starheart-port.html">MTS实践（一）：从Linux到Starheart，核对接口、SDK与链接边界</a></p><p class="categories"><a href="/categories/aerospace/">aerospace</a> / <a href="/categories/aerospace/MTS/">MTS</a></p></div></article></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/categories/QT/"><span class="level-start"><span class="level-item">QT</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/STM32/"><span class="level-start"><span class="level-item">STM32</span></span><span class="level-end"><span class="level-item tag">1</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/STM32/STM32F103/"><span class="level-start"><span class="level-item">STM32F103</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/"><span class="level-start"><span class="level-item">aerospace</span></span><span class="level-end"><span class="level-item tag">22</span></span></a><ul class="mr-0"><li><a class="level is-mobile is-marginless" href="/categories/aerospace/EDS/"><span class="level-start"><span class="level-item">EDS</span></span><span class="level-end"><span class="level-item tag">2</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/MTS/"><span class="level-start"><span class="level-item">MTS</span></span><span class="level-end"><span class="level-item tag">6</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/PUS/"><span class="level-start"><span class="level-item">PUS</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/SOIS/"><span class="level-start"><span class="level-item">SOIS</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/categories/aerospace/cFS/"><span class="level-start"><span class="level-item">cFS</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li></ul></li><li><a class="level is-mobile is-marginless" href="/categories/linux/"><span class="level-start"><span class="level-item">linux</span></span><span class="level-end"><span class="level-item tag">14</span></span></a><ul class="mr-0"></ul></li><a class="level is-mobile is-marginless" href="/categories/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile is-marginless" href="/archives/2026/11/"><span class="level-start"><span class="level-item">十一月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/10/"><span class="level-start"><span class="level-item">十月 2026</span></span><span class="level-end"><span class="level-item tag">8</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/09/"><span class="level-start"><span class="level-item">九月 2026</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/08/"><span class="level-start"><span class="level-item">八月 2026</span></span><span class="level-end"><span class="level-item tag">4</span></span></a></li><li><a class="level is-mobile is-marginless" href="/archives/2026/07/"><span class="level-start"><span class="level-item">七月 2026</span></span><span class="level-end"><span class="level-item tag">7</span></span></a></li><a class="level is-mobile is-marginless" href="/archives/"><span class="level-start"><span class="level-item">查看全部&gt;&gt;</span></span></a></ul></div></div></div><div class="card widget"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/cFS/"><span class="tag">cFS</span><span class="tag is-grey-lightest">14</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Software-Bus/"><span class="tag">Software Bus</span><span class="tag is-grey-lightest">12</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EDS/"><span class="tag">EDS</span><span class="tag is-grey-lightest">8</span></a></div><div class="control"><a class="tags has-addons" href="/tags/cFE/"><span class="tag">cFE</span><span class="tag is-grey-lightest">8</span></a></div><div class="control"><a class="tags has-addons" href="/tags/MTS/"><span class="tag">MTS</span><span class="tag is-grey-lightest">6</span></a></div><div class="control"><a class="tags has-addons" href="/tags/ARMv7-A/"><span class="tag">ARMv7-A</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/EdsLib/"><span class="tag">EdsLib</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS-Service-Type-17/"><span class="tag">PUS Service Type 17</span><span class="tag is-grey-lightest">4</span></a></div><div class="control"><a class="tags has-addons" href="/tags/CCSDS/"><span class="tag">CCSDS</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Cortex-A9/"><span class="tag">Cortex-A9</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/OSAL/"><span class="tag">OSAL</span><span class="tag is-grey-lightest">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/AAPCS32/"><span class="tag">AAPCS32</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/IRQ/"><span class="tag">IRQ</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/PUS/"><span class="tag">PUS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/SEDS/"><span class="tag">SEDS</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/Zynq/"><span class="tag">Zynq</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/bpftrace/"><span class="tag">bpftrace</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/kernel-start/"><span class="tag">kernel_start</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/libbpf/"><span class="tag">libbpf</span><span class="tag is-grey-lightest">2</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2/"><span class="tag">上下文切换</span><span class="tag is-grey-lightest">2</span></a></div></div><div class="field is-grouped is-grouped-multiline"><a class="tags has-addons" href="/tags/"><span class="tag">查看全部&gt;&gt;</span></a></div></div></div></div><div class="column-right-shadow is-hidden-widescreen"></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/GoKo-Mell.png" alt="GoKo&#039;s blog" height="28"></a><p class="size-small"><span>&copy; 2026 GoKo Mell</span>  Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a> &amp; <a href="https://github.com/removeif/hexo-theme-amazing" target="_blank">Amazing</a> <br><span>© 版权说明：[本网站所有内容均收集于互联网或自己创作,<br />&nbsp;&nbsp;&nbsp;&nbsp;方便于网友与自己学习交流，如有侵权，请<a href="mailto:goku.sonxin626@gmail.com">联系我</a>，立即处理]<br /></span></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="GoKo on GitHub" href="https://github.com/GoKo-Son626"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdnjs.loli.net/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script><script src="https://cdnjs.loli.net/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" async></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdnjs.loli.net/ajax/libs/lightgallery/1.10.0/js/lightgallery.min.js" defer></script><script src="https://cdnjs.loli.net/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><script src="/js/main.js?v=v50" defer></script><script>$.getScript('/js/comment-issue-data.js',function(){loadIssueData('Ov23liQkUSIVMH77fBvF','7944864208d7577569d1f323e727967d4bdc5e79','GoKo-Son626','blog_comment',false);})</script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script><script defer src="/js/reader-sky.js?v=20261028-v47"></script><script defer src="/js/reading-tools.js?v=v52"></script></body></html>

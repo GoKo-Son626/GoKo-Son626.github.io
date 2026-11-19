@@ -8,7 +8,7 @@
   const trigger = document.getElementById('black-hole-trigger');
   const status = document.getElementById('gravity-status');
   const focusToggle = document.querySelector('[data-scene-toggle]');
-  const focusControls = document.querySelectorAll('.space-header, .gravity-interaction, .skip-link');
+  const focusControls = document.querySelectorAll('.space-header');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   const materials = window.PlanetMaterials;
   const colors = ['219,164,99','149,138,190','153,215,231','218,137,86','139,191,167','190,208,221'];
@@ -70,7 +70,26 @@
     if (engine) { engine.setIntensity(1); engine.setInteractive(false); }
   }
   function summon() {
-    if (!engine || !materials || phase !== 'idle') return;
+    if (phase !== 'idle') return;
+    if (!engine || !materials) { window.location.assign(trigger.dataset.exploreUrl); return; }
+    if (reduce.matches) {
+      setPhase('orbiting');
+      trigger.title = '查看全部文章';
+      trigger.setAttribute('aria-label', trigger.title);
+      planets.forEach(p => {
+        p.link.hidden = false; p.alive = true;
+        if (!p.link.querySelector('canvas')) {
+          const icon = document.createElement('canvas');
+          icon.width = 80; icon.height = 56;
+          icon.setAttribute('aria-hidden', 'true');
+          const context = icon.getContext('2d');
+          if (context) materials.draw(context, { id: p.id, x: 40, y: 28, radius: 17, lightAngle: -2 });
+          p.link.prepend(icon);
+        }
+      });
+      status.textContent = '选择技术方向，或点击黑洞查看全部文章。';
+      return;
+    }
     cycleNumber++;
     elapsed = 0; burstEnded = false;
     planets.forEach(p => {
@@ -104,7 +123,7 @@
     const coreDiameter = g.core * 1.78;
     trigger.style.left = `${g.cx}px`; trigger.style.top = `${g.cy}px`;
     trigger.style.width = `${coreDiameter}px`; trigger.style.height = `${coreDiameter}px`;
-    if (phase === 'idle' || didNavigate) return;
+    if (phase === 'idle' || didNavigate || reduce.matches) return;
     const step = Math.min(dt, .25);
     if (phase === 'navigating') {
       transitionTime += step;
@@ -112,7 +131,7 @@
       root.style.setProperty('--portal-opacity', String(smooth((t - .78) / .22)));
       if (transitionTime >= 1 && !didNavigate) {
         didNavigate = true;
-        window.location.assign(selected.link.href);
+        enterIndex(selected.id, selected.link.href);
       }
       return;
     }
@@ -158,13 +177,13 @@
         const length = Math.hypot(dx, dy) || 1;
         const nx = dx / length, ny = dy / length;
         const distance = Math.hypot(g.width, g.height) * 1.2;
-        const bend = Math.sin(arrival * Math.PI) * Math.min(g.width, g.height) * .12;
+        const bend = (1 - arrival) ** 2 * Math.min(g.width, g.height) * (.48 + p.index * .055);
         const eased = easeOut(arrival);
         x = mix(g.cx + nx * distance, target.x, eased) - ny * bend;
         y = mix(g.cy + ny * distance, target.y, eased) + nx * bend;
       }
       p.x = x; p.y = y; p.depth = target.depth;
-      const base = g.mobile ? 20 : clamp(g.size * .062, 28, 38);
+      const base = g.mobile ? clamp(g.width * .054, 18, 25) : clamp(g.size * .079, 30, 46);
       p.radius = base * p.sizeScale * (1 + p.depth * .13) * (1 - smooth((individual - .83) / .17) * .32);
       p.spin += step * (.08 + p.index * .008);
       p.hover += ((p.hovering ? 1 : 0) - p.hover) * Math.min(1, step * 8);
@@ -176,7 +195,7 @@
       }
       if (step > 0) {
         p.trail.push({ x: p.x, y: p.y });
-        if (p.trail.length > (arrival < 1 ? 15 : 28)) p.trail.shift();
+        if (p.trail.length > (g.mobile ? 7 : arrival < 1 ? 18 : 9)) p.trail.shift();
       }
       positionLink(p, g, p.alive && elapsed > .55 && p.breakup < .42);
     });
@@ -214,28 +233,10 @@
     materials.draw(ctx, { id: p.id, x: p.x, y: p.y, radius: p.radius,
       spin: p.spin, time: elapsed, opacity: solidOpacity,
       lightAngle: Math.atan2(g.cy - p.y, g.cx - p.x),
-      stretch: 1 + heat * .65, hover: p.hover, heat: heat * .85 });
-  }
-  function drawPulse(ctx, g) {
-    if (elapsed >= 1.2 || phase === 'idle' || reduce.matches) return;
-    const t = clamp(elapsed / 1.2);
-    ctx.save(); ctx.translate(g.cx, g.cy); ctx.rotate(g.angle);
-    ctx.globalCompositeOperation = 'screen';
-    const radius = g.core * (1.05 + t * 5);
-    ctx.strokeStyle = `rgba(168,221,255,${Math.sin(t * Math.PI) * .22 * (1 - t)})`;
-    ctx.shadowColor = '#9bcfff'; ctx.shadowBlur = 13;
-    ctx.lineWidth = 1.8 * (1 - t) + .3;
-    ctx.beginPath(); ctx.ellipse(0, 0, radius, radius * .36, 0, 0, TAU); ctx.stroke();
-    ctx.restore();
-  }
-  function drawBack(ctx, g) {
-    if (phase === 'idle' || !materials) return;
-    drawPulse(ctx, g);
-    if (phase === 'navigating') return;
-    planets.filter(p => p.depth < 0).sort((a,b) => a.depth - b.depth).forEach(p => drawWorld(ctx, p, g));
+      stretch: 1 + heat * .44, highlight: p.hover * .38, hover: p.hover * .5, heat: heat * .62 });
   }
   function drawFront(ctx, g) {
-    if (phase === 'idle' || !materials) return;
+    if (phase === 'idle' || !materials || reduce.matches) return;
     if (phase === 'navigating') {
       const t = clamp(transitionTime);
       const zoom = t * t * t;
@@ -246,12 +247,30 @@
         opacity: 1, hover: .7, heat: t * .15, stretch: 1 });
       return;
     }
-    planets.filter(p => p.depth >= 0).sort((a,b) => a.depth - b.depth).forEach(p => drawWorld(ctx, p, g));
+    // The orbit is outside the luminous disk. Only the silhouette of the
+    // central shadow eclipses far-side planets as their orbit finally decays.
+    for (const p of planets.slice().sort((a, b) => a.depth - b.depth)) {
+      if (p.depth < 0 && Math.hypot(p.x - g.cx, p.y - g.cy) < g.core + p.radius * 2.2) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, g.width, g.height);
+        ctx.moveTo(g.cx + g.core, g.cy);
+        ctx.arc(g.cx, g.cy, g.core, 0, TAU);
+        ctx.clip('evenodd'); drawWorld(ctx, p, g);
+        ctx.restore();
+      } else {
+        drawWorld(ctx, p, g);
+      }
+    }
+  }
+  function enterIndex(id, href) {
+    try { sessionStorage.setItem('goko-arrival', JSON.stringify({ id, at: Date.now() })); } catch (_) {}
+    window.location.assign(href);
   }
   function choose(p, event) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     if (phase === 'idle' || phase === 'navigating' || didNavigate || !p.alive || p.breakup >= .42) { event.preventDefault(); return; }
     event.preventDefault();
+    if (reduce.matches) { enterIndex(p.id, p.link.href); return; }
     selected = p; transitionTime = 0; didNavigate = false;
     zoomStart = { x:p.x, y:p.y, radius:p.radius, spin:p.spin,
       lightAngle:Math.atan2(geometry.cy - p.y, geometry.cx - p.x) };
@@ -269,7 +288,9 @@
     trigger.disabled = true;
     planets.forEach(p => { p.link.hidden = true; });
     status.textContent = '正在打开全部文章。';
-    window.location.assign(trigger.dataset.exploreUrl);
+    body.classList.add('system-departure');
+    if (reduce.matches) enterIndex('all', trigger.dataset.exploreUrl);
+    else setTimeout(() => enterIndex('all', trigger.dataset.exploreUrl), 420);
   });
   planets.forEach(p => {
     p.link.addEventListener('click', event => choose(p, event));
@@ -290,13 +311,16 @@
   // Consume the wake-up click before it can summon planets or follow a link.
   document.addEventListener('click', event => {
     if (!body.classList.contains('scene-only')) return;
+    setFocus(false);
+    if (trigger.contains(event.target)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    setFocus(false);
   }, true);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && body.classList.contains('scene-only')) { setFocus(false); focusToggle.focus(); }
   });
+  reduce.addEventListener('change', reset);
+  window.addEventListener('pageshow', () => body.classList.remove('system-departure'));
   let pointerQueued = false;
   window.addEventListener('pointermove', event => {
     if (event.pointerType !== 'mouse' || reduce.matches || pointerQueued) return;
@@ -311,7 +335,7 @@
   function start() {
     if (engine || !window.OrbitalScene) return;
     engine = window.OrbitalScene;
-    engine.setHooks({ update, back: drawBack, front: drawFront });
+    engine.setHooks({ update, front: drawFront });
     // Warm material caches individually, outside the one-second arrival animation.
     const scratch = document.createElement('canvas'); scratch.width = scratch.height = 90;
     const context = scratch.getContext('2d');

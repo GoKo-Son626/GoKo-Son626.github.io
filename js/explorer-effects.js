@@ -35,7 +35,7 @@
   function reset() {
     cancelAnimationFrame(frame); frame = 0;
     if (activeSurface) activeSurface.classList.remove('is-pointer-lit');
-    activeSurface = null;
+    illuminate(null);
     preview(null);
   }
   function illuminate(surface) {
@@ -44,6 +44,9 @@
     activeSurface = surface;
     if (surface) surface.classList.add('is-pointer-lit');
     preview(surface && surface.classList.contains('collection-link') ? surface : null);
+    const title = surface && surface.closest('.entry-title-link');
+    const article = title && title.closest('[data-stack]');
+    window.dispatchEvent(new CustomEvent('explorer:title', { detail: article ? article.dataset.stack : null }));
   }
   function positionLight() {
     frame = 0;

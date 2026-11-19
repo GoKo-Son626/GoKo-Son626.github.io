@@ -19,17 +19,23 @@
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
   const validId = value => ids.includes(value) ? value : 'all';
   let current = validId(new URLSearchParams(location.search).get('stack') || document.body.dataset.collection);
+  try {
+    const entry = JSON.parse(sessionStorage.getItem('goko-arrival'));
+    sessionStorage.removeItem('goko-arrival');
+    if (entry && entry.id === current && Date.now() - entry.at < 5000)
+      stage.classList.add(current === 'all' ? 'system-arrival' : 'planet-arrival');
+  } catch (_) {}
   let width = 0, height = 0, ratio = 1, small = false;
   let clock = 0, lastFrame = 0, animation = 0, resizeTimer = 0;
   let paused = reducedMotion.matches, transitionAge = 1, previousFrame = null;
-  let starField = null, grain = null;
+  let starField = null, orbitalDust = null;
   let cloudMask = null, foregroundStars = [], nextMeteor = 3.8, meteor = null;
   let previewId = null, previewStrength = 0, meteorNumber = 0, lastRipple = -10;
   const cloudCache = new Map(), ripples = [];
   const pointer = { x: 0, y: 0, active: false, strength: 0, shiftX: 0, shiftY: 0 };
-  const blockedSkyTarget = '.entry-title-link,.collection-link,.explorer-header,.index-controls,.index-status,.index-bottom,.explorer-footer,.sidebar-footnote,button,input,select';
+  const blockedSkyTarget = '.entry-title-link,.stack-repository,.collection-link,.explorer-header,.index-controls,.index-status,.index-bottom,.explorer-footer,.sidebar-footnote,button,input,select';
   const readyWorlds = new Set();
-  const warmQueue = current === 'all' ? ids.slice() : [current, ...ids.filter(id => id !== current)];
+  let warmScheduled = false;
 
   function seeded(seed) {
     return () => {
@@ -149,18 +155,20 @@
         depth: .35 + rand() * .65, beacon, spike: beacon && index % 4 === 0
       };
     });
-    // A still, high-resolution dust layer prevents large upscaled worlds looking flat.
-    if (!grain) {
-      grain = makeSurface(640, 640);
-      const dust = grain.getContext('2d');
+    // A single transparent plate carries the diffuse orbital plane at every viewport size.
+    if (!orbitalDust) {
+      orbitalDust = makeSurface(768, 384);
+      const dust = orbitalDust.getContext('2d');
       if (dust) {
-        const pixels = dust.createImageData(640, 640), random = seeded(6871);
-        for (let i = 0; i < pixels.data.length; i += 4) {
-          const tone = Math.floor(random() * 230);
-          pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = tone;
-          pixels.data[i + 3] = Math.floor(random() * 18);
+        const rand = seeded(627);
+        for (let i = 0; i < 5300; i++) {
+          const a = rand() * TAU;
+          const band = .70 + .29 * rand() + (rand() - .5) * .06;
+          const x = 384 + 365 * band * Math.cos(a);
+          const y = 192 + 179 * band * Math.sin(a);
+          dust.fillStyle = rgba(i % 6 ? '192,194,193' : '216,190,155', .08 + .33 * rand());
+          dust.fillRect(x, y, .5 + rand() * .8, .6);
         }
-        dust.putImageData(pixels, 0, 0);
       }
     }
   }
@@ -260,39 +268,37 @@
     context.beginPath(); context.arc(x, y, radius, 0, TAU); context.fill();
     context.restore();
   }
+  let litWorld = null, litAt = 0;
+  window.addEventListener('explorer:title', event => {
+    litWorld = event.detail;
+    litAt = clock;
+    requestFrame();
+  });
   function world(id, x, y, radius, spin, light, opacity) {
+    const pulse = !paused && id === litWorld ? Math.max(0, 1 - (clock - litAt) / .85) : 0;
+    if (pulse) halo(x, y, radius * 1.42, colors[id], pulse * .28);
     if (window.PlanetMaterials && readyWorlds.has(id)) {
-      window.PlanetMaterials.draw(context, { id, x, y, radius, spin, lightAngle: light, opacity });
+      window.PlanetMaterials.draw(context, { id, x, y, radius, spin, lightAngle: light, opacity, highlight: pulse });
     } else fallbackWorld(id, x, y, radius, opacity);
   }
+  // The lit limb has a separate composition for each collection. The ring material
+  // supplies its own optical shadow; a second outline would flatten the silhouette.
+  const portraits = {
+    cfs:   { x: .80, y: .02, scale: 1.03, light: -2.36 },
+    arm:   { x: .82, y: .00, scale: .94, light: -2.60 },
+    eds:   { x: .79, y: -.02, scale: 1.04, light: -2.05 },
+    linux: { x: .85, y: .02, scale: 1.10, light: -2.86 },
+    ebpf:  { x: .79, y: .00, scale: .93, light: -2.3 },
+    tools: { x: .78, y: -.02, scale: .85, light: -2.70 }
+  };
   function singleWorld(id) {
-    const radius = small ? width * .46 : Math.min(width * .27, height * .40);
-    const x = width * (small ? .87 : .84), y = height * (small ? .29 : .40);
-    const rgb = colors[id], spin = clock * .009 + ids.indexOf(id) * .51;
-    halo(x - radius * .1, y - radius * .08, radius * 1.68, rgb, .13);
-    // A thin, interrupted survey arc sits outside the limb, away from the text.
-    context.save(); context.translate(x, y); context.rotate(-.37);
-    context.strokeStyle = rgba(rgb, .12); context.lineWidth = .7;
-    context.beginPath(); context.ellipse(0, 0, radius * 1.16, radius * 1.08, 0, -.65, 1.48); context.stroke();
-    context.strokeStyle = rgba(rgb, .055);
-    context.beginPath(); context.ellipse(0, 0, radius * 1.24, radius * 1.16, 0, 2.25, 4.6); context.stroke();
-    context.restore();
-    world(id, x, y, radius, spin, -2.25, .94);
-    if (grain) {
-      context.save(); context.translate(x, y); context.rotate(spin);
-      context.beginPath(); context.arc(0, 0, radius * .975, 0, TAU); context.clip();
-      context.globalAlpha *= .35; context.globalCompositeOperation = 'soft-light';
-      context.drawImage(grain, -radius, -radius, radius * 2, radius * 2);
-      context.restore();
-    }
-    // Illumination follows the same upper-left light source as the rock material.
-    context.save(); context.translate(x, y); context.rotate(-2.25);
-    const limb = context.createLinearGradient(radius * .2, 0, radius * 1.02, 0);
-    limb.addColorStop(0, rgba(rgb, 0)); limb.addColorStop(1, rgba(rgb, .42));
-    context.strokeStyle = limb; context.lineWidth = small ? .7 : 1.05;
-    context.beginPath(); context.arc(0, 0, radius * .992, -.81, .81); context.stroke();
-    context.restore();
-    halo(x - radius * .64, y - radius * .64, radius * .5, rgb, .035);
+    const portrait = portraits[id];
+    const radius = (small ? Math.min(width * .235, 124) : Math.min(height * .165, width * .135, 194)) * portrait.scale;
+    const x = width * (small ? .82 : portrait.x);
+    const y = (small ? 68 : 84) + clamp(height * (.17 + portrait.y), small ? 80 : 92, small ? 156 : 197);
+    const spin = clock * .004 + ids.indexOf(id) * .41;
+    halo(x - radius * .55, y - radius * .5, radius * 1.9, colors[id], .11);
+    world(id, x, y, radius, spin, portrait.light, 1);
   }
   function orbitPoint(theta, major, minor, tilt, cx, cy) {
     const x = Math.cos(theta) * major, y = Math.sin(theta) * minor;
@@ -300,34 +306,28 @@
       y: cy + x * Math.sin(tilt) + y * Math.cos(tilt), depth: Math.sin(theta) };
   }
   function planetarySystem() {
-    const cx = width * (small ? .62 : .77), cy = height * (small ? .29 : .38);
-    const major = small ? width * .35 : Math.min(width * .24, height * .36);
-    const minor = major * .57, tilt = -.32;
-    halo(cx, cy, major * 1.58, colors.all, .065);
-    halo(cx, cy, major * .36, '177,202,234', .08);
+    const cx = width * (small ? .73 : .77);
+    const cy = (small ? 68 : 84) + clamp(height * .18, 86, 188);
+    const major = small ? width * .25 : Math.min(width * .186, height * .30, 300);
+    const minor = major * .50, tilt = -.29;
+    halo(cx, cy, major * 1.6, colors.all, .09);
+    // A remote source illuminates every world from the upper left.
+    const sunX = cx - major * .47, sunY = cy - minor * .47;
+    halo(sunX, sunY, major * .18, '228,203,166', .32);
+    halo(sunX, sunY, major * .035, '238,224,200', .80);
     context.save(); context.translate(cx, cy); context.rotate(tilt);
-    [.965, 1, 1.035].forEach((scale, index) => {
-      context.beginPath(); context.ellipse(0, 0, major * scale, minor * scale, 0, 0, TAU);
-      context.strokeStyle = rgba(colors.all, index === 1 ? .19 : .045);
-      context.lineWidth = index === 1 ? .85 : .5; context.stroke();
-    });
+    if (orbitalDust) context.drawImage(orbitalDust, -major * 1.16, -minor * 1.16, major * 2.32, minor * 2.32);
     context.restore();
-    // Fine orbital dust remains slower than the separate distant meteor layer.
-    for (let i = 0; i < 36; i++) {
-      const p = orbitPoint(i / 36 * TAU + clock * .022, major * 1.02, minor * 1.02, tilt, cx, cy);
-      context.fillStyle = rgba(colors.all, .06 + (p.depth + 1) * .05);
-      context.beginPath(); context.arc(p.x, p.y, i % 7 === 0 ? 1 : .55, 0, TAU); context.fill();
-    }
     const worlds = ids.map((id, i) => {
-      const theta = i * TAU / 6 - 1.15 + clock * .038;
+      const theta = i * TAU / 6 - 1.34 + clock * .023;
       const point = orbitPoint(theta, major, minor, tilt, cx, cy);
-      const base = small ? width * .042 : clamp(major * .12, 23, 43);
-      return { id, index: i, ...point, radius: base * (1 + point.depth * .2) * [1.1, .88, .97, 1, .84, .78][i] };
+      const base = small ? width * .035 : clamp(major * .145, 21, 44);
+      return { id, index: i, ...point, radius: base * (1 + point.depth * .48) * [1.1, .88, .97, 1, .84, .78][i] };
     }).sort((a, b) => a.depth - b.depth);
     worlds.forEach(p => {
-      const light = Math.atan2(cy - p.y, cx - p.x);
+      const light = Math.atan2(sunY - p.y, sunX - p.x);
       halo(p.x, p.y, p.radius * 1.5, colors[p.id], .055);
-      world(p.id, p.x, p.y, p.radius, p.index * .7 + clock * .018, light, .82 + (p.depth + 1) * .08);
+      world(p.id, p.x, p.y, p.radius, p.index * .7 + clock * .018, light, .70 + (p.depth + 1) * .15);
     });
   }
   function paint() {
@@ -339,11 +339,10 @@
     context.globalAlpha = previousFrame ? blend : 1;
     drawNebula();
     if (starField) context.drawImage(starField, -12 + pointer.shiftX * .18, -10 + pointer.shiftY * .18, width + 24, height + 20);
-    context.save(); context.translate(pointer.shiftX * .38, pointer.shiftY * .38);
+    livingStars();
+    context.save(); context.translate(pointer.shiftX * .55, pointer.shiftY * .55);
     if (current === 'all') planetarySystem(); else singleWorld(current);
     context.restore();
-    // Nearby dust and interaction lines stay visible in front of the distant planet.
-    livingStars();
     drawMeteor();
     drawProbe();
     context.globalAlpha = 1;
@@ -386,9 +385,7 @@
       if (previous) previous.drawImage(canvas, 0, 0); else previousFrame = null;
     } else previousFrame = null;
     current = next; transitionAge = 0;
-    // Prioritize a newly selected material if the remaining worlds are still warming.
-    const pending = warmQueue.indexOf(current);
-    if (pending > 0) warmQueue.unshift(...warmQueue.splice(pending, 1));
+    scheduleWarm();
     lastFrame = 0; requestFrame();
   }
   function updateMotionButton() {
@@ -404,18 +401,26 @@
     if (motionLabel) motionLabel.textContent = paused ? '继续动效' : '暂停动效';
     motionButton.dataset.paused = String(paused);
   }
+  function nextWorld() {
+    return current === 'all' ? ids.find(id => !readyWorlds.has(id)) : !readyWorlds.has(current) && current;
+  }
+  function scheduleWarm() {
+    if (warmScheduled || document.hidden || !window.PlanetMaterials || !nextWorld()) return;
+    warmScheduled = true;
+    if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 160 });
+    else setTimeout(warmNext, 25);
+  }
   function warmNext() {
-    if (!warmQueue.length || !window.PlanetMaterials) return;
-    if (document.hidden) { setTimeout(warmNext, 400); return; }
-    const id = warmQueue.shift(), scratch = makeSurface(96, 96), scratchContext = scratch.getContext('2d');
-    if (scratchContext) {
-      window.PlanetMaterials.draw(scratchContext, { id, x: 48, y: 48, radius: 40, lightAngle: -2.25 });
-      readyWorlds.add(id); requestFrame();
-    }
-    if (warmQueue.length) {
-      if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 300 });
-      else setTimeout(warmNext, 70);
-    }
+    warmScheduled = false;
+    const id = nextWorld();
+    if (!id || document.hidden) return;
+    const scratch = makeSurface(1, 1).getContext('2d');
+    if (!scratch) return;
+    window.PlanetMaterials.draw(scratch, { id, radius: 1, lightAngle: -2.25 });
+    readyWorlds.add(id);
+    lastFrame = 0;
+    requestFrame();
+    scheduleWarm();
   }
   function canProbe(event) {
     return !paused && !reducedMotion.matches && !small && finePointer.matches
@@ -449,7 +454,7 @@
   window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 120); }, { passive: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { cancelAnimationFrame(animation); animation = 0; lastFrame = 0; pointer.active = false; }
-    else { lastFrame = 0; requestFrame(); }
+    else { lastFrame = 0; requestFrame(); scheduleWarm(); }
   });
   reducedMotion.addEventListener('change', event => {
     paused = event.matches; previousFrame = null; updateMotionButton(); lastFrame = 0; requestFrame();
@@ -458,6 +463,5 @@
     paused = !paused; updateMotionButton(); lastFrame = 0; requestFrame();
   });
   updateMotionButton(); resize();
-  if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 250 });
-  else setTimeout(warmNext, 80);
+  scheduleWarm();
 })();

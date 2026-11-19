@@ -118,6 +118,22 @@
     ribbon(.55, 0, TAU, light ? 'rgba(62,123,166,.08)' : rgba(115, 196, 255, Math.min(.5, .15 * energy())), size * .027);
     ribbon(.39, 0, TAU, light ? 'rgba(62,123,166,.12)' : rgba(207, 239, 255, Math.min(.8, .27 * energy())), size * .012);
     ctx.restore();
+    // Bent light from the far side rises above the silhouette.
+    const lensed = ctx.createLinearGradient(-core * 1.7, 0, core * 1.7, 0);
+    lensed.addColorStop(0, 'transparent');
+    lensed.addColorStop(.28, 'rgba(255,220,177,.65)');
+    lensed.addColorStop(.58, 'rgba(201,235,255,.82)');
+    lensed.addColorStop(1, 'transparent');
+    ctx.strokeStyle = lensed;
+    for (let band = 0; band < 7; band++) {
+      ctx.beginPath();
+      ctx.ellipse(0, core * .12, core * (1.62 + band * .04),
+        core * (1.26 + band * .035), 0, Math.PI, TAU);
+      ctx.lineWidth = core * (band === 0 ? .024 : .009);
+      ctx.globalAlpha = 1 / (1 + band * .55);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     disk(false);
     const halo = ctx.createRadialGradient(0, 0, core * .95, 0, 0, core * 1.7);
     halo.addColorStop(0, 'rgba(199,231,255,0)');
