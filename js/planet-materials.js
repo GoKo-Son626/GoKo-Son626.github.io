@@ -5,12 +5,12 @@
   var TAU = Math.PI * 2;
   var worlds = Object.create(null);
   var palettes = {
-    cfs:   { seed: 117, low: [44, 32, 27], high: [184, 139, 95], vein: [217, 181, 130], rim: [219, 164, 99], craters: 40, atmosphere: .045 },
-    arm:   { seed: 239, low: [27, 26, 36], high: [133, 120, 151], vein: [182, 171, 194], rim: [149, 138, 190], craters: 52, atmosphere: 0 },
-    eds:   { seed: 347, low: [26, 54, 66], high: [172, 207, 210], vein: [225, 234, 229], rim: [153, 215, 231], craters: 19, atmosphere: .075 },
-    linux: { seed: 463, low: [45, 26, 24], high: [171, 99, 69], vein: [203, 157, 115], rim: [218, 137, 86], craters: 46, atmosphere: .025 },
-    ebpf:  { seed: 587, low: [22, 37, 35], high: [111, 149, 128], vein: [172, 190, 151], rim: [139, 191, 167], craters: 30, atmosphere: .035 },
-    tools: { seed: 691, low: [30, 34, 40], high: [153, 161, 168], vein: [202, 204, 195], rim: [190, 208, 221], craters: 55, atmosphere: 0 }
+    cfs:   { seed: 117, low: [16, 30, 65], high: [85, 137, 222], vein: [182, 213, 255], rim: [131, 181, 255], craters: 40, atmosphere: .045 },
+    arm:   { seed: 239, low: [31, 23, 51], high: [143, 115, 185], vein: [208, 184, 243], rim: [193, 160, 239], craters: 52, atmosphere: 0 },
+    eds:   { seed: 347, low: [21, 45, 68], high: [158, 199, 219], vein: [224, 242, 253], rim: [163, 219, 249], craters: 19, atmosphere: .075 },
+    linux: { seed: 463, low: [26, 27, 55], high: [107, 116, 186], vein: [193, 193, 238], rim: [162, 171, 247], craters: 46, atmosphere: .025 },
+    ebpf:  { seed: 587, low: [14, 39, 57], high: [82, 151, 172], vein: [149, 219, 231], rim: [123, 205, 221], craters: 30, atmosphere: .035 },
+    tools: { seed: 691, low: [28, 35, 47], high: [151, 166, 182], vein: [205, 219, 236], rim: [199, 218, 237], craters: 55, atmosphere: 0 }
   };
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
   function mix(a, b, t) { return a + (b - a) * t; }
@@ -142,12 +142,12 @@
   const SUN_Z = .36;
   const SUN_XY = Math.sqrt(1 - SUN_Z * SUN_Z);
   const rings = {
-    cfs:   { tilt: -.22, opening: .36, inner: 1.20, outer: 1.98, gap: .65, color: [196, 177, 155], clouds: 18 },
-    arm:   { tilt: -.51, opening: .24, inner: 1.28, outer: 1.86, gap: .73, color: [182, 177, 186] },
-    eds:   { tilt:  .29, opening: .40, inner: 1.17, outer: 1.90, gap: .58, color: [190, 205, 204] },
-    linux: { tilt: -.34, opening: .29, inner: 1.20, outer: 1.89, gap: .68, color: [196, 163, 139] },
-    ebpf:  { tilt:  .14, opening: .23, inner: 1.35, outer: 2.06, gap: .69, color: [179, 192, 180], clouds: 12 },
-    tools: { tilt: -.74, opening: .35, inner: 1.25, outer: 1.84, gap: .62, color: [198, 195, 185] }
+    cfs:   { tilt: -.22, opening: .36, inner: 1.20, outer: 1.98, gap: .65, color: [154, 190, 236], clouds: 18 },
+    arm:   { tilt: -.51, opening: .24, inner: 1.28, outer: 1.86, gap: .73, color: [200, 182, 223] },
+    eds:   { tilt:  .29, opening: .40, inner: 1.17, outer: 1.90, gap: .58, color: [190, 215, 235] },
+    linux: { tilt: -.34, opening: .29, inner: 1.20, outer: 1.89, gap: .68, color: [174, 176, 225] },
+    ebpf:  { tilt:  .14, opening: .23, inner: 1.35, outer: 2.06, gap: .69, color: [158, 207, 221], clouds: 12 },
+    tools: { tilt: -.74, opening: .35, inner: 1.25, outer: 1.84, gap: .62, color: [201, 215, 232] }
   };
 
   function smoothEdge(lo, hi, value) {
@@ -264,9 +264,9 @@
       ctx.rotate(light - textureAngle);
       ctx.globalCompositeOperation = 'screen';
       var heated = ctx.createRadialGradient(r * .72, 0, 0, r * .1, 0, r);
-      heated.addColorStop(0, 'rgba(255,203,141,' + heat * .65 + ')');
-      heated.addColorStop(.35, 'rgba(255,135,71,' + heat * .14 + ')');
-      heated.addColorStop(1, 'rgba(255,113,50,0)');
+      heated.addColorStop(0, 'rgba(210,230,255,' + heat * .65 + ')');
+      heated.addColorStop(.35, 'rgba(137,162,255,' + heat * .14 + ')');
+      heated.addColorStop(1, 'rgba(104,114,242,0)');
       ctx.fillStyle = heated; ctx.beginPath(); ctx.arc(0, 0, r * .98, 0, TAU); ctx.fill();
     }
     ctx.restore();
@@ -306,11 +306,11 @@
       ctx.beginPath(); ctx.moveTo(-shard, -shard * .4); ctx.lineTo(shard * .36, -shard * .86);
       ctx.lineTo(shard, shard * .22); ctx.lineTo(-shard * .12, shard * .68); ctx.closePath();
       ctx.fillStyle = rgba(p.high.map(function (v) { return Math.min(255, Math.round(v * (.6 + q * .7))); }), .9); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,216,165,' + (.2 + q * .55) + ')'; ctx.lineWidth = .5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(202,218,255,' + (.2 + q * .55) + ')'; ctx.lineWidth = .5; ctx.stroke();
       if (n % 5 === 0) {
         ctx.globalCompositeOperation = 'screen';
         var glint = ctx.createRadialGradient(0, 0, 0, 0, 0, shard * 3 + 1);
-        glint.addColorStop(0, 'rgba(255,231,191,.45)'); glint.addColorStop(1, 'rgba(255,185,110,0)');
+        glint.addColorStop(0, 'rgba(230,241,255,.45)'); glint.addColorStop(1, 'rgba(123,146,255,0)');
         ctx.fillStyle = glint; ctx.fillRect(-shard * 3 - 1, -shard * 3 - 1, shard * 6 + 2, shard * 6 + 2);
       }
       ctx.restore();

@@ -13,8 +13,8 @@
   const TAU = Math.PI * 2;
   const ids = ['cfs', 'arm', 'eds', 'linux', 'ebpf', 'tools'];
   const colors = {
-    all: '171,197,225', cfs: '219,164,99', arm: '149,138,190',
-    eds: '153,215,231', linux: '218,137,86', ebpf: '139,191,167', tools: '190,208,221'
+    all: '171,197,225', cfs: '131,181,255', arm: '193,160,239',
+    eds: '163,219,249', linux: '162,171,247', ebpf: '123,205,221', tools: '199,218,237'
   };
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
   const validId = value => ids.includes(value) ? value : 'all';
@@ -133,7 +133,7 @@
       const x = rand() * width, y = rand() * height;
       const r = .55 + Math.pow(rand(), 3) * 1.8;
       const opacity = .24 + rand() * .48;
-      stars.fillStyle = i % 9 === 0 ? rgba('220,185,143', opacity) : rgba('177,199,224', opacity);
+      stars.fillStyle = i % 9 === 0 ? rgba('198,187,240', opacity) : rgba('177,199,224', opacity);
       stars.beginPath(); stars.arc(x, y, r, 0, TAU); stars.fill();
       if (r > 1.15) {
         stars.strokeStyle = rgba('187,212,239', .27);
@@ -166,7 +166,7 @@
           const band = .70 + .29 * rand() + (rand() - .5) * .06;
           const x = 384 + 365 * band * Math.cos(a);
           const y = 192 + 179 * band * Math.sin(a);
-          dust.fillStyle = rgba(i % 6 ? '192,194,193' : '216,190,155', .08 + .33 * rand());
+          dust.fillStyle = rgba(i % 6 ? '178,198,225' : '177,190,243', .08 + .33 * rand());
           dust.fillRect(x, y, .5 + rand() * .8, .6);
         }
       }
@@ -313,8 +313,8 @@
     halo(cx, cy, major * 1.6, colors.all, .09);
     // A remote source illuminates every world from the upper left.
     const sunX = cx - major * .47, sunY = cy - minor * .47;
-    halo(sunX, sunY, major * .18, '228,203,166', .32);
-    halo(sunX, sunY, major * .035, '238,224,200', .80);
+    halo(sunX, sunY, major * .18, '141,183,255', .32);
+    halo(sunX, sunY, major * .035, '222,238,255', .80);
     context.save(); context.translate(cx, cy); context.rotate(tilt);
     if (orbitalDust) context.drawImage(orbitalDust, -major * 1.16, -minor * 1.16, major * 2.32, minor * 2.32);
     context.restore();

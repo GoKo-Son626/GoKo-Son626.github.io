@@ -11,7 +11,7 @@
   const focusControls = document.querySelectorAll('.space-header');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   const materials = window.PlanetMaterials;
-  const colors = ['219,164,99','149,138,190','153,215,231','218,137,86','139,191,167','190,208,221'];
+  const colors = ['131,181,255','193,160,239','163,219,249','162,171,247','123,205,221','199,218,237'];
   const planets = Array.from(document.querySelectorAll('.planet-link')).map((link, index) => ({
     id: link.dataset.id, link, index, angle0: -1.48 + index * TAU / 6,
     count: Math.max(0, Number(link.dataset.count) || 0), sizeScale: 1,

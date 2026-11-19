@@ -7,8 +7,8 @@
   const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = {
-    all: '164,193,226', cfs: '219,164,99', arm: '176,159,218',
-    eds: '153,215,231', linux: '218,137,86', ebpf: '139,191,167', tools: '190,208,221'
+    all: '164,193,226', cfs: '131,181,255', arm: '193,160,239',
+    eds: '163,219,249', linux: '162,171,247', ebpf: '123,205,221', tools: '199,218,237'
   };
   const tracer = document.createElement('span');
   tracer.className = 'nav-tracer';

@@ -50,7 +50,7 @@
       const alpha = Math.min(.98, (.28 + p.brightness * .72) * (.24 + nearCore * .95) * hot * energy());
       let color;
       if (light) color = rgba(44, 117, 165, alpha * .8);
-      else if (p.radius < .53 && p.tone > .81) color = rgba(255, 218, 151, alpha * .9);
+      else if (p.radius < .53 && p.tone > .81) color = rgba(202, 200, 255, alpha * .9);
       else if (p.tone > .93) color = `hsla(${tone},84%,76%,${alpha * .7})`;
       else if (p.tone > .39) color = rgba(226, 246, 255, alpha);
       else color = rgba(105, 190, 255, alpha * .9);
@@ -121,7 +121,7 @@
     // Bent light from the far side rises above the silhouette.
     const lensed = ctx.createLinearGradient(-core * 1.7, 0, core * 1.7, 0);
     lensed.addColorStop(0, 'transparent');
-    lensed.addColorStop(.28, 'rgba(255,220,177,.65)');
+    lensed.addColorStop(.28, 'rgba(186,175,251,.65)');
     lensed.addColorStop(.58, 'rgba(201,235,255,.82)');
     lensed.addColorStop(1, 'transparent');
     ctx.strokeStyle = lensed;
@@ -152,7 +152,7 @@
       const r = p.radius * size;
       const upper = .4 + .6 * Math.max(0, -Math.sin(angle));
       ctx.strokeStyle = p.brightness > .86
-        ? rgba(255, 229, 184, upper * .75)
+        ? rgba(218, 216, 255, upper * .75)
         : rgba(184, 226, 255, (.15 + p.brightness * .75) * upper);
       ctx.lineWidth = p.brightness > .9 ? 1.35 : .65;
       ctx.beginPath(); ctx.arc(0, 0, r, angle, angle + p.length); ctx.stroke();
@@ -162,7 +162,7 @@
     ctx.save();
     ctx.shadowColor = '#c9ebff'; ctx.shadowBlur = size * .012;
     ribbon(.347, .025, Math.PI * .97, light ? 'rgba(63,128,172,.5)' : 'rgba(237,249,255,.9)', 1.35);
-    ribbon(.386, .18, Math.PI * .88, light ? 'rgba(63,128,172,.25)' : 'rgba(255,224,169,.36)', .75);
+    ribbon(.386, .18, Math.PI * .88, light ? 'rgba(63,128,172,.25)' : 'rgba(189,190,255,.36)', .75);
     ctx.restore();
     ctx.restore();
     drawHook('front', lastGeometry);
@@ -221,7 +221,7 @@
   body.addEventListener('pointerleave', () => { pointerX = 0; pointerY = 0; }, { passive: true });
   window.addEventListener('sector-focus', event => {
     const id = String(event.detail && event.detail.id || '');
-    const tones = { cfs: 40, arm: 258, eds: 172, linux: 207, ebpf: 284, tools: 160 };
+    const tones = { cfs: 218, arm: 259, eds: 201, linux: 237, ebpf: 192, tools: 213 };
     const key = Object.keys(tones).find(name => id.toLowerCase().includes(name));
     targetTone = key ? tones[key] : 207;
     if (!moving()) refresh();

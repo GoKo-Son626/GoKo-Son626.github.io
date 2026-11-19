@@ -12,12 +12,12 @@
   background: var(--paper);
   isolation: isolate;
 }
-.celestial-index[data-collection="cfs"] { --orbit-rgb: 219,164,99; --orbit-color: #dba463; }
-.celestial-index[data-collection="arm"] { --orbit-rgb: 176,159,218; --orbit-color: #b09fda; }
-.celestial-index[data-collection="eds"] { --orbit-rgb: 153,215,231; --orbit-color: #99d7e7; }
-.celestial-index[data-collection="linux"] { --orbit-rgb: 218,137,86; --orbit-color: #da8956; }
-.celestial-index[data-collection="ebpf"] { --orbit-rgb: 139,191,167; --orbit-color: #8bbfa7; }
-.celestial-index[data-collection="tools"] { --orbit-rgb: 190,208,221; --orbit-color: #bed0dd; }
+.celestial-index[data-collection="cfs"] { --orbit-rgb: 131,181,255; --orbit-color: #83b5ff; }
+.celestial-index[data-collection="arm"] { --orbit-rgb: 193,160,239; --orbit-color: #c1a0ef; }
+.celestial-index[data-collection="eds"] { --orbit-rgb: 163,219,249; --orbit-color: #a3dbf9; }
+.celestial-index[data-collection="linux"] { --orbit-rgb: 162,171,247; --orbit-color: #a2abf7; }
+.celestial-index[data-collection="ebpf"] { --orbit-rgb: 123,205,221; --orbit-color: #7bcddd; }
+.celestial-index[data-collection="tools"] { --orbit-rgb: 199,218,237; --orbit-color: #c7daed; }
 .celestial-index::before { display: none; }
 .collection-universe { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #040813; }
 .collection-universe canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -61,12 +61,12 @@
   color: #aab7c9;
   transition: background .3s, color .3s, border-color .3s;
 }
-.collection-link[data-collection="cfs"] { --nav-rgb: 219,164,99; }
-.collection-link[data-collection="arm"] { --nav-rgb: 176,159,218; }
-.collection-link[data-collection="eds"] { --nav-rgb: 153,215,231; }
-.collection-link[data-collection="linux"] { --nav-rgb: 218,137,86; }
-.collection-link[data-collection="ebpf"] { --nav-rgb: 139,191,167; }
-.collection-link[data-collection="tools"] { --nav-rgb: 190,208,221; }
+.collection-link[data-collection="cfs"] { --nav-rgb: 131,181,255; }
+.collection-link[data-collection="arm"] { --nav-rgb: 193,160,239; }
+.collection-link[data-collection="eds"] { --nav-rgb: 163,219,249; }
+.collection-link[data-collection="linux"] { --nav-rgb: 162,171,247; }
+.collection-link[data-collection="ebpf"] { --nav-rgb: 123,205,221; }
+.collection-link[data-collection="tools"] { --nav-rgb: 199,218,237; }
 .celestial-index .collection-symbol {
   display: block; width: 10px; height: 10px; border-radius: 50%;
   background: radial-gradient(circle at 28% 28%, rgba(var(--nav-rgb), .95), rgba(var(--nav-rgb), .4) 40%, #060b17 85%);
@@ -326,11 +326,11 @@
 }
 .collection-spread .spread-copy { width: min(56%, 38rem); }
 .collection-spread .section-marker { display: block; margin: 0 0 .8rem; color: #b6c2ce; font: .65rem/1.2 var(--mono); letter-spacing: .19em; }
-.collection-spread h1 { margin: 0 0 .35rem; font: 500 clamp(3rem, 5.4vw, 5.8rem)/1.16 'Songti SC','Noto Serif CJK SC','Source Han Serif SC',serif; letter-spacing: -.055em; color: #f2eee7; }
+.collection-spread h1 { margin: 0 0 .35rem; font: 500 clamp(3rem, 5.4vw, 5.8rem)/1.16 'Songti SC','Noto Serif CJK SC','Source Han Serif SC',serif; letter-spacing: -.055em; color: #eef5ff; }
 .collection-spread .collection-description { color: #c5c8cb; line-height: 1.7; font-size: .91rem; }
 .spread-caption { display: flex; gap: 1.15rem; align-items: baseline; color: #a8b1bd; font: .75rem/1.6 var(--mono); font-variant-numeric: tabular-nums; }
 .spread-caption .index-total, .spread-caption .index-total strong { all: unset; }
-.spread-caption .index-total strong { color: #f3ede1; }
+.spread-caption .index-total strong { color: #deebff; }
 .spread-caption a { color: #dce3e8; text-underline-offset: .25rem; }
 .spread-caption a:hover { text-decoration: underline; }
 .celestial-index .explorer-shell { border-top: 1px solid #bcb39740; padding-inline: clamp(15px, 3vw, 60px); grid-template-columns: clamp(164px, 17vw, 236px) minmax(0,1fr); }
@@ -367,3 +367,19 @@
   .universe-shade { background: linear-gradient(90deg,#03071299,transparent 88%),linear-gradient(0deg,#030713b0,transparent 72%); }
 }
 .celestial-index .entry-title-link mark { background: transparent; color: var(--orbit-color); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; }
+
+/* Keep the distant arm behind both the index and the foreground worlds. */
+.universe-nebula::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 17%;
+  width: clamp(320px, 42vw, 780px);
+  aspect-ratio: 760 / 408;
+  background: url('../img/distant-spiral.webp') center / contain no-repeat;
+  mix-blend-mode: screen;
+  opacity: .44;
+}
+@media (max-width: 700px) {
+  .universe-nebula::after { left: -19%; width: 75vw; opacity: .27; }
+}

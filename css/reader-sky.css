@@ -1,6 +1,6 @@
 /* Article-only sky. The six accents match the explorer's stack palette. */
 body.celestial-reader:not(.portal) {
-  --reader-accent: 190, 208, 221;
+  --reader-accent: 199, 218, 237;
   --reader-bg: #0b1018;
   --reader-card: #131b26;
   --reader-text: #dce3eb;
@@ -15,32 +15,32 @@ body.celestial-reader:not(.portal) {
 }
 
 body.celestial-reader[data-reader-stack="cfs"] {
-  --reader-accent: 219, 164, 99;
-  --reader-bg: #110f0e;
-  --reader-card: #1b1815;
+  --reader-accent: 131, 181, 255;
+  --reader-bg: #070e20;
+  --reader-card: #101c30;
 }
 body.celestial-reader[data-reader-stack="arm"] {
-  --reader-accent: 176, 159, 218;
+  --reader-accent: 193, 160, 239;
   --reader-bg: #0e0d18;
   --reader-card: #181724;
 }
 body.celestial-reader[data-reader-stack="eds"] {
-  --reader-accent: 153, 215, 231;
+  --reader-accent: 163, 219, 249;
   --reader-bg: #09121f;
   --reader-card: #111d2b;
 }
 body.celestial-reader[data-reader-stack="linux"] {
-  --reader-accent: 218, 137, 86;
-  --reader-bg: #130e0d;
-  --reader-card: #1e1715;
+  --reader-accent: 162, 171, 247;
+  --reader-bg: #0b1022;
+  --reader-card: #151b30;
 }
 body.celestial-reader[data-reader-stack="ebpf"] {
-  --reader-accent: 139, 191, 167;
-  --reader-bg: #0b1312;
-  --reader-card: #131e1b;
+  --reader-accent: 123, 205, 221;
+  --reader-bg: #071219;
+  --reader-card: #101e2a;
 }
 body.celestial-reader[data-reader-stack="tools"] {
-  --reader-accent: 190, 208, 221;
+  --reader-accent: 199, 218, 237;
   --reader-bg: #0b111a;
   --reader-card: #141d28;
 }
@@ -80,15 +80,23 @@ body.celestial-reader > .footer {
   animation: reader-nebula-drift 180s ease-in-out infinite alternate;
 }
 .celestial-reader .reader-sky__nebula--near {
-  top: 18vh;
-  left: calc(var(--reader-gutter) * .55 - 210px);
+  top: 17vh;
+  left: calc(var(--reader-gutter) * .5 - 148px);
+  width: clamp(270px, 23vw, 430px);
+  height: auto;
+  aspect-ratio: 760 / 408;
+  border-radius: 0;
+  background: url('../img/distant-spiral.webp') center / contain no-repeat;
+  mix-blend-mode: screen;
+  opacity: .58;
 }
 .celestial-reader .reader-sky__nebula--far {
   right: calc(var(--reader-gutter) * .5 - 180px);
   bottom: 9vh;
   width: 360px;
   height: 360px;
-  opacity: .85;
+  opacity: .62;
+  mask-image: radial-gradient(closest-side, #000 20%, transparent);
   animation-duration: 230s;
   animation-delay: -90s;
   animation-direction: alternate-reverse;
@@ -358,4 +366,8 @@ body.immersive-reading .reader-sky { opacity: .66; }
 .code-search output { color: var(--reader-muted); font: .72rem monospace; white-space: nowrap; }
 .code-search button { margin: 0; border-radius: .25rem; }
 .code-search button:disabled { opacity: .35; cursor: default; }
-::highlight(goko-code-hit) { color: #101317; background-color: #efcd8e; }
+::highlight(goko-code-hit) { color: #101317; background-color: #bbd9ff; }
+
+.reader-limb, .reader-exposure {
+  filter: grayscale(1) sepia(.6) hue-rotate(179deg) saturate(1.9);
+}
