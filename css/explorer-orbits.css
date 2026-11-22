@@ -383,3 +383,61 @@
 @media (max-width: 700px) {
   .universe-nebula::after { left: -19%; width: 75vw; opacity: .27; }
 }
+
+/* Section results branch from the title and leave the sky between links interactive. */
+.section-matches {
+  margin: .65rem 0 .8rem .1rem;
+  padding: .1rem 0 .1rem clamp(.7rem, 1.6vw, 1.35rem);
+  border-left: 1px solid rgba(var(--orbit-rgb), .35);
+}
+.section-matches ul { margin: 0; padding: 0; list-style: none; }
+.section-matches li, .series-route .section-matches li {
+  padding: .18rem 0;
+  font-size: .86rem;
+  line-height: 1.55;
+}
+.section-matches li::before { content: '§'; margin-right: .65em; color: var(--orbit-color); opacity: .77; }
+.section-matches .entry-title-link { overflow-wrap: anywhere; color: #c6d7e9; }
+.section-matches summary, .series-route .section-matches summary {
+  width: fit-content;
+  max-width: 100%;
+  padding: .35rem 0 .1rem;
+  color: #a1b5ca;
+  font-size: .76rem;
+  cursor: pointer;
+}
+
+/* Pick a volume, then read its chapters in their original sequence. */
+.series-routes:not(.is-browsing) .series-intro :is(h2, .series-start) { display: none; }
+.series-routes.is-browsing:not([hidden]) {
+  display: grid; grid-template-columns: minmax(140px, .55fr) minmax(0, 1.7fr);
+  border-block: 1px solid rgba(var(--orbit-rgb), .29);
+  background: linear-gradient(95deg, #081222c9 0%, #0712228c 60%, #07112350);
+  margin: 1.1rem 0;
+}
+.series-picker { padding: .6rem 0; border-right: 1px solid rgba(var(--orbit-rgb), .16); }
+.series-picker button {
+  display: grid; gap: .32rem; width: 100%; padding: .85rem 1rem; border: 0; border-left: 2px solid transparent;
+  text-align: left; font: inherit; line-height: 1.5; font-size: .9rem; cursor: pointer; color: #aebfd3; background: none;
+}
+.series-picker button small { font: .7rem var(--mono); color: #93a8c0; }
+.series-picker button[aria-pressed=true] { color: #f0f5ff; border-left-color: var(--orbit-color); background: linear-gradient(90deg, rgba(var(--orbit-rgb), .13), transparent); }
+.is-browsing .series-route { border: 0; }
+.is-browsing .series-route > summary { display: none; }
+.is-browsing .series-intro {
+  padding: clamp(1rem, 2.6vw, 2rem); border-bottom: 1px solid rgba(var(--orbit-rgb), .19);
+  background: url('../img/reader-galaxy.webp') right -2rem center / auto 96% no-repeat;
+}
+.is-browsing .series-intro h2 { max-width: 85%; font: 500 clamp(1.4rem, 2.1vw, 2rem)/1.35 'Songti SC','Noto Serif CJK SC',serif; color: #f0f6ff; }
+.is-browsing .series-intro p { max-width: 85%; margin: .55em 0 .85em; line-height: 1.7; color: #b6c7db; }
+.is-browsing .series-start { display: inline-block; font-size: .82rem; color: var(--orbit-color); margin-top: .5em; text-underline-offset: .25em; }
+.is-browsing .series-route > ol { margin: 0; padding: .5rem clamp(1rem, 2vw, 1.65rem) .65rem calc(clamp(1rem, 2vw, 1.65rem) + 2.25em); }
+.is-browsing .series-route > ol > li { padding: .65rem .25rem; border-bottom: 1px solid rgba(var(--orbit-rgb), .12); }
+.is-browsing .series-route > ol > li:last-child { border-bottom: 0; }
+.is-browsing .series-route > ol > li::marker { color: var(--orbit-color); font: .78rem var(--mono); }
+@media (max-width:800px) {
+  .series-routes.is-browsing:not([hidden]) { display: block; }
+  .series-routes .series-picker:not([hidden]) { display: flex; overflow-x: auto; padding: 0; border: 0; border-bottom: 1px solid rgba(var(--orbit-rgb), .2); }
+  .series-picker button { flex: 0 0 auto; width: auto; padding: .55rem .8rem; gap: .1rem; border-left: 0; border-bottom: 2px solid transparent; }
+  .series-picker button[aria-pressed=true] { border-bottom-color: var(--orbit-color); }
+}

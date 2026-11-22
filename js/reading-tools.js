@@ -5,6 +5,19 @@
     const dock = article.querySelector('.reading-dock');
     if (!dock) return;
     dock.hidden = false;
+    const returnLink = dock.querySelector('.reader-search-return');
+    const collection = document.querySelector('.reader-collection');
+    if (returnLink && collection && document.referrer) {
+        const source = new URL(document.referrer);
+        const index = new URL(collection.href);
+        const query = source.searchParams.get('q');
+        if (source.origin === location.origin && source.pathname === index.pathname && (query || source.searchParams.get('view') === 'series')) {
+            source.hash = 'article-index';
+            returnLink.href = source.href;
+            returnLink.textContent = query ? '← 搜索结果' : '← 系列目录';
+            returnLink.hidden = false;
+        }
+    }
     const focus = dock.querySelector('.focus-reading');
     let placeOutline;
     function setFocus(on) {
@@ -173,8 +186,12 @@
         }
     } catch (_) {}
 
+    const shallowest = Math.min(...entries.map(item => Number(item.heading.tagName.slice(1))));
+    entries.forEach(item => {
+        item.link.style.setProperty('--heading-depth', Math.min(3, Number(item.heading.tagName.slice(1)) - shallowest));
+    });
     const holder = outline.parentElement;
-    const sidebar = document.querySelector('.column-left');
+    const sidebar = document.querySelector('.reader-outline-slot');
     const desktop = matchMedia('(min-width: 1024px)');
     function place() {
         if (desktop.matches && sidebar && !document.body.classList.contains('immersive-reading')) sidebar.prepend(outline);
@@ -187,6 +204,7 @@
     const dial = dock.querySelector('input[type=range]');
     const caption = dock.querySelector('.dial-caption');
     dial.max = entries.length;
+    dial.disabled = entries.length === 1;
     dock.style.setProperty('--tick-distance', (100 / Math.max(1, entries.length - 1)) + '%');
     function indicate(number) {
         const text = number + ' / ' + entries.length + ' · ' + entries[number - 1].link.textContent;
@@ -219,6 +237,10 @@
         if (active) active.link.removeAttribute('aria-current');
         active = current;
         if (active) active.link.setAttribute('aria-current', 'location');
+        const saveButton = dock.querySelector('[data-save-mark]');
+        saveButton.dataset.anchor = active ? active.heading.id : '';
+        saveButton.dataset.section = active ? active.link.textContent : '';
+        saveButton.dispatchEvent(new Event('reader-position'));
         indicate(active ? entries.indexOf(active) + 1 : 1);
     }
     function save() {
@@ -227,7 +249,9 @@
         if (!active) return;
         try { localStorage.setItem(key, active.heading.id); } catch (_) {}
     }
-    window.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 150); }, { passive: true });
+    dock.querySelector('[data-save-mark]').addEventListener('click', locate, { capture: true });
+    window.addEventListener('hashchange', locate);
+    window.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 100); }, { passive: true });
     window.addEventListener('pagehide', save);
     outline.addEventListener('click', event => {
         if (!desktop.matches && event.target.closest('a')) outline.open = false;

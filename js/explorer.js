@@ -2,11 +2,16 @@
     'use strict';
     const ledger = document.getElementById('article-ledger');
     if (!ledger) return;
-    const rows = Array.from(ledger.querySelectorAll('[data-article]')).map((element, index) => ({
-        element, index, title: element.dataset.title, stack: element.dataset.stack,
-        tags: JSON.parse(element.dataset.tags || '[]'), date: element.dataset.date
-    }));
     const nav = Array.from(document.querySelectorAll('.collection-link[data-collection]'));
+    const stackNames = new Map(nav.map(link => [link.dataset.collection, link.dataset.name]));
+    const rows = Array.from(ledger.querySelectorAll('[data-article]'), (element, index) => {
+        const { title, stack, date } = element.dataset;
+        const tags = JSON.parse(element.dataset.tags || '[]');
+        const link = element.querySelector('h2 a');
+        const searchable = [title, ...tags, stackNames.get(stack)].join(' ').toLocaleLowerCase();
+        return { element, index, title, stack, date, tags, link, searchable, sections: [], hits: [] };
+    });
+    const rowsByURL = new Map(rows.map(row => [row.link.href, row]));
     const query = document.getElementById('article-query');
     const order = document.getElementById('article-order');
     const title = document.getElementById('collection-title');
@@ -18,9 +23,15 @@
     const activeTag = document.getElementById('active-tag');
     const resets = Array.from(document.querySelectorAll('[data-reset]'));
     const routes = document.getElementById('series-routes');
-    const groups = Array.from(routes.querySelectorAll('details'), element => ({
-        element, count: element.querySelector('[data-route-count]'),
-        items: Array.from(element.querySelectorAll('li'), li => ({ li, href: li.querySelector('a').href }))
+    const picker = routes.querySelector('.series-picker');
+    const pickers = new Map(Array.from(picker.querySelectorAll('button'), button => [button.dataset.pickSeries, button]));
+    const groups = Array.from(routes.querySelectorAll('.series-route'), element => ({
+        element, count: element.querySelector('[data-route-count]'), button: pickers.get(element.dataset.series),
+        start: element.querySelector('.series-start'),
+        items: Array.from(element.querySelectorAll('li'), li => {
+            const link = li.querySelector('a');
+            return { li, link, title: link.textContent, row: rowsByURL.get(link.href) };
+        })
     }));
     const modes = document.querySelectorAll('[data-mode]');
     const kinds = document.querySelectorAll('button[data-kind]');
@@ -30,7 +41,30 @@
     let state = { stack: 'all', q: '', order: 'newest', tag: '', mode: 'articles', kind: '' };
     let visibleCount = pageSize;
     let searchTimer;
+    let selectedSeries = '';
+    let sectionsLoaded = false, sectionsLoading = false, failedQuery = '';
     const historyKey = 'gokoExplorerV46';
+
+    // Fetch only on a real query. The ordinary title and tag index works immediately.
+    async function loadSections() {
+        sectionsLoading = true;
+        try {
+            const response = await fetch(ledger.dataset.sectionsUrl, { cache: 'no-cache' });
+            if (!response.ok) throw new Error('Section index unavailable');
+            const index = await response.json();
+            for (const row of rows) {
+                row.sections = (index[row.link.getAttribute('href')] || []).map(section => ({
+                    ...section, searchable: section.text.toLocaleLowerCase()
+                }));
+            }
+            sectionsLoaded = true;
+        } catch (_) {
+            failedQuery = state.q;
+        } finally {
+            sectionsLoading = false;
+            if (state.q.trim()) render(false);
+        }
+    }
 
     function savedVisit() {
         const saved = window.history.state && window.history.state[historyKey];
@@ -50,6 +84,7 @@
     function readLocation() {
         const params = new URLSearchParams(window.location.search);
         const stack = params.get('stack') || 'all';
+        selectedSeries = params.get('series') || '';
         state = {
             stack: knownStacks.includes(stack) ? stack : 'all',
             q: params.get('q') || '',
@@ -66,10 +101,13 @@
     }
     function writeLocation() {
         const url = new URL(window.location.href);
-        ['stack', 'q', 'order', 'tag', 'view', 'kind'].forEach(key => url.searchParams.delete(key));
+        ['stack', 'q', 'order', 'tag', 'view', 'kind', 'series'].forEach(key => url.searchParams.delete(key));
         if (state.stack !== 'all') url.searchParams.set('stack', state.stack);
         if (state.kind) url.searchParams.set('kind', state.kind);
-        if (state.mode === 'series') url.searchParams.set('view', 'series');
+        if (state.mode === 'series') {
+            url.searchParams.set('view', 'series');
+            if (selectedSeries) url.searchParams.set('series', selectedSeries);
+        }
         if (state.q) url.searchParams.set('q', state.q);
         if (state.order !== 'newest') url.searchParams.set('order', state.order);
         if (state.tag) url.searchParams.set('tag', state.tag);
@@ -77,7 +115,7 @@
     }
     function showMatches(link, title, matcher) {
         if (!matcher) {
-            if (link.childElementCount) link.textContent = title;
+            if (link.childElementCount || link.textContent !== title) link.textContent = title;
             return;
         }
         const fragment = document.createDocumentFragment();
@@ -91,20 +129,57 @@
         });
         link.replaceChildren(fragment);
     }
+
+    function showSectionLinks(after, row, matcher) {
+        if (!row.hits.length) return;
+        const box = document.createElement('div');
+        box.className = 'section-matches';
+        function list(items) {
+            const ul = document.createElement('ul');
+            for (const section of items) {
+                const li = document.createElement('li');
+                const link = document.createElement('a');
+                link.className = 'entry-title-link';
+                link.href = row.link.href + '#' + encodeURIComponent(section.id);
+                showMatches(link, section.text, matcher);
+                li.append(link);
+                ul.append(li);
+            }
+            return ul;
+        }
+        box.append(list(row.hits.slice(0, 2)));
+        if (row.hits.length > 2) {
+            const more = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.textContent = '另有 ' + (row.hits.length - 2) + ' 个匹配小节';
+            more.append(summary);
+            more.addEventListener('toggle', () => {
+                if (more.open && !more.querySelector('ul')) more.append(list(row.hits.slice(2)));
+            });
+            box.append(more);
+        }
+        after.after(box);
+    }
+
     function render(animate) {
         document.body.dataset.collection = state.stack;
         document.getElementById('collection-marker').textContent = collectionMarkers[state.stack];
         window.dispatchEvent(new CustomEvent('explorer:collection', { detail: { id: state.stack } }));
         const words = state.q.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+        if (!words.length) failedQuery = '';
+        else if (!sectionsLoaded && !sectionsLoading && failedQuery !== state.q) loadSections();
+        document.querySelectorAll('.section-matches').forEach(element => element.remove());
         const pattern = [...new Set(words)].sort((a, b) => b.length - a.length)
             .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
         const matcher = pattern ? new RegExp('(' + pattern + ')', 'iu') : null;
         const candidates = rows.filter(row => {
             if (state.stack !== 'all' && state.stack !== row.stack) return false;
             if (state.tag && !row.tags.includes(state.tag)) return false;
-            const label = nav.find(item => item.dataset.collection === row.stack);
-            const searchable = [row.title, ...row.tags, label ? label.dataset.name : ''].join(' ').toLocaleLowerCase();
-            return words.every(word => searchable.includes(word));
+            const missing = words.filter(word => !row.searchable.includes(word));
+            const sectionTerms = missing.length ? missing : words;
+            row.hits = sectionTerms.length ? row.sections.filter(section =>
+                sectionTerms.every(word => section.searchable.includes(word))) : [];
+            return !missing.length || row.hits.length > 0;
         });
         kinds.forEach(button => {
             const kind = button.dataset.kind;
@@ -122,7 +197,10 @@
         matching.forEach((row, index) => {
             ledger.appendChild(row.element);
             row.element.hidden = index >= visibleCount;
-            if (index < visibleCount) showMatches(row.element.querySelector('h2 a'), row.title, matcher);
+            if (index < visibleCount && state.mode === 'articles') {
+                showMatches(row.link, row.title, matcher);
+                showSectionLinks(row.link.parentElement, row, matcher);
+            }
             row.element.style.setProperty('--entry-order', Math.min(index, 9));
             if (animate && index < visibleCount) row.element.classList.add('is-entering');
         });
@@ -153,29 +231,54 @@
         resets.forEach(button => { if (button.classList.contains('reset-button')) button.hidden = !isFiltered && state.order === 'newest'; });
         const seriesMode = state.mode === 'series';
         modes.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode)));
-        const eligible = new Set(matching.map(row => row.element.querySelector('h2 a').href));
-        let groupCount = 0;
+        const eligible = new Set(matching);
+        const wasBrowsing = !picker.hidden;
+        picker.hidden = !seriesMode;
+        routes.classList.toggle('is-browsing', seriesMode);
+        const available = [];
         let chapterCount = 0;
         for (const group of groups) {
             let count = 0;
             for (const item of group.items) {
-                item.li.hidden = !eligible.has(item.href);
+                item.li.hidden = !eligible.has(item.row);
                 if (!item.li.hidden) {
                     count++;
-                    const link = item.li.querySelector('a');
-                    showMatches(link, link.textContent, matcher);
+                    showMatches(item.link, item.title, matcher);
+                    if (seriesMode) showSectionLinks(item.link, item.row, matcher);
                 }
             }
             group.element.hidden = count === 0;
             group.count.textContent = count === group.items.length ? count + ' 篇' : count + ' / ' + group.items.length + ' 篇';
-            if (count) groupCount++;
+            group.button.hidden = !count;
+            group.button.querySelector('small').textContent = group.count.textContent;
+            if (count) {
+                available.push(group);
+                const first = group.items.find(item => !item.li.hidden);
+                group.start.href = first.link.href;
+                group.start.textContent = first === group.items[0] ? '从第一篇读起 →' : '阅读首个匹配章节 →';
+            }
+            if (!seriesMode && wasBrowsing) group.element.open = false;
             chapterCount += count;
         }
-        routes.hidden = !groupCount || (!seriesMode && state.stack === 'all');
+        const groupCount = available.length;
+        routes.hidden = !groupCount || (!seriesMode && (state.stack === 'all' || words.length > 0));
         if (seriesMode) {
+            const selectedGroup = available.find(group => group.element.dataset.series === selectedSeries) || available[0];
+            for (const group of available) {
+                const chosen = group === selectedGroup;
+                group.button.setAttribute('aria-pressed', String(chosen));
+                group.element.open = chosen;
+                group.element.hidden = !chosen;
+            }
             status.textContent = groupCount + ' 个系列 · ' + chapterCount + ' 篇章节';
             ledger.hidden = more.hidden = end.hidden = true;
             empty.hidden = groupCount > 0;
+        }
+        if (words.length && !sectionsLoaded) {
+            if (sectionsLoading) {
+                status.textContent = matching.length ? status.textContent + ' · 正在检索小节' : '正在检索文章小节…';
+                empty.hidden = true;
+            } else status.textContent += ' · 小节索引暂不可用';
         }
         order.disabled = seriesMode;
         activeTag.hidden = !state.tag;
@@ -192,10 +295,18 @@
         if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         state.stack = link.dataset.collection;
+        selectedSeries = '';
         state.kind = '';
         state.tag = '';
         update();
     }));
+    picker.addEventListener('click', event => {
+        const button = event.target.closest('[data-pick-series]');
+        if (!button) return;
+        selectedSeries = button.dataset.pickSeries;
+        writeLocation();
+        render(false);
+    });
     modes.forEach(button => button.addEventListener('click', () => { state.mode = button.dataset.mode; update(); }));
     kinds.forEach(button => button.addEventListener('click', () => {
         state.kind = state.kind === button.dataset.kind ? '' : button.dataset.kind;
@@ -215,7 +326,7 @@
             state.q = query.value.trim();
             update(false);
         }
-        const first = state.mode === 'series' ? routes.querySelector('details:not([hidden]) summary')
+        const first = state.mode === 'series' ? picker.querySelector('button[aria-pressed=true]:not([hidden])')
             : ledger.querySelector('[data-article]:not([hidden]) h2 a');
         if (first) { event.preventDefault(); first.focus(); }
     });
@@ -230,6 +341,7 @@
     activeTag.addEventListener('click', () => { state.tag = ''; update(); });
     resets.forEach(button => button.addEventListener('click', () => {
         clearTimeout(searchTimer);
+        selectedSeries = '';
         state = { stack: 'all', q: '', order: 'newest', tag: '', mode: 'articles', kind: '' };
         query.value = '';
         order.value = 'newest';

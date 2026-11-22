@@ -58,6 +58,7 @@ body.celestial-reader > .footer {
   overflow: hidden;
   pointer-events: none;
   contain: strict;
+  background-color: var(--reader-bg);
   background-image:
     radial-gradient(circle at 23px 43px, rgba(235, 241, 248, .65) .9px, transparent 1.7px),
     radial-gradient(circle at 127px 173px, rgba(var(--reader-accent), .6) 1px, transparent 1.8px),
@@ -79,16 +80,15 @@ body.celestial-reader > .footer {
     radial-gradient(ellipse at 30% 72%, rgba(var(--reader-accent), .17), transparent 48%);
   animation: reader-nebula-drift 180s ease-in-out infinite alternate;
 }
-.celestial-reader .reader-sky__nebula--near {
-  top: 17vh;
-  left: calc(var(--reader-gutter) * .5 - 148px);
-  width: clamp(270px, 23vw, 430px);
+.celestial-reader .reader-galaxy {
+  position: absolute;
+  top: 25vh;
+  left: calc(var(--reader-gutter) * .35 - 125px);
+  width: clamp(290px, 24vw, 410px);
+  max-width: none;
   height: auto;
-  aspect-ratio: 760 / 408;
-  border-radius: 0;
-  background: url('../img/distant-spiral.webp') center / contain no-repeat;
-  mix-blend-mode: screen;
-  opacity: .58;
+  opacity: .8;
+  animation: reader-nebula-drift 180s ease-in-out infinite alternate;
 }
 .celestial-reader .reader-sky__nebula--far {
   right: calc(var(--reader-gutter) * .5 - 180px);
@@ -150,7 +150,7 @@ body.celestial-reader > .footer {
   0%, 100% { opacity: .2; transform: scale(.8); }
   48% { opacity: .95; transform: scale(1.12); }
 }
-.celestial-reader.reader-sky-paused :is(.reader-sky__nebula, .reader-sky__star) {
+.celestial-reader.reader-sky-paused :is(.reader-galaxy, .reader-sky__nebula, .reader-sky__star) {
   animation-play-state: paused;
 }
 /* A short, theme-colored arrival, with no click interception or navigation delay. */
@@ -259,12 +259,12 @@ body.celestial-reader ::selection {
 }
 
 @media (max-width: 767px) {
-  .celestial-reader .reader-sky__nebula--near { left: -190px; opacity: .65; }
+  .celestial-reader .reader-galaxy { left: -124px; top: 19vh; width: 260px; opacity: .6; }
   .celestial-reader :is(.reader-sky__crescent, .reader-sky__stars) { display: none; }
   .celestial-reader .reader-sky__nebula--far { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .celestial-reader :is(.reader-sky__nebula, .reader-sky__star),
+  .celestial-reader :is(.reader-galaxy, .reader-sky__nebula, .reader-sky__star),
   .celestial-reader .column-main > .card:first-child { animation: none; }
   .celestial-reader .reader-sky__star { opacity: .65; }
 }
@@ -293,35 +293,8 @@ body.celestial-reader ::selection {
 .code-tools button { background: transparent; border: 0; color: var(--reader-link); cursor: pointer; }
 .article .content .code-tools + figure.highlight { margin-top: 0; overflow-x: auto; }
 
-/* One Cassini exposure supplies both the large-scale limb and the title crop. */
-.reader-limb {
-  position: absolute; width: clamp(260px, 23vw, 520px); height: 80vh; top: 10vh;
-  right: calc(var(--reader-gutter) * .55 - clamp(160px, 15vw, 360px));
-  background: url('../img/cassini-pia08271.webp') 20% 50% / cover no-repeat;
-  opacity: .68; mix-blend-mode: screen;
-  mask-image: linear-gradient(0deg,transparent,#000 18%,#000 78%,transparent);
-}
-.reader-masthead {
-  position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center;
-  min-height: clamp(155px, 16vw, 216px); border-block: 1px solid rgba(var(--reader-accent), .18);
-  background: linear-gradient(110deg, rgba(var(--reader-accent),.07), transparent 45%), #070a10;
-}
-.reader-masthead::before { content: ''; position: absolute; left: 0; top: 21%; bottom: 21%; width: 2px;
-  background: linear-gradient(transparent, var(--reader-link), transparent); }
-.reader-exposure { position: absolute; right: 0; top: 0; width: 46%; height: 100%; object-fit: cover; object-position: 45% 43%;
-  mix-blend-mode: screen; opacity: .86; mask-image: linear-gradient(90deg, transparent, #000 27%); }
-.reader-heading { position: relative; z-index: 1; width: 77%; padding: clamp(1.1rem,3.2vw,2.7rem); }
-.reader-heading .reader-collection { display: inline-flex; gap: .65em; color: var(--reader-link); font: .77rem/1.4 monospace; letter-spacing: .07em; }
-body.celestial-reader .reader-heading h1.title { margin: .72rem 0 0; font-size: clamp(1.45rem,2.5vw,2.6rem); line-height: 1.35; letter-spacing: -.025em;
-  color: #e8edf1; overflow-wrap: anywhere; text-wrap: balance; }
-.exposure-credit { position: absolute; right: .7rem; bottom: .4rem; padding: .3rem; font: .62rem monospace; letter-spacing: .04em; color: #c2cacf; }
-.reader-masthead a:focus-visible { outline: 1px solid var(--reader-link); outline-offset: 3px; }
-body.immersive-reading .reader-exposure { opacity: .38; }
-@media (max-width: 760px) {
-  .reader-heading { width: 84%; padding-bottom: 2rem; } .reader-exposure { opacity: .56; width: 38%; }
-  .reader-limb { display: none; }
-}
-.reading-dock:not([hidden]) { display: flex; position: sticky; top: 3.6rem; z-index: 3; align-items: center; gap: 1rem; margin: 1rem 0;
+.celestial-reader .card.reader-article-card { overflow: clip; }
+.reading-dock:not([hidden]) { display: flex; position: sticky; top: max(3.75rem, 60px); z-index: 3; align-items: center; gap: 1rem; margin: 1rem 0;
   border-block: 1px solid var(--reader-line); padding: .45rem .15rem; background: var(--reader-card); }
 .focus-reading, .code-viewer button { margin-left: auto; flex: none; border: 1px solid var(--reader-line); background: var(--reader-bg); color: var(--reader-link); border-radius: 1.2rem; padding: .3rem .75rem; font-size: .78rem; cursor: pointer; }
 .chapter-dial { display: grid; gap: .15rem; flex: 1; min-width: 0; }
@@ -368,6 +341,182 @@ body.immersive-reading .reader-sky { opacity: .66; }
 .code-search button:disabled { opacity: .35; cursor: default; }
 ::highlight(goko-code-hit) { color: #101317; background-color: #bbd9ff; }
 
-.reader-limb, .reader-exposure {
-  filter: grayscale(1) sepia(.6) hue-rotate(179deg) saturate(1.9);
+.reader-search-return:not([hidden]) {
+  flex: none;
+  padding: .25rem .6rem .25rem .1rem;
+  border-right: 1px solid var(--reader-line);
+  color: var(--reader-link);
+  font-size: .76rem;
+  text-underline-offset: .24em;
+}
+.reader-search-return:hover { text-decoration: underline; }
+body.celestial-reader .article .content :is(h1,h2,h3,h4,h5,h6):target {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(var(--reader-accent), .65);
+  text-underline-offset: .22em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  body.celestial-reader .article .content :is(h1,h2,h3,h4,h5,h6):target {
+    animation: section-arrival 1.3s ease-out;
+  }
+  @keyframes section-arrival {
+    from { background-color: rgba(var(--reader-accent), .17); }
+    to { background-color: transparent; }
+  }
+}
+
+/* A full-width opening above an independent reading column and margin notes. */
+.journal-reader .reader-cover {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: clip;
+  min-height: clamp(305px, 41svh, 485px);
+  display: grid;
+  align-items: center;
+  border-block-end: 1px solid rgba(var(--reader-accent), .26);
+  background: radial-gradient(ellipse at 64% 7%, rgba(var(--reader-accent), .105), transparent 62%);
+}
+.reader-flyby {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: min(73%, 1450px);
+  height: 100%;
+  z-index: -2;
+  object-fit: cover;
+  object-position: 62% 48%;
+  pointer-events: none;
+}
+.reader-cover::after {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, transparent 30%, rgba(5,10,22,.14) 51%, transparent 73%),
+              linear-gradient(0deg, rgba(4,9,20,.50), transparent 23%);
+}
+.reader-cover-inner {
+  box-sizing: border-box;
+  width: min(100%, 1400px);
+  margin: auto;
+  padding: clamp(32px, 5.2vh, 68px) clamp(24px, 6vw, 100px);
+}
+.reader-breadcrumb { display: flex; gap: .9em; align-items: baseline; font-size: .86rem; }
+.reader-breadcrumb a { text-underline-offset: .3em; }
+.reader-breadcrumb a:hover { text-decoration: underline; }
+.reader-breadcrumb span { color: #8192ab; }
+.reader-cover h1 {
+  width: min(61%, 21em);
+  margin: .5em 0 .55em;
+  font-family: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', 'STSong', serif;
+  font-size: clamp(2.1rem, 3.55vw, 4.25rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+  color: #f0f5ff;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  text-shadow: 0 2px 14px #030913;
+}
+body.journal-reader .reader-cover .article-meta { margin: 0; color: #b7c8dd; font-size: .79rem; }
+.reader-cover .level-left { display: flex; flex-wrap: wrap; gap: .45em 1.1em; }
+.reader-cover .level-left > .level-item { margin: 0; flex: none; }
+body.journal-reader > .section { padding-top: clamp(18px, 2.6vw, 42px); }
+body.journal-reader > .section > .container { width: min(100%, 1190px); max-width: none; }
+body.journal-reader .reader-article-card {
+  background: color-mix(in srgb, var(--reader-bg) 52%, var(--reader-card));
+  border: 0;
+  border-top: 1px solid var(--reader-line);
+  border-radius: 0;
+}
+body.journal-reader .reader-article-card > .article {
+  padding: 0 clamp(20px, 3.4vw, 52px) clamp(25px, 3.4vw, 52px);
+}
+body.journal-reader .reading-dock {
+  margin: 0 0 1.35rem;
+  padding: .55rem 0;
+  background: color-mix(in srgb, var(--reader-bg) 52%, var(--reader-card));
+  border-top: 0;
+}
+body.journal-reader .article .content { font-size: clamp(15px, 1.12vw, 17px); line-height: 1.94; }
+body.journal-reader .article .content h2 { margin-top: 2.1em; font-size: clamp(1.38rem, 1.95vw, 1.93rem); }
+body.journal-reader .article .content figure.highlight .code { font-variant-ligatures: none; }
+.reader-sidebar > .card[data-type=profile] { border: 0; background: transparent; }
+body.journal-reader .reader-sidebar .card[data-type=profile] > .card-content { padding: .5rem .55rem .7rem; }
+.reader-sidebar .card[data-type=profile] figure.image { width: 62px; height: 62px; }
+.reader-sidebar .card[data-type=profile] .level { margin-bottom: .65rem; }
+.reader-sidebar .card[data-type=profile] hr { margin: .8rem 0; }
+.reader-blog-links { border-block: 1px solid var(--reader-line); color: var(--reader-muted); font-size: .82rem; }
+.reader-blog-links > summary, .reading-outline > summary { cursor: pointer; padding: .75rem 0; }
+.reader-outline-slot { position: sticky; top: 5.2rem; }
+.reader-sidebar .reading-outline { border: 0; border-radius: 0; padding: .2rem 0 .7rem; background: var(--reader-bg); }
+.reading-outline nav { max-height: min(54vh, 33rem); overscroll-behavior: contain; scrollbar-width: thin; }
+.reading-outline nav a { padding: .35rem .45rem .35rem calc(.7rem + var(--heading-depth, 0) * .75rem); }
+.reading-outline nav a[aria-current] { border-left-width: 2px; }
+body.journal-reader .series-chapters { margin: .7rem 0 1.3rem; border-top: 0; }
+@media (min-width: 1024px) {
+  body.journal-reader > .section .columns {
+    display: grid;
+    grid-template-columns: minmax(185px, 224px) minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 66px);
+    margin-inline: 0;
+  }
+  body.journal-reader .columns > .column { min-width: 0; width: auto; padding: 0; }
+  .journal-reader .reader-sidebar { grid-area: 1 / 1; align-self: stretch; }
+  .journal-reader .column-main { grid-area: 1 / 2; }
+  body.journal-reader.immersive-reading > .section .columns { display: block; }
+  body.journal-reader.immersive-reading .column-main { max-width: 55rem; margin: auto; }
+}
+@media (max-width: 1023px) {
+  body.journal-reader > .section .columns { display: flex; flex-direction: column; gap: 1rem; }
+  body.journal-reader > .section .columns > .column-main { order: 0; width: 100%; }
+  body.journal-reader .reader-sidebar { order: 1; width: 100%; }
+}
+@media (max-width: 720px) {
+  body.journal-reader > .section { padding: 18px 12px 32px; }
+  body.journal-reader .reader-cover { min-height: 318px; align-items: end; }
+  .reader-cover-inner { padding: 112px 22px 27px; }
+  .reader-flyby { width: 104%; height: 84%; object-position: 42% 30%; }
+  .reader-cover::after { background: linear-gradient(0deg, var(--reader-bg) 2%, rgba(5,10,22,.86) 36%, rgba(5,10,22,.18) 73%, transparent); }
+  .reader-cover h1 { width: min(100%, 21em); font-size: clamp(1.95rem, 6.6vw, 2.7rem); }
+  .reader-breadcrumb { font-size: .8rem; }
+  .reader-cover .article-meta .level-left { gap: .25rem .55rem; }
+  body.journal-reader .reader-article-card > .article { padding-inline: clamp(13px, 3.5vw, 22px); }
+  body.journal-reader .reading-dock { flex-wrap: wrap; gap: .25rem .5rem; }
+  .journal-reader .chapter-dial { flex-basis: 100%; order: -1; }
+  body.journal-reader .article .content :is(h1,h2,h3,h4,h5,h6)[id] { scroll-margin-top: 10.5rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .reader-flyby { animation: reader-flyby-arrive .85s ease-out both; }
+  @keyframes reader-flyby-arrive { from { opacity: .7; transform: translateX(9px); } }
+}
+@media print {
+  .journal-reader .reader-cover { min-height: auto; border: 0; }
+  .reader-flyby, .reader-sidebar, .reader-cover::after { display: none; }
+  .reader-cover-inner { padding: 1rem 0; }
+  .reader-cover h1 { width: 100%; color: black; text-shadow: none; }
+}
+
+/* Keep the complete article navbar and the reading controls on separate rows. */
+body.journal-reader.has-navbar-fixed-top { padding-top: 60px; }
+.journal-reader .navbar-main { height: 60px; min-height: 0; }
+.journal-reader .navbar-main .navbar-container {
+  display: flex; flex-direction: row; align-items: stretch; height: 100%;
+  width: min(calc(100% - 36px), 1330px); margin: auto; overflow: visible;
+}
+.journal-reader .navbar-main .navbar-brand { min-height: 0; margin: 0; flex: none; }
+.journal-reader .navbar-main .navbar-menu {
+  min-width: 0; display: flex; flex-wrap: nowrap; flex: 1; align-items: stretch;
+  justify-content: space-between; box-shadow: none; background: transparent; overflow: visible; margin: 0;
+}
+.journal-reader .navbar-main .navbar-start { min-width: 0; flex-shrink: 1; overflow-x: auto; scrollbar-width: none; }
+.journal-reader .navbar-main .navbar-end { flex: none; display: flex; align-items: stretch; }
+.journal-reader .navbar-main .navbar-item { white-space: nowrap; flex-shrink: 0; }
+.journal-wordmark { font: 600 15px/1 ui-monospace, monospace; letter-spacing: .16em; color: #e2edff; }
+.reader-breadcrumb { flex-wrap: wrap; }
+.reader-series-link { border-left: 1px solid var(--reader-line); padding-left: .8em; font-size: .92em; }
+@media (max-width:720px) {
+  .journal-reader .navbar-main .navbar-container { width: calc(100% - 16px); }
+  .journal-reader .navbar-main .navbar-item { padding: .4rem .36rem; font-size: .77rem; }
+  .journal-wordmark { font-size: 12px; letter-spacing: .09em; }
 }
